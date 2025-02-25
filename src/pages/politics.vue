@@ -1,6 +1,6 @@
 <script setup>
 import { useRoute } from 'vue-router'
-import Settlements from '@/views/pages/politics/Settlements.vue'
+import Ownerships from '@/views/pages/politics/Ownerships.vue'
 import PoliticalActions from '@/views/pages/politics/PoliticalActions.vue'
 import Nobles from '@/views/pages/politics/Nobles.vue'
 
@@ -12,7 +12,7 @@ const tabs = [
   {
     title: 'Владения',
     icon: 'ri-road-map-line',
-    tab: 'settlements',
+    tab: 'ownerships',
   },
   {
     title: 'Политические действия',
@@ -53,8 +53,8 @@ const tabs = [
       class="mt-5 disable-tab-transition"
       :touch="false"
     >
-      <VWindowItem value="settlements">
-        <Settlements />
+      <VWindowItem value="ownerships">
+        <Ownerships />
       </VWindowItem>
 
       <VWindowItem value="political_actions">
