@@ -2,6 +2,7 @@
   import axios from 'axios'
   import Ownership from '@/views/pages/politics/Ownership.vue'
   import { reactive, computed } from 'vue'
+  import { ref } from 'vue'
 
   const navigationTab = ref('settlements')
 
@@ -16,10 +17,10 @@
     }
   ]
 
-  const settlements = reactive([]);
-  const regions = reactive([]);
-  const selected_nobles = reactive([]);
-  const nobles = reactive([]);
+  const settlements = ref([]);
+  const regions = ref([]);
+  const selected_nobles = ref([]);
+  const nobles = ref([]);
 
   const filteredSettles = computed(() => {
     if (selected_nobles.value.length === 0){
