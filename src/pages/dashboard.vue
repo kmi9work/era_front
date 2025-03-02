@@ -9,6 +9,7 @@ import AnalyticsTransactions from '@/views/dashboard/AnalyticsTransactions.vue'
 import AnalyticsUserTable from '@/views/dashboard/AnalyticsUserTable.vue'
 import AnalyticsWeeklyOverview from '@/views/dashboard/AnalyticsWeeklyOverview.vue'
 import NobleIncome from '@/views/dashboard/NobleIncome.vue'
+import PublicOrder from '@/views/dashboard/PublicOrder.vue'
 import CardStatisticsVertical from '@core/components/cards/CardStatisticsVertical.vue'
 
 const totalProfit = {
@@ -34,6 +35,10 @@ const newProject = {
   <VRow class="match-height">
     <VCol>
       <NobleIncome />
+    </VCol>
+
+    <VCol>
+      <PublicOrder />
     </VCol>
 
     <VCol
