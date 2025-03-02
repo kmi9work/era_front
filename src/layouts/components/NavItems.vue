@@ -6,21 +6,12 @@ import VerticalNavLink from '@layouts/components/VerticalNavLink.vue'
 
 <template>
   <!-- 👉 Dashboards -->
-  <VerticalNavGroup
+  <VerticalNavLink
     :item="{
-      title: 'Dashboards',
-      badgeContent: '5',
-      badgeClass: 'bg-error',
-      icon: 'ri-home-smile-line',
+      title: 'Информация',
+      to: '/dashboard',
     }"
-  >
-    <VerticalNavLink
-      :item="{
-        title: 'Analytics',
-        to: '/dashboard',
-      }"
-    />
-  </VerticalNavGroup>
+  />
 
   <!-- 👉 Apps & Pages -->
   <VerticalNavSectionTitle

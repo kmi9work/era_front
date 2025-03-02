@@ -6,6 +6,7 @@
 
   const navigationTab = ref('settlements')
 
+
   const tabItems = [
     {
       name: 'Города Руси',
@@ -17,10 +18,14 @@
     }
   ]
 
+  const countries = ref([]);
   const settlements = ref([]);
   const regions = ref([]);
+
   const selected_nobles = ref([]);
   const nobles = ref([]);
+
+  const tab = ref('option-1');
 
   const filteredSettles = computed(() => {
     if (selected_nobles.value.length === 0){
@@ -38,25 +43,27 @@
     }
   })
 
+  const regionsByCountry = (country_id) => {
+    return filteredRegions.value.filter(region => region.country?.id == country_id);
+  }
+
   onBeforeMount(async () => {
     await axios.get(`${import.meta.env.VITE_PROXY}/settlements.json`) 
       .then(response => {
         settlements.value = response.data;
       })
-      .catch(e => {
-      });
-    await axios.get(`${import.meta.env.VITE_PROXY}/regions.json`) 
+    await axios.get(`${import.meta.env.VITE_PROXY}/regions.json?foreign=1`) 
       .then(response => {
         regions.value = response.data;
       })
-      .catch(e => {
-      });
     await axios.get(`${import.meta.env.VITE_PROXY}/players.json`) 
       .then(response => {
-        nobles.value = response.data.filter((player) => player.player_type?.id == 2);
+        nobles.value = response.data.filter((player) => player.player_type?.id == 2); // 2 - Знать
       })
-      .catch(e => {
-      });
+    await axios.get(`${import.meta.env.VITE_PROXY}/countries.json?foreign=1`) 
+      .then(response => {
+        countries.value = response.data;
+      })
   })
 
   
@@ -79,7 +86,7 @@
         <VTab
           v-for="item in tabItems"
           :key="item.key"
-          :value="item.name"
+          :value="item.key"
         >
           {{ item.name }}
         </VTab>
@@ -88,24 +95,70 @@
         <VWindowItem
           v-for="(item) in tabItems"
           :key="item.key"
-          :value="item.name"
+          :value="item.key"
         >
           <VCardText>
             <VRow>
-              <VCol
-                v-for="(settlement, i) in filteredSettles"
-                v-if="item.key == 'settlements'"
-                :key="settlement.name"
-              >
-                <Ownership :id='settlement.id' type="settlement"/>
-              </VCol>
-              <VCol
-                v-for="(region, i) in filteredRegions"
-                v-else-if="item.key == 'regions'"
-                :key="region.title"
-              >
-                <Ownership :id='region.id' type="region"/>
-              </VCol>
+              <template v-if="item.key == 'settlements'">
+                <VCol
+                  v-for="(settlement, i) in filteredSettles"
+                  :key="settlement.name"
+                >
+                  <Ownership :id='settlement.id' type="settlement"/>
+                </VCol>
+              </template>
+
+
+
+
+              <template v-else-if="item.key == 'regions'">
+                <div class="d-flex flex-row">
+                    <v-tabs
+                      v-model="tab"
+                      color="primary"
+                      direction="vertical"
+                    >
+                      <v-tab 
+                        v-for="(country, c_i) in countries"
+                        :text="country.title" 
+                        :value="country.id"
+                      ></v-tab>
+                    </v-tabs>
+
+                    <v-tabs-window v-model="tab">
+                      <v-tabs-window-item 
+                        v-for="(country, c_i) in countries"
+                        :value="country.id"
+                      >
+                        <v-card flat>
+                          <v-card-text>
+                            <VRow>
+                              <VCol
+                                v-for="(region, i) in regionsByCountry(country.id)"
+                                :key="region.title"
+                              >
+                                <Ownership :id='region.id' type="region"/>
+                              </VCol>
+                            </VRow>
+                          </v-card-text>
+                        </v-card>
+                      </v-tabs-window-item>
+                    </v-tabs-window>
+                  </div>
+                </template>
+
+
+
+
+
+
+
+
+
+
+
+
+              
             </VRow>
           </VCardText>
         </VWindowItem>

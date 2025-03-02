@@ -1,5 +1,26 @@
 <script setup>
-import avatar1 from '@images/avatars/avatar-1.png'
+  import axios from 'axios'
+
+  const users = ref([]);
+  const current_user = ref({});
+
+  onBeforeMount(async () => {
+    await axios.get(`${import.meta.env.VITE_PROXY}/users.json`)
+      .then(async (response) => {
+        users.value = response.data;
+      })
+    await axios.get(`${import.meta.env.VITE_PROXY}/current_user.json`)
+      .then(async (response) => {
+        current_user.value = response.data;
+      })
+  })
+
+  async function loginUser(user_id) {
+    await axios.get(`${import.meta.env.VITE_PROXY}/login/${user_id}.json`)
+      .then(async (response) => {
+        current_user.value = response.data; 
+      })
+  };
 </script>
 
 <template>
@@ -8,7 +29,7 @@ import avatar1 from '@images/avatars/avatar-1.png'
     location="bottom right"
     offset-x="3"
     offset-y="3"
-    color="success"
+    :color="current_user.id ? 'success' : 'error'"
     bordered
   >
     <VAvatar
@@ -16,110 +37,23 @@ import avatar1 from '@images/avatars/avatar-1.png'
       color="primary"
       variant="tonal"
     >
-      <VImg :src="avatar1" />
-
+      <v-icon icon="ri-id-card-line"></v-icon>
       <!-- SECTION Menu -->
       <VMenu
         activator="parent"
-        width="230"
+        width="300"
         location="bottom end"
         offset="14px"
       >
         <VList>
-          <!-- 👉 User Avatar & Name -->
-          <VListItem>
-            <template #prepend>
-              <VListItemAction start>
-                <VBadge
-                  dot
-                  location="bottom right"
-                  offset-x="3"
-                  offset-y="3"
-                  color="success"
-                >
-                  <VAvatar
-                    color="primary"
-                    variant="tonal"
-                  >
-                    <VImg :src="avatar1" />
-                  </VAvatar>
-                </VBadge>
-              </VListItemAction>
-            </template>
-
-            <VListItemTitle class="font-weight-semibold">
-              John Doe
-            </VListItemTitle>
-            <VListItemSubtitle>Admin</VListItemSubtitle>
-          </VListItem>
-          <VDivider class="my-2" />
-
           <!-- 👉 Profile -->
-          <VListItem link>
-            <template #prepend>
-              <VIcon
-                class="me-2"
-                icon="ri-user-line"
-                size="22"
-              />
-            </template>
-
-            <VListItemTitle>Profile</VListItemTitle>
-          </VListItem>
-
-          <!-- 👉 Settings -->
-          <VListItem link>
-            <template #prepend>
-              <VIcon
-                class="me-2"
-                icon="ri-settings-4-line"
-                size="22"
-              />
-            </template>
-
-            <VListItemTitle>Settings</VListItemTitle>
-          </VListItem>
-
-          <!-- 👉 Pricing -->
-          <VListItem link>
-            <template #prepend>
-              <VIcon
-                class="me-2"
-                icon="ri-money-dollar-circle-line"
-                size="22"
-              />
-            </template>
-
-            <VListItemTitle>Pricing</VListItemTitle>
-          </VListItem>
-
-          <!-- 👉 FAQ -->
-          <VListItem link>
-            <template #prepend>
-              <VIcon
-                class="me-2"
-                icon="ri-question-line"
-                size="22"
-              />
-            </template>
-
-            <VListItemTitle>FAQ</VListItemTitle>
-          </VListItem>
-
-          <!-- Divider -->
-          <VDivider class="my-2" />
-
-          <!-- 👉 Logout -->
-          <VListItem to="/login">
-            <template #prepend>
-              <VIcon
-                class="me-2"
-                icon="ri-logout-box-r-line"
-                size="22"
-              />
-            </template>
-
-            <VListItemTitle>Logout</VListItemTitle>
+          <VListItem 
+            v-for="(user, i) in users"
+            :key="i"
+            @click="loginUser(user.id)"
+            :active="user.id == current_user.id"
+          >
+            <VListItemTitle>{{user.name}} | {{user.job}}</VListItemTitle>
           </VListItem>
         </VList>
       </VMenu>
