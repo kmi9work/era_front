@@ -117,7 +117,9 @@
                       v-model="tab"
                       color="primary"
                       direction="vertical"
+
                     >
+                      <h2> fsfdfs</h2>
                       <v-tab 
                         v-for="(country, c_i) in countries"
                         :text="country.title" 
