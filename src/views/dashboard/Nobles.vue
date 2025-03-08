@@ -1,12 +1,11 @@
 <script setup>
   import axios from 'axios'
-
-  const regions = ref([]);
   
+  const nobles = ref([]);
   onBeforeMount(async () => {
-    axios.get(`${import.meta.env.VITE_PROXY}/regions.json?foreign=0`) 
+    axios.get(`${import.meta.env.VITE_PROXY}/players.json`) 
       .then(response => {
-        regions.value = response.data;
+        nobles.value = response.data.filter((player) => player.player_type?.id == 2); // 2 - Знать;
       })
   })
 </script>
@@ -15,7 +14,7 @@
 <template>
   <VCard max-width="600">
     <VCardItem>
-      <VCardTitle>Общественный порядок</VCardTitle>
+      <VCardTitle>Знать</VCardTitle>
     </VCardItem>
 
     <VCardText>
@@ -23,18 +22,27 @@
         <thead>
           <tr>
             <th class="text-left">
-              Регион
+              Игрок
             </th>
             <th class="text-left">
-              ОП
+              Должность
+            </th>
+            <th class="text-left">
+              Доход
+            </th>
+            <th class="text-left">
+              Влияние
             </th>
           </tr>
         </thead>
         <tbody>
           <tr
-            v-for="(region, ri) in regions"
-            :key="region.id"
+            v-for="player in nobles"
+            :key="player.id"
           >
+            <td>{{ player.name }}</td>
+            <td>{{ player.job.name }}</td>
+            <td>{{ player.income }}</td>
             <td>
               <v-btn
                 class="text-none"
@@ -42,24 +50,22 @@
                 variant="text"
                 rounded
                 prepend-icon="ri-arrow-down-double-fill"
-                min-width="300"
+                min-width="50"
                 style="justify-content: start;"
               >
-                {{ region.name }}
+                {{ player.influence }}
                 <v-menu activator="parent">
                   <VList>
                     <VListItem 
-                      v-for="(poi, i) in region.public_order_items"
+                      v-for="(item, i) in player.influence_items"
                       :key="i"
                     >
-                      <VListItemTitle>{{poi.comment}} | {{poi.value}}</VListItemTitle>
+                      <VListItemTitle>{{item.comment}} | {{item.value}}</VListItemTitle>
                     </VListItem>
                   </VList>
                 </v-menu>
               </v-btn>
-              
             </td>
-            <td>{{ region.show_overall_po }}</td>
           </tr>
         </tbody>
       </v-table>

@@ -1,12 +1,12 @@
 <script setup>
   import axios from 'axios'
 
-  const regions = ref([]);
+  const countries = ref([]);
   
   onBeforeMount(async () => {
-    axios.get(`${import.meta.env.VITE_PROXY}/regions.json?foreign=0`) 
+    axios.get(`${import.meta.env.VITE_PROXY}/countries.json?foreign=1`) 
       .then(response => {
-        regions.value = response.data;
+        countries.value = response.data;
       })
   })
 </script>
@@ -15,7 +15,7 @@
 <template>
   <VCard max-width="600">
     <VCardItem>
-      <VCardTitle>Общественный порядок</VCardTitle>
+      <VCardTitle>Отношения</VCardTitle>
     </VCardItem>
 
     <VCardText>
@@ -23,17 +23,17 @@
         <thead>
           <tr>
             <th class="text-left">
-              Регион
+              Страна
             </th>
             <th class="text-left">
-              ОП
+              Отношения
             </th>
           </tr>
         </thead>
         <tbody>
           <tr
-            v-for="(region, ri) in regions"
-            :key="region.id"
+            v-for="(country, ri) in countries"
+            :key="country.id"
           >
             <td>
               <v-btn
@@ -45,21 +45,21 @@
                 min-width="300"
                 style="justify-content: start;"
               >
-                {{ region.name }}
+                {{ country.name }}
                 <v-menu activator="parent">
                   <VList>
                     <VListItem 
-                      v-for="(poi, i) in region.public_order_items"
+                      v-for="(item, i) in country.relation_items"
                       :key="i"
                     >
-                      <VListItemTitle>{{poi.comment}} | {{poi.value}}</VListItemTitle>
+                      <VListItemTitle>{{item.comment}} | {{item.value}}</VListItemTitle>
                     </VListItem>
                   </VList>
                 </v-menu>
               </v-btn>
               
             </td>
-            <td>{{ region.show_overall_po }}</td>
+            <td>{{ country.relations }}</td>
           </tr>
         </tbody>
       </v-table>
