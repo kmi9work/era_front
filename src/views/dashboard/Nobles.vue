@@ -17,6 +17,15 @@
         emit('reload-dashboard');
       })
   }
+
+  async function takeIncome(params, player_id){
+    params['income_taken'] = !params['income_taken']
+    axios.patch(`${import.meta.env.VITE_PROXY}/players/${player_id}.json`, {params: params}) 
+      .then(response => {
+        emit('reload-dashboard');
+      })
+  }
+
 </script>
 
 
@@ -51,7 +60,14 @@
           >
             <td>{{ player.name }}</td>
             <td>{{ player.job.name }}</td>
-            <td>{{ player.income }}</td>
+            <td>
+              <VBtn 
+                :color="player.params['income_taken'] ? 'success' : 'error'"
+                @click="takeIncome(player.params, player.id)"
+              >
+                {{ player.income }}
+              </VBtn>
+            </td>
             <td>
               <v-btn
                 class="text-none"
@@ -69,10 +85,13 @@
                       v-for="(item, i) in player.influence_items"
                       :key="i"
                     >
-                      <VListItemTitle>
+                      <VListItemTitle v-if="item.id != 0">
                         <a href="#" @click="editItem(item.id, item.value)">
                           {{item.comment}} | {{item.value}} <span v-if="item.year">Год: {{item.year}}</span>
                         </a>
+                      </VListItemTitle>
+                      <VListItemTitle v-else>
+                        {{item.comment}} | {{item.value}} <span v-if="item.year">Год: {{item.year}}</span>
                       </VListItemTitle>
                     </VListItem>
                   </VList>
