@@ -1,122 +1,169 @@
-<script>
+<script setup>
   import axios from 'axios'
-  
-  export default {
-    setup(props){
-    },
-    data: () => {
-      return {
-        plants: [],
-        dialog: false,
-        notifications: false,
-        sound: true,
-        widgets: false,
+  import { ref } from 'vue'
+
+  onBeforeMount(async () => {
+    await axios.get(`${import.meta.env.VITE_PROXY}/countries/foreign_countries.json`)
+    .then(response => {
+      countries.value = response.data;
+      first_country.value = countries.value[0].id
+    })
+    .catch(e => {
+    });
+
+    await axios.get(`${import.meta.env.VITE_PROXY}/resources/show_prices.json`)
+    .then(response => {
+      resources.value = response.data.prices;
+    })
+    .catch(e => {
+    });
+  })
+
+  const countries = ref ([])
+  const first_country = ref ()
+  const prices = ref ([])
+  const selectedCountry = ref (first_country)
+  const resources = ref ([])
+  const resourcesPlSells = ref ([])
+  const resourcesPlBuys = ref ([])
+  const gold = ref (null)
+  const resToPlayer = ref ([])
+
+  const filteredResources = computed(() => {
+    let filtered = resources.value.filter((res) => res.country.id == selectedCountry.value)
+
+    resourcesPlSells.value = Array(filtered.length).fill(0).map(
+      function(_, i) {
+        return {"name": filtered[i].name, "identificator": filtered[i].identificator, "count": null}
+      })
+
+    resourcesPlBuys.value = Array(filtered.length).fill(0).map(
+      function(_, i) {
+        return {"name": filtered[i].name, "identificator": filtered[i].identificator, "count": null}
       }
-    },
-    created() {
-      axios.get(`${import.meta.env.VITE_PROXY}/plants.json`) 
-        .then(response => {
-          this.plants = response.data;
-        })
-        .catch(e => {
-          this.error.push(e)
-        });
-    },
-  }
-</script>
+      )
+    return filtered
+  })
 
-<template>
-  <div>
-    <v-dialog
-      v-model="dialog"
-      transition="dialog-bottom-transition"
-      fullscreen
-    >
-      <template v-slot:activator="{ props: activatorProps }">
-        <v-btn
-          prepend-icon="ri-arrow-up-box-line"
-          size="large"
-          text="Отправить караван"
-          v-bind="activatorProps"
-        ></v-btn>
-      </template>
+  function submit(){
+    const resToBack = {"country_id"  : selectedCountry.value,
+                       "res_pl_sells": resourcesPlSells.value,
+                       "res_pl_buys" : resourcesPlBuys.value,
+                       "gold"        : gold.value}
 
-      <v-card>
-        <v-toolbar>
-          <v-btn
-            icon="mdi-close"
-            @click="dialog = false"
-          ></v-btn>
+     axios.post(`${import.meta.env.VITE_PROXY}/resources/send_caravan`, resToBack)
+     .then(response => {
+      prices.value = response.data;
+      resToPlayer.value = prices.value["res_to_player"]
+    })
+     .catch(e => {
+     });
 
-          <v-toolbar-title>Обработать</v-toolbar-title>
 
-          <v-spacer></v-spacer>
 
-          <v-toolbar-items>
-            <v-btn
-              text="Close"
-              variant="text"
-              @click="dialog = false"
-            ></v-btn>
-          </v-toolbar-items>
-        </v-toolbar>
+   }
 
-        <v-list lines="two">
-          <v-list-subheader>User Controls</v-list-subheader>
 
-          <v-list-item
-            subtitle="Set the content filtering level to restrict apps that can be downloaded"
-            title="Content filtering"
-            link
-          ></v-list-item>
+ </script>
 
-          <v-list-item
-            subtitle="Require password for purchase or use password to restrict purchase"
-            title="Password"
-            link
-          ></v-list-item>
+ <template>
+     <div>
+    <VSelect
+    v-model="selectedCountry"
+    label="Select"
+    item-title="name"
+    item-value="id"
+    :items="countries"
+    ></VSelect>
 
-          <v-divider></v-divider>
+    <VCard title="">
+      <VCardText>
+        <VRow>
+          <VCol>
+            <VCard title='Игрок продает'>
+              <VCardText>
+                <v-col
+                 cols="12"
+                 md="4"
+                 sm="6"
+                 >
+                  <v-form @submit.prevent class= "px-3">
+                    <v-text-field
+                     v-for="item, index in filteredResources"
+                     v-model="resourcesPlSells[index].count"
+                     :key="index"
+                     :label="item.name"
+                     placeholder="Введите количество"
+                     variant="outlined"
+                     style="margin-bottom: 10px;"
+                     >
+                    </v-text-field>
+                  </v-form>
+                </v-col>
+              </VCardText>
+            </VCard>
+          </VCol>
+          <VCol>
+            <VCard title='Игрок покупает'>
+              <VCardText>
+               <v-col
+               cols="12"
+               md="4"
+               sm="6"
+               >
+                 <v-form @submit.prevent class= "px-3">
+                   <v-text-field
+                   v-for="item, index in filteredResources"
+                   v-model="resourcesPlBuys[index].count"
+                   :key="index"
+                   :label="item.name"
+                   placeholder="Введите количество"
+                   variant="outlined"
+                   style="margin-bottom: 10px;"
+                   >
+                 </v-text-field>
+               </v-form>
+              </v-col>
+             </VCardText>
+           </VCard>
+         </VCol>
+       </VRow>
 
-          <v-list-subheader>General</v-list-subheader>
+        <v-card
+        class="mx-auto my-8"
+        >
+          <v-card-item>
+            <v-form @submit.prevent>
+              <v-text-field
+              v-model="gold"
+              label="Золото"
+              ></v-text-field>
+            </v-form>
+          </v-card-item>
+        </v-card>
+      <v-btn class="mt-2" @click="submit" block>Загнать</v-btn>
 
-          <v-list-item
-            subtitle="Notify me about updates to apps or games that I downloaded"
-            title="Notifications"
-            @click="notifications = !notifications"
-          >
-            <template v-slot:prepend>
-              <v-list-item-action start>
-                <v-checkbox-btn v-model="notifications" color="primary"></v-checkbox-btn>
-              </v-list-item-action>
-            </template>
-          </v-list-item>
+      <p> </p>
+      <VCard title="Выдать игроку"
+      style="margin-bottom: 10px;">
+        <li v-for="item, index in resToPlayer">
+          <div v-if="item.count !== 0">
+          {{ item.name }}: {{ item.count }}
+        </div>
+          <p> </p>
+        </li>
+      </VCard>
 
-          <v-list-item
-            subtitle="Auto-update apps at any time. Data charges may apply"
-            title="Sound"
-            @click="sound = !sound"
-          >
-            <template v-slot:prepend>
-              <v-list-item-action start>
-                <v-checkbox-btn v-model="sound" color="primary"></v-checkbox-btn>
-              </v-list-item-action>
-            </template>
-          </v-list-item>
 
-          <v-list-item
-            subtitle="Automatically add home screen widgets"
-            title="Auto-add widgets"
-            @click="widgets = !widgets"
-          >
-            <template v-slot:prepend>
-              <v-list-item-action start>
-                <v-checkbox-btn v-model="widgets" color="primary"></v-checkbox-btn>
-              </v-list-item-action>
-            </template>
-          </v-list-item>
-        </v-list>
-      </v-card>
-    </v-dialog>
-  </div>
+    </VCardText>
+
+<p>  </p>
+
+<VCardActions>
+  <VBtn>Location</VBtn>
+  <VBtn>Reviews</VBtn>
+</VCardActions>
+</VCard>
+
+</div>
 </template>
