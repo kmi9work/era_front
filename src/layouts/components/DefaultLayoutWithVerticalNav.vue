@@ -1,13 +1,57 @@
 <script setup>
-import NavItems from '@/layouts/components/NavItems.vue'
-import logo from '@images/logo.svg?raw'
-import VerticalNavLayout from '@layouts/components/VerticalNavLayout.vue'
+  import axios from 'axios'
+  import NavItems from '@/layouts/components/NavItems.vue'
+  import logo from '@images/logo.svg?raw'
+  import VerticalNavLayout from '@layouts/components/VerticalNavLayout.vue'
 
-// Components
-import Footer from '@/layouts/components/Footer.vue'
-import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
-import UserProfile from '@/layouts/components/UserProfile.vue'
-import Notifications from '@/layouts/components/Notifications.vue'
+  // Components
+  import Footer from '@/layouts/components/Footer.vue'
+  import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
+  import UserProfile from '@/layouts/components/UserProfile.vue'
+  import Notifications from '@/layouts/components/Notifications.vue'
+
+  const se_paid = ref(false);
+  const game_parameters = ref([]);
+
+  async function payStateExpenses(){
+    let fl = confirm("Уверен?");
+    if (fl){
+      await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/pay_state_expenses.json`)
+        .then(async (response) => {
+          se_paid.value = true
+        })
+    }
+  }
+
+  async function unpayStateExpenses(){
+    let fl = confirm("Отменить оплату госрасходов?");
+    if (fl){
+      await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/unpay_state_expenses.json`)
+        .then(async (response) => {
+          se_paid.value = false
+        })
+    }
+  }
+
+  async function changeYear(){
+    let fl = confirm("Уверен?");
+    if (fl){
+      await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/increase_year.json`)
+        .then(async (response) => {
+          se_paid.value = false
+          window.location.reload()
+        })
+    }
+  }
+
+  onBeforeMount(async () => {
+    await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters.json`) 
+      .then(response => {
+        game_parameters.value = response.data;
+        se_paid.value = game_parameters.value.find((gp) => gp.identificator == "current_year")?.params?.state_expenses;
+      })
+  })
+
 </script>
 
 <template>
@@ -26,6 +70,23 @@ import Notifications from '@/layouts/components/Notifications.vue'
         
 
         <VSpacer />
+
+        <VBtn 
+          @click="payStateExpenses"
+          :color="se_paid ? 'success' : 'error'"
+        >
+          Оплатить госрасходы
+        </VBtn>
+
+        <IconBtn 
+          @click="unpayStateExpenses"
+          icon="ri-close-line"
+        >
+        </IconBtn>
+
+        <VBtn @click="changeYear">
+          Сменить год
+        </VBtn>
 
         <Notifications />
 

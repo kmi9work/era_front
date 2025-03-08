@@ -1,13 +1,22 @@
 <script setup>
   import axios from 'axios'
-  
-  const nobles = ref([]);
-  onBeforeMount(async () => {
-    axios.get(`${import.meta.env.VITE_PROXY}/players.json`) 
-      .then(response => {
-        nobles.value = response.data.filter((player) => player.player_type?.id == 2); // 2 - Знать;
-      })
+
+  const props = defineProps({
+    nobles: {
+      type: Array,
+      required: true,
+    },
   })
+  
+  const emit = defineEmits(['reload-dashboard']);
+
+  async function editItem(item_id, value){
+    let new_value = prompt("Новое значение", value);
+    axios.patch(`${import.meta.env.VITE_PROXY}/influence_items/${item_id}.json`, {value: new_value}) 
+      .then(response => {
+        emit('reload-dashboard');
+      })
+  }
 </script>
 
 
@@ -60,7 +69,11 @@
                       v-for="(item, i) in player.influence_items"
                       :key="i"
                     >
-                      <VListItemTitle>{{item.comment}} | {{item.value}}</VListItemTitle>
+                      <VListItemTitle>
+                        <a href="#" @click="editItem(item.id, item.value)">
+                          {{item.comment}} | {{item.value}} <span v-if="item.year">Год: {{item.year}}</span>
+                        </a>
+                      </VListItemTitle>
                     </VListItem>
                   </VList>
                 </v-menu>

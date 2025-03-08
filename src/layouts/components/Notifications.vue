@@ -46,7 +46,7 @@
             active-class="text-pink"
             class="py-3"
           >
-            <v-list-item-title>{{audit.auditable_type}}: {{ audit.auditable.name || audit.auditable.title }}</v-list-item-title>
+            <v-list-item-title>{{audit.auditable_type}}: {{audit.auditable_type}} - {{ audit.auditable.name || audit.auditable.comment }}</v-list-item-title>
 
             <v-list-item-subtitle class="text-high-emphasis">{{ audit.action }}: {{audit.audited_changes}}</v-list-item-subtitle>
 

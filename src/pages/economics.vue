@@ -3,7 +3,7 @@ import { useRoute } from 'vue-router'
 import Guilds from '@/views/pages/economics/Guilds.vue'
 import Plants from '@/views/pages/economics/Plants.vue'
 import Exchange from '@/views/pages/economics/Exchange.vue'
-import BuyerActions from '@/views/pages/economics/BuyerActions.vue'
+import PoliticalActions from '@/views/pages/economics/PoliticalActions.vue'
 
 const route = useRoute()
 const activeTab = ref(route.params.tab)
@@ -72,7 +72,7 @@ const tabs = [
       </VWindowItem>
 
       <VWindowItem value="buyer_actions">
-        <BuyerActions />
+        <PoliticalActions />
       </VWindowItem>
     </VWindow>
   </div>
