@@ -7,7 +7,7 @@
   import send_embassy from '@/views/pages/political_actions/send_embassy.vue'
   import take_bribe from '@/views/pages/political_actions/take_bribe.vue'
   import equip_caravan from '@/views/pages/political_actions/equip_caravan.vue'
-  import сonduct_audit from '@/views/pages/political_actions/сonduct_audit.vue'
+  import conduct_audit from '@/views/pages/political_actions/conduct_audit.vue'
   import peculation from '@/views/pages/political_actions/peculation.vue'
   import disperse_bribery from '@/views/pages/political_actions/disperse_bribery.vue'
   import implement_sabotage from '@/views/pages/political_actions/implement_sabotage.vue'
@@ -33,7 +33,7 @@
   compMap.set("send_embassy", send_embassy);
   compMap.set("take_bribe", take_bribe);
   compMap.set("equip_caravan", equip_caravan);
-  compMap.set("сonduct_audit", сonduct_audit);
+  compMap.set("conduct_audit", conduct_audit);
   compMap.set("peculation", peculation);
   compMap.set("disperse_bribery", disperse_bribery);
   compMap.set("implement_sabotage", implement_sabotage);
@@ -53,19 +53,26 @@
   compMap.set("patronage_of_infidel", patronage_of_infidel);
 
   const props = defineProps({
-    noble: {
+    noble_job: {
       type: Object,
       required: true,
     },
   })
 
+  const emit = defineEmits(['reload-actions']);
+
   const pat_settings = ref([]);
+
+  function closeDialog(i){
+    pat_settings.value[i] = false; 
+    emit('reload-actions');
+  }
 
 </script>
 
 <template>
   <v-dialog 
-    v-for="(action, i) in noble.job?.political_action_types"
+    v-for="(action, i) in noble_job.political_action_types"
     :key="i"
     v-model="pat_settings[i]" 
     transition="dialog-bottom-transition" 
@@ -93,9 +100,9 @@
       </v-toolbar>
       <Component
         :is="compMap.get(action.action)"
-        @close-dialog="pat_settings[i] = false"
+        @close-dialog="closeDialog(i)"
         :action="action"
-        :noble="noble"
+        :noble_job="noble_job"
       />
 
     </v-card>

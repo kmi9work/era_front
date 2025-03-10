@@ -10,16 +10,16 @@ const activeTab = ref(route.params.tab)
 
 // tabs
 const tabs = [
-  {
-    title: 'Гильдии',
-    icon: 'ri-group-fill',
-    tab: 'guilds',
-  },
-  {
-    title: 'Предприятия',
-    icon: 'ri-building-3-line',
-    tab: 'plants',
-  },
+  // {
+  //   title: 'Гильдии',
+  //   icon: 'ri-group-fill',
+  //   tab: 'guilds',
+  // },
+  // {
+  //   title: 'Предприятия',
+  //   icon: 'ri-building-3-line',
+  //   tab: 'plants',
+  // },
   {
     title: 'Рынок',
     icon: 'ri-exchange-line',
@@ -59,13 +59,13 @@ const tabs = [
       class="mt-5 disable-tab-transition"
       :touch="false"
     >
-      <VWindowItem value="guilds">
+      <!-- <VWindowItem value="guilds">
         <Guilds />
-      </VWindowItem>
+      </VWindowItem> -->
 
-      <VWindowItem value="plants">
+      <!-- <VWindowItem value="plants">
         <Plants />
-      </VWindowItem>
+      </VWindowItem> -->
 
       <VWindowItem value="exchange">
         <Exchange />

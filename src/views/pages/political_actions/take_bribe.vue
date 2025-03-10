@@ -1,7 +1,7 @@
 <script setup>
   import axios from 'axios'
   const props = defineProps({
-    noble: {
+    noble_job: {
       type: Object,
       required: true,
     },
@@ -23,7 +23,7 @@
   })
 
 
-  async function runAction(noble_id, action_id, success){
+  async function runAction(noble_job_id, action_id, success){
     let params = {};
     let country = {}
     if (!success){
@@ -34,7 +34,7 @@
     await axios.post(`${import.meta.env.VITE_PROXY}/political_actions.json`, {
         political_action_type_id: action_id,
         success: success,
-        player_id: noble_id,
+        job_id: noble_job_id,
         params: params
       })
     if (!success) alert(`Отношения испортились с государством ${country.name}`);
@@ -71,7 +71,7 @@
 
   </v-list>
   <v-card-text>
-    <v-btn text="Успех" variant="text" @click="runAction(noble.id, action.id, true)"></v-btn>
-    <v-btn text="Неудача" variant="text" @click="runAction(noble.id, action.id, false)"></v-btn>
+    <v-btn text="Успех" variant="text" @click="runAction(noble_job.id, action.id, true)"></v-btn>
+    <v-btn text="Неудача" variant="text" @click="runAction(noble_job.id, action.id, false)"></v-btn>
   </v-card-text>
 </template>

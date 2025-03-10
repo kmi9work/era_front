@@ -1,7 +1,7 @@
 <script setup>
   import axios from 'axios'
   const props = defineProps({
-    noble: {
+    noble_job: {
       type: Object,
       required: true,
     },
@@ -12,22 +12,22 @@
   })
 
   const emit = defineEmits(['close-dialog']);
-  const nobles = ref([]);
+  const noble_jobs = ref([]);
   const chosen_noble = ref(0);
 
   onBeforeMount(async () => {
     await axios.get(`${import.meta.env.VITE_PROXY}/players.json`) 
       .then(response => {
-        nobles.value = response.data.filter((player) => player.player_type?.id == 2); // 2 - Знать
-        chosen_noble.value = nobles.value[0];
+        noble_jobs.value = response.data.filter((player) => player.player_type?.id == 2); // 2 - Знать
+        chosen_noble.value = noble_jobs.value[0];
       })
   })
 
-  async function runAction(noble_id, action_id, success){
+  async function runAction(noble_job_id, action_id, success){
     await axios.post(`${import.meta.env.VITE_PROXY}/political_actions.json`, {
         political_action_type_id: action_id,
         success: success,
-        player_id: noble_id,
+        job_id: noble_job_id,
         params: {player_id: chosen_noble.value}
       })
     emit('close-dialog')
@@ -64,7 +64,7 @@
         <v-list-item-action start>
           <v-select
             label="Игрок"
-            :items="nobles"
+            :items="noble_jobs"
             v-model="chosen_noble"
             item-title="name"
             item-value="id"
@@ -79,7 +79,7 @@
     </v-list-item>
   </v-list>
   <v-card-text>
-    <v-btn text="Успех" variant="text" @click="runAction(noble.id, action.id, true)"></v-btn>
-    <v-btn text="Неудача" variant="text" @click="runAction(noble.id, action.id, false)"></v-btn>
+    <v-btn text="Успех" variant="text" @click="runAction(noble_job.id, action.id, true)"></v-btn>
+    <v-btn text="Неудача" variant="text" @click="runAction(noble_job.id, action.id, false)"></v-btn>
   </v-card-text>
 </template>

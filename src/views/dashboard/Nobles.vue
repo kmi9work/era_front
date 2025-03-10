@@ -43,7 +43,7 @@
               Игрок
             </th>
             <th class="text-left">
-              Должность
+              Должности
             </th>
             <th class="text-left">
               Доход
@@ -59,7 +59,7 @@
             :key="player.id"
           >
             <td>{{ player.name }}</td>
-            <td>{{ player.job.name }}</td>
+            <td>{{ player.jobs.map((j) => j.name).join(", ") }}</td>
             <td>
               <VBtn 
                 :color="player.params['income_taken'] ? 'success' : 'error'"

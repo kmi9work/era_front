@@ -19,11 +19,6 @@ const tabs = [
     icon: 'ri-shake-hands-line',
     tab: 'political_actions',
   },
-  {
-    title: 'Дворяне',
-    icon: 'ri-award-fill',
-    tab: 'nobles',
-  },
 ]
 </script>
 
@@ -59,10 +54,6 @@ const tabs = [
 
       <VWindowItem value="political_actions">
         <PoliticalActions />
-      </VWindowItem>
-
-      <VWindowItem value="nobles">
-        <Nobles />
       </VWindowItem>
     </VWindow>
   </div>

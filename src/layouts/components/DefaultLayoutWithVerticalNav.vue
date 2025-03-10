@@ -12,9 +12,10 @@
 
   const se_paid = ref(false);
   const game_parameters = ref([]);
+  const current_year = ref(0);
 
   async function payStateExpenses(){
-    let fl = confirm("Уверен?");
+    let fl = confirm("Уверен? Это необратимо.");
     if (fl){
       await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/pay_state_expenses.json`)
         .then(async (response) => {
@@ -49,6 +50,7 @@
       .then(response => {
         game_parameters.value = response.data;
         se_paid.value = game_parameters.value.find((gp) => gp.identificator == "current_year")?.params?.state_expenses;
+        current_year.value = game_parameters.value.find((gp) => gp.identificator == "current_year")?.value;
       })
   })
 
@@ -85,7 +87,8 @@
         </IconBtn>
 
         <VBtn @click="changeYear">
-          Сменить год
+          Год: {{current_year}} | 
+          Сменить
         </VBtn>
 
         <Notifications />
