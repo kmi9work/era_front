@@ -139,7 +139,7 @@
             </v-form>
           </v-card-item>
         </v-card>
-      <v-btn class="mt-2" @click="submit" block>Загнать</v-btn>
+      <v-btn class="mt-2" @click="submit" block>Обработать</v-btn>
 
       <p> </p>
       <VCard title="Выдать игроку"
