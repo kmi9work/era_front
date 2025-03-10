@@ -34,12 +34,12 @@
 
     resourcesPlSells.value = Array(filtered.length).fill(0).map(
       function(_, i) {
-        return {"name": filtered[i].name, "identificator": filtered[i].identificator, "count": null}
+        return {"name_and_s_pr": filtered[i].name_and_s_pr, "identificator": filtered[i].identificator, "count": null}
       })
 
     resourcesPlBuys.value = Array(filtered.length).fill(0).map(
       function(_, i) {
-        return {"name": filtered[i].name, "identificator": filtered[i].identificator, "count": null}
+        return {"name_and_b_pr": filtered[i].name_and_b_pr, "identificator": filtered[i].identificator, "count": null}
       }
       )
     return filtered
@@ -58,9 +58,6 @@
     })
      .catch(e => {
      });
-
-
-
    }
 
 
@@ -87,12 +84,12 @@
                  md="4"
                  sm="6"
                  >
-                  <v-form @submit.prevent class= "px-3">
+                  <v-form @submit.prevent class= "px-6">
                     <v-text-field
                      v-for="item, index in filteredResources"
                      v-model="resourcesPlSells[index].count"
                      :key="index"
-                     :label="item.name"
+                     :label="item.name_and_s_pr"
                      placeholder="Введите количество"
                      variant="outlined"
                      style="margin-bottom: 10px;"
@@ -114,9 +111,10 @@
                  <v-form @submit.prevent class= "px-3">
                    <v-text-field
                    v-for="item, index in filteredResources"
-                   v-model="resourcesPlBuys[index].count"
+
+                    v-model="resourcesPlBuys[index].count"
                    :key="index"
-                   :label="item.name"
+                   :label="item.name_and_b_pr"
                    placeholder="Введите количество"
                    variant="outlined"
                    style="margin-bottom: 10px;"
@@ -147,9 +145,13 @@
       <VCard title="Выдать игроку"
       style="margin-bottom: 10px;">
         <li v-for="item, index in resToPlayer">
-          <div v-if="item.count !== 0">
-          {{ item.name }}: {{ item.count }}
-        </div>
+          <h v-if="item.count > 0">
+          <span style="color:green"> {{ item.name }}: {{ item.count }} </span>
+        </h>
+          <h v-else-if="item.count < 0">
+            <span style="color:red"> {{ item.name }}: {{ item.count }} </span>
+          </h>
+
           <p> </p>
         </li>
       </VCard>
