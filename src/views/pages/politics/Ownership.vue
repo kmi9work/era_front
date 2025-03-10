@@ -29,12 +29,11 @@
   const ownership = ref({});
   const name = ref('');
   const main_settle = ref({});
-  const building_types = ref([]);
   const add_building_dialog = ref(false);
   const change_owner_dialog = ref(false);
 
   const filteredBuildingTypes = computed(() => {
-      return building_types.value.filter(bt => 
+      return props.building_types.filter(bt => 
         !main_settle.value.buildings?.map(
           (b) => b.building_level?.building_type?.id
         )?.includes(bt.id)
@@ -94,7 +93,7 @@
 <template>
   <VCard :title="name" width="300">
     <VCardText v-if="main_settle.player">
-      {{main_settle.player?.name}} | {{main_settle.player?.job?.name}}
+      {{main_settle.player?.name}} | {{main_settle.player?.jobs.map((j) => j.name)?.join(", ")}}
     </VCardText>
 
     <VCardText>
@@ -119,7 +118,7 @@
           </tr>
         </tbody>
       </v-table>
-      <div v-if="filteredBuildingTypes.length > 0 && main_settle.player?.id" class="text-center pa-4">
+      <div v-if="filteredBuildingTypes.length > 0 && main_settle.player" class="text-center pa-4">
         <IconBtn
             icon="ri-add-circle-line"
             class="me-1"
@@ -149,7 +148,7 @@
                   <VIcon :icon="item.icon"></VIcon>
                 </template>
 
-                <VListItemTitle v-text="item.title"></VListItemTitle>
+                <VListItemTitle v-text="item.name"></VListItemTitle>
               </VListItem>
             </VList>
             <template v-slot:actions>

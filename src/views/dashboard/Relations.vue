@@ -17,11 +17,18 @@
         emit('reload-dashboard');
       })
   }
+
+  async function relationsChange(country_id, value){
+    axios.patch(`${import.meta.env.VITE_PROXY}/countries/${country_id}/change_relations.json?value=${value}`) 
+      .then(response => {
+        emit('reload-dashboard');
+      })
+  }
 </script>
 
 
 <template>
-  <VCard max-width="600">
+  <VCard width="600">
     <VCardItem>
       <VCardTitle>Отношения</VCardTitle>
     </VCardItem>
@@ -74,7 +81,11 @@
               </v-btn>
               
             </td>
-            <td>{{ country.relations }}</td>
+            <td>
+              {{ country.relations }} 
+              <IconBtn icon="ri-arrow-up-double-line" @click="relationsChange(country.id, 1)"></IconBtn>
+              <IconBtn icon="ri-arrow-down-double-line" @click="relationsChange(country.id, -1)"></IconBtn>
+            </td>
           </tr>
         </tbody>
       </v-table>
