@@ -144,16 +144,18 @@
       <p> </p>
       <VCard title="Выдать игроку"
       style="margin-bottom: 10px;">
-        <li v-for="item, index in resToPlayer">
-          <h v-if="item.count > 0">
-          <span style="color:green"> {{ item.name }}: {{ item.count }} </span>
-        </h>
-          <h v-else-if="item.count < 0">
-            <span style="color:red"> {{ item.name }}: {{ item.count }} </span>
-          </h>
+        <v-card-text>
+          <div v-for="item, index in resToPlayer">
+            <h v-if="item.count > 0">
+              <span style="color:green"> {{ item.name }}: {{ item.count }} </span>
+            </h>
+            <h v-else-if="item.count < 0">
+              <span style="color:red"> {{ item.name }}: {{ item.count }} </span>
+            </h>
 
-          <p> </p>
-        </li>
+            <p> </p>
+          </div>
+        </v-card-text>
       </VCard>
 
 
