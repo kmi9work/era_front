@@ -1,125 +1,59 @@
 <script setup>
-import AnalyticsAward from '@/views/dashboard/AnalyticsAward.vue'
-import AnalyticsBarCharts from '@/views/dashboard/AnalyticsBarCharts.vue'
-import AnalyticsDepositWithdraw from '@/views/dashboard/AnalyticsDepositWithdraw.vue'
-import AnalyticsSalesByCountries from '@/views/dashboard/AnalyticsSalesByCountries.vue'
-import AnalyticsTotalEarning from '@/views/dashboard/AnalyticsTotalEarning.vue'
-import AnalyticsTotalProfitLineCharts from '@/views/dashboard/AnalyticsTotalProfitLineCharts.vue'
-import AnalyticsTransactions from '@/views/dashboard/AnalyticsTransactions.vue'
-import AnalyticsUserTable from '@/views/dashboard/AnalyticsUserTable.vue'
-import AnalyticsWeeklyOverview from '@/views/dashboard/AnalyticsWeeklyOverview.vue'
-import NobleIncome from '@/views/dashboard/NobleIncome.vue'
+import axios from 'axios'
+
+import Nobles from '@/views/dashboard/Nobles.vue'
 import PublicOrder from '@/views/dashboard/PublicOrder.vue'
-import CardStatisticsVertical from '@core/components/cards/CardStatisticsVertical.vue'
+import Relations from '@/views/dashboard/Relations.vue'
+import Technologies from '@/views/dashboard/Technologies.vue'
 
-const totalProfit = {
-  title: 'Total Profit',
-  color: 'secondary',
-  icon: 'ri-pie-chart-2-line',
-  stats: '$25.6k',
-  change: 42,
-  subtitle: 'Weekly Project',
+const nobles = ref([]);
+const regions = ref([]);
+const countries = ref([]);
+const technologies = ref([]);
+
+async function loadDashboards(){
+  axios.get(`${import.meta.env.VITE_PROXY}/players.json`) 
+    .then(response => {
+      nobles.value = response.data.filter((player) => player.player_type?.id == 2); // 2 - Знать;
+    })
+  axios.get(`${import.meta.env.VITE_PROXY}/regions.json?foreign=0`) 
+    .then(response => {
+      regions.value = response.data;
+    })
+  axios.get(`${import.meta.env.VITE_PROXY}/countries.json?foreign=1`) 
+      .then(response => {
+        countries.value = response.data;
+      })
+  axios.get(`${import.meta.env.VITE_PROXY}/technologies.json`) 
+      .then(response => {
+        technologies.value = response.data;
+      })
 }
 
-const newProject = {
-  title: 'New Project',
-  color: 'primary',
-  icon: 'ri-file-word-2-line',
-  stats: '862',
-  change: -18,
-  subtitle: 'Yearly Project',
-}
+
+onBeforeMount(async () => {
+  loadDashboards();
+})
+
+
 </script>
 
 <template>
   <VRow class="match-height">
     <VCol>
-      <NobleIncome />
+      <Nobles :nobles="nobles" @reload-dashboard="loadDashboards"/>
     </VCol>
 
     <VCol>
-      <PublicOrder />
+      <PublicOrder :regions="regions" @reload-dashboard="loadDashboards"/>
     </VCol>
 
-    <VCol
-      cols="12"
-      md="4"
-    >
-      <AnalyticsAward />
+    <VCol>
+      <Relations :countries="countries" @reload-dashboard="loadDashboards"/>
     </VCol>
 
-    <VCol
-      cols="12"
-      md="8"
-    >
-      <AnalyticsTransactions />
-    </VCol>
-
-    <VCol
-      cols="12"
-      md="4"
-    >
-      <AnalyticsWeeklyOverview />
-    </VCol>
-
-    <VCol
-      cols="12"
-      md="4"
-    >
-      <AnalyticsTotalEarning />
-    </VCol>
-
-    <VCol
-      cols="12"
-      md="4"
-    >
-      <VRow class="match-height">
-        <VCol
-          cols="12"
-          sm="6"
-        >
-          <AnalyticsTotalProfitLineCharts />
-        </VCol>
-
-        <VCol
-          cols="12"
-          sm="6"
-        >
-          <CardStatisticsVertical v-bind="totalProfit" />
-        </VCol>
-
-        <VCol
-          cols="12"
-          sm="6"
-        >
-          <CardStatisticsVertical v-bind="newProject" />
-        </VCol>
-
-        <VCol
-          cols="12"
-          sm="6"
-        >
-          <AnalyticsBarCharts />
-        </VCol>
-      </VRow>
-    </VCol>
-
-    <VCol
-      cols="12"
-      md="4"
-    >
-      <AnalyticsSalesByCountries />
-    </VCol>
-
-    <VCol
-      cols="12"
-      md="8"
-    >
-      <AnalyticsDepositWithdraw />
-    </VCol>
-
-    <VCol cols="12">
-      <AnalyticsUserTable />
+    <VCol>
+      <Technologies :technologies="technologies" @reload-dashboard="loadDashboards"/>
     </VCol>
   </VRow>
 </template>

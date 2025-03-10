@@ -1,13 +1,59 @@
 <script setup>
-import NavItems from '@/layouts/components/NavItems.vue'
-import logo from '@images/logo.svg?raw'
-import VerticalNavLayout from '@layouts/components/VerticalNavLayout.vue'
+  import axios from 'axios'
+  import NavItems from '@/layouts/components/NavItems.vue'
+  import logo from '@images/logo.svg?raw'
+  import VerticalNavLayout from '@layouts/components/VerticalNavLayout.vue'
 
-// Components
-import Footer from '@/layouts/components/Footer.vue'
-import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
-import UserProfile from '@/layouts/components/UserProfile.vue'
-import Notifications from '@/layouts/components/Notifications.vue'
+  // Components
+  import Footer from '@/layouts/components/Footer.vue'
+  import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
+  import UserProfile from '@/layouts/components/UserProfile.vue'
+  import Notifications from '@/layouts/components/Notifications.vue'
+
+  const se_paid = ref(false);
+  const game_parameters = ref([]);
+  const current_year = ref(0);
+
+  async function payStateExpenses(){
+    let fl = confirm("Уверен? Это необратимо.");
+    if (fl){
+      await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/pay_state_expenses.json`)
+        .then(async (response) => {
+          se_paid.value = true
+        })
+    }
+  }
+
+  async function unpayStateExpenses(){
+    let fl = confirm("Отменить оплату госрасходов?");
+    if (fl){
+      await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/unpay_state_expenses.json`)
+        .then(async (response) => {
+          se_paid.value = false
+        })
+    }
+  }
+
+  async function changeYear(){
+    let fl = confirm("Уверен?");
+    if (fl){
+      await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/increase_year.json`)
+        .then(async (response) => {
+          se_paid.value = false
+          window.location.reload()
+        })
+    }
+  }
+
+  onBeforeMount(async () => {
+    await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters.json`) 
+      .then(response => {
+        game_parameters.value = response.data;
+        se_paid.value = game_parameters.value.find((gp) => gp.identificator == "current_year")?.params?.state_expenses;
+        current_year.value = game_parameters.value.find((gp) => gp.identificator == "current_year")?.value;
+      })
+  })
+
 </script>
 
 <template>
@@ -27,6 +73,24 @@ import Notifications from '@/layouts/components/Notifications.vue'
 
         <VSpacer />
 
+        <VBtn 
+          @click="payStateExpenses"
+          :color="se_paid ? 'success' : 'error'"
+        >
+          Оплатить госрасходы
+        </VBtn>
+
+        <IconBtn 
+          @click="unpayStateExpenses"
+          icon="ri-close-line"
+        >
+        </IconBtn>
+
+        <VBtn @click="changeYear">
+          Год: {{current_year}} | 
+          Сменить
+        </VBtn>
+
         <Notifications />
 
         <NavbarThemeSwitcher class="me-2" />
@@ -36,22 +100,6 @@ import Notifications from '@/layouts/components/Notifications.vue'
     </template>
 
     <template #vertical-nav-header="{ toggleIsOverlayNavActive }">
-      <RouterLink
-        to="/"
-        class="app-logo app-title-wrapper"
-      >
-        <!-- eslint-disable vue/no-v-html -->
-        <div
-          class="d-flex"
-          v-html="logo"
-        />
-        <!-- eslint-enable -->
-
-        <h1 class="font-weight-medium leading-normal text-xl text-uppercase">
-          Materio
-        </h1>
-      </RouterLink>
-
       <IconBtn
         class="d-block d-lg-none"
         @click="toggleIsOverlayNavActive(false)"

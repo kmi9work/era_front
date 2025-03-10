@@ -2,17 +2,24 @@
   import axios from 'axios'
 
   const props = defineProps({
-    regions: {
+    countries: {
       type: Array,
       required: true,
     },
   })
 
   const emit = defineEmits(['reload-dashboard']);
-
+  
   async function editItem(item_id, value){
     let new_value = prompt("Новое значение", value);
-    axios.patch(`${import.meta.env.VITE_PROXY}/public_order_items/${item_id}.json`, {value: new_value}) 
+    axios.patch(`${import.meta.env.VITE_PROXY}/relation_items/${item_id}.json`, {value: new_value}) 
+      .then(response => {
+        emit('reload-dashboard');
+      })
+  }
+
+  async function relationsChange(country_id, value){
+    axios.patch(`${import.meta.env.VITE_PROXY}/countries/${country_id}/change_relations.json?value=${value}`) 
       .then(response => {
         emit('reload-dashboard');
       })
@@ -21,9 +28,9 @@
 
 
 <template>
-  <VCard max-width="600">
+  <VCard width="600">
     <VCardItem>
-      <VCardTitle>Общественный порядок</VCardTitle>
+      <VCardTitle>Отношения</VCardTitle>
     </VCardItem>
 
     <VCardText>
@@ -31,17 +38,17 @@
         <thead>
           <tr>
             <th class="text-left">
-              Регион
+              Страна
             </th>
             <th class="text-left">
-              ОП
+              Отношения
             </th>
           </tr>
         </thead>
         <tbody>
           <tr
-            v-for="(region, ri) in regions"
-            :key="region.id"
+            v-for="(country, ri) in countries"
+            :key="country.id"
           >
             <td>
               <v-btn
@@ -53,20 +60,20 @@
                 min-width="300"
                 style="justify-content: start;"
               >
-                {{ region.name }}
+                {{ country.name }}
                 <v-menu activator="parent">
                   <VList>
                     <VListItem 
-                      v-for="(poi, i) in region.public_order_items"
+                      v-for="(item, i) in country.relation_items"
                       :key="i"
                     >
-                      <VListItemTitle v-if="poi.id != 0">
-                        <a href="#" @click="editItem(poi.id, poi.value)">
-                          {{poi.comment}} | {{poi.value}} <span v-if="poi.year">Год: {{poi.year}}</span>
+                      <VListItemTitle v-if="item.id != 0">
+                        <a href="#" @click="editItem(item.id, item.value)">
+                          {{item.comment}} ({{item.value}}) <span v-if="item.year">Год: {{item.year}}</span>
                         </a>
                       </VListItemTitle>
                       <VListItemTitle v-else>
-                        {{poi.comment}} | {{poi.value}}
+                        {{item.comment}}
                       </VListItemTitle>
                     </VListItem>
                   </VList>
@@ -74,7 +81,11 @@
               </v-btn>
               
             </td>
-            <td>{{ region.show_overall_po }}</td>
+            <td>
+              {{ country.relations }} 
+              <IconBtn icon="ri-arrow-up-double-line" @click="relationsChange(country.id, 1)"></IconBtn>
+              <IconBtn icon="ri-arrow-down-double-line" @click="relationsChange(country.id, -1)"></IconBtn>
+            </td>
           </tr>
         </tbody>
       </v-table>

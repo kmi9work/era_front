@@ -3,25 +3,24 @@ import { useRoute } from 'vue-router'
 import Guilds from '@/views/pages/economics/Guilds.vue'
 import Plants from '@/views/pages/economics/Plants.vue'
 import Exchange from '@/views/pages/economics/Exchange.vue'
-import BuyerActions from '@/views/pages/economics/BuyerActions.vue'
+import PoliticalActions from '@/views/pages/economics/PoliticalActions.vue'
 import Production from '@/views/pages/economics/Production.vue'
-
 
 const route = useRoute()
 const activeTab = ref(route.params.tab)
 
 // tabs
 const tabs = [
-  {
-    title: 'Гильдии',
-    icon: 'ri-group-fill',
-    tab: 'guilds',
-  },
-  {
-    title: 'Предприятия',
-    icon: 'ri-building-3-line',
-    tab: 'plants',
-  },
+  // {
+  //   title: 'Гильдии',
+  //   icon: 'ri-group-fill',
+  //   tab: 'guilds',
+  // },
+  // {
+  //   title: 'Предприятия',
+  //   icon: 'ri-building-3-line',
+  //   tab: 'plants',
+  // },
   {
     title: 'Рынок',
     icon: 'ri-exchange-line',
@@ -67,24 +66,24 @@ const tabs = [
       class="mt-5 disable-tab-transition"
       :touch="false"
     >
-      <VWindowItem value="guilds">
+      <!-- <VWindowItem value="guilds">
         <Guilds />
-      </VWindowItem>
+      </VWindowItem> -->
 
-      <VWindowItem value="plants">
+      <!-- <VWindowItem value="plants">
         <Plants />
-      </VWindowItem>
+      </VWindowItem> -->
 
       <VWindowItem value="exchange">
         <Exchange />
       </VWindowItem>
 
-      <VWindowItem value="buyer_actions">
-        <BuyerActions />
-      </VWindowItem>
-
       <VWindowItem value="production">
         <Production />
+      </VWindowItem>
+
+      <VWindowItem value="buyer_actions">
+        <PoliticalActions />
       </VWindowItem>
     </VWindow>
   </div>

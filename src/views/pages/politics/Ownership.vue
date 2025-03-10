@@ -1,5 +1,6 @@
 <script setup>
   import axios from 'axios'
+  import CaptureRegion from '@/views/pages/politics/CaptureRegion.vue'
   const props = defineProps({
     id: {
       type: Number,
@@ -9,18 +10,30 @@
       type: String,
       required: true,
     },
+    countries: {
+      type: Array,
+      required: true
+    },
+    nobles: {
+      type: Array,
+      required: true
+    },
+    building_types: {
+      type: Array,
+      required: true
+    },
   })
 
+  const emit = defineEmits(['capture-region']);
+
   const ownership = ref({});
-  const title = ref('');
+  const name = ref('');
   const main_settle = ref({});
-  const building_types = ref([]);
   const add_building_dialog = ref(false);
   const change_owner_dialog = ref(false);
-  const nobles = ref([]);
 
   const filteredBuildingTypes = computed(() => {
-      return building_types.value.filter(bt => 
+      return props.building_types.filter(bt => 
         !main_settle.value.buildings?.map(
           (b) => b.building_level?.building_type?.id
         )?.includes(bt.id)
@@ -31,21 +44,13 @@
     await axios.get(`${import.meta.env.VITE_PROXY}/${props.type}s/${props.id}.json`) 
       .then(response => {
         ownership.value = response.data;
-        title.value = (props.type === 'settlement') ? response.data.name : response.data.title
+        name.value = response.data.name
         main_settle.value = (props.type === 'settlement') ? response.data : response.data.capital
       })
   }
 
   onBeforeMount(async () => {
     updateOwnership();
-    await axios.get(`${import.meta.env.VITE_PROXY}/building_types.json`)
-      .then(async (response) => {
-        building_types.value = response.data;
-      })
-    await axios.get(`${import.meta.env.VITE_PROXY}/players.json`) 
-      .then(response => {
-        nobles.value = response.data.filter((player) => player.player_type?.id == 2); // 2 - Знать
-      })
   })
 
   async function removeBuilding(building_id) {
@@ -78,13 +83,17 @@
       })
   };
 
+  function superEmit(name){
+    emit(name);
+  }
+
 
 </script>
 
 <template>
-  <VCard :title="title" min-width="300px">
+  <VCard :title="name" width="300">
     <VCardText v-if="main_settle.player">
-      {{main_settle.player?.name}} | {{main_settle.player?.job?.name}}
+      {{main_settle.player?.name}} | {{main_settle.player?.jobs.map((j) => j.name)?.join(", ")}}
     </VCardText>
 
     <VCardText>
@@ -92,7 +101,7 @@
         <tbody>
           <tr v-for="building in main_settle.buildings">
             <td>
-              {{building.building_level?.building_type?.title}} - {{building.building_level?.level}} 
+              {{building.building_level?.building_type?.name}} - {{building.building_level?.level}} 
             </td>
             <td>
               <IconBtn
@@ -109,7 +118,7 @@
           </tr>
         </tbody>
       </v-table>
-      <div v-if="filteredBuildingTypes.length > 0 && main_settle.player?.id" class="text-center pa-4">
+      <div v-if="filteredBuildingTypes.length > 0 && main_settle.player" class="text-center pa-4">
         <IconBtn
             icon="ri-add-circle-line"
             class="me-1"
@@ -139,7 +148,7 @@
                   <VIcon :icon="item.icon"></VIcon>
                 </template>
 
-                <VListItemTitle v-text="item.title"></VListItemTitle>
+                <VListItemTitle v-text="item.name"></VListItemTitle>
               </VListItem>
             </VList>
             <template v-slot:actions>
@@ -155,8 +164,9 @@
     </VCardText>
 
     <VCardActions>
-      <VBtn @click="change_owner_dialog = true">Передать</VBtn>
-      <VDialog
+      <template v-if="type == 'settlement'">
+        <VBtn @click="change_owner_dialog = true">Передать</VBtn>
+        <VDialog
           v-model="change_owner_dialog"
           width="auto"
         >
@@ -185,6 +195,15 @@
             </template>
           </VCard>
         </VDialog>
+      </template>
+      <template v-if="type == 'region' && ownership.country?.id != 1">
+        <CaptureRegion 
+          :countries="countries"
+          :ownership="ownership"
+          title="Передать регион"
+          @capture-region="superEmit('capture-region')"
+        />
+      </template>
     </VCardActions>
   </VCard>
 </template>
