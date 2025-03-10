@@ -4,6 +4,8 @@ import Guilds from '@/views/pages/economics/Guilds.vue'
 import Plants from '@/views/pages/economics/Plants.vue'
 import Exchange from '@/views/pages/economics/Exchange.vue'
 import BuyerActions from '@/views/pages/economics/BuyerActions.vue'
+import Production from '@/views/pages/economics/Production.vue'
+
 
 const route = useRoute()
 const activeTab = ref(route.params.tab)
@@ -25,6 +27,12 @@ const tabs = [
     icon: 'ri-exchange-line',
     tab: 'exchange',
   },
+  {
+    title: 'Производство',
+    icon: 'ri-exchange-line',
+    tab: 'production',
+  },
+
   {
     title: 'Политические действия',
     icon: 'ri-shake-hands-line',
@@ -73,6 +81,10 @@ const tabs = [
 
       <VWindowItem value="buyer_actions">
         <BuyerActions />
+      </VWindowItem>
+
+      <VWindowItem value="production">
+        <Production />
       </VWindowItem>
     </VWindow>
   </div>
