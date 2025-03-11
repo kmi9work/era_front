@@ -146,12 +146,12 @@
       style="margin-bottom: 10px;">
         <v-card-text>
           <div v-for="item, index in resToPlayer">
-            <h v-if="item.count > 0">
-              <span style="color:green"> {{ item.name }}: {{ item.count }} </span>
-            </h>
-            <h v-else-if="item.count < 0">
-              <span style="color:red"> {{ item.name }}: {{ item.count }} </span>
-            </h>
+            <p v-if="item.count > 0">
+              <span style="color: green;"> {{ item.name }}: {{ item.count }} </span>
+            </p>
+            <p v-else-if="item.count < 0">
+              <span style="color: red;"> {{ item.name }}: {{ item.count }} </span>
+            </p>
 
             <p> </p>
           </div>
