@@ -83,6 +83,14 @@
       })
   };
 
+  async function removeOwner() {
+    await axios.patch(`${import.meta.env.VITE_PROXY}/settlements/${main_settle.value.id}.json?settlement[player_id]=`)
+      .then(async (response) => {
+        change_owner_dialog.value = false;
+        updateOwnership();
+      })
+  };
+
   function superEmit(name){
     emit(name);
   }
@@ -94,6 +102,11 @@
   <VCard :title="name" width="300">
     <VCardText v-if="main_settle.player">
       {{main_settle.player?.name}} | {{main_settle.player?.jobs.map((j) => j.name)?.join(", ")}}
+      <IconBtn
+          icon="ri-close-line"
+          class="me-1"
+          @click="removeOwner(main_settle.id)"
+        />
     </VCardText>
 
     <VCardText>
