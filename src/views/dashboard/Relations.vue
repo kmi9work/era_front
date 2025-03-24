@@ -12,7 +12,8 @@
   
   async function addItem(country_id){
     let new_value = prompt("Новое значение");
-    axios.patch(`${import.meta.env.VITE_PROXY}/countries/${country_id}/add_relation_item.json`, {value: new_value}) 
+    let comment = prompt("Комментарий");
+    axios.patch(`${import.meta.env.VITE_PROXY}/countries/${country_id}/add_relation_item.json`, {value: new_value, comment: comment}) 
       .then(response => {
         emit('reload-dashboard');
       })

@@ -12,7 +12,8 @@
 
   async function addItem(player_id){
     let new_value = prompt("Новое значение");
-    axios.patch(`${import.meta.env.VITE_PROXY}/regions/${player_id}/add_po_item.json`, {value: new_value}) 
+    let comment = prompt("Комментарий");
+    axios.patch(`${import.meta.env.VITE_PROXY}/regions/${player_id}/add_po_item.json`, {value: new_value, comment: comment}) 
       .then(response => {
         emit('reload-dashboard');
       })
@@ -26,14 +27,6 @@
           emit('reload-dashboard');
         })
     }
-  }
-
-  async function editItem(item_id, value){
-    let new_value = prompt("Новое значение", value);
-    axios.patch(`${import.meta.env.VITE_PROXY}/public_order_items/${item_id}.json`, {value: new_value}) 
-      .then(response => {
-        emit('reload-dashboard');
-      })
   }
 </script>
 
