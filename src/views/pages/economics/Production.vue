@@ -19,14 +19,18 @@
   const selectedPlantLevel = ref(0)
 
   const plantLevel_from = computed(() => {
-    let filtered = plantLevelsInfo.value.filter((res) => res.id == selectedPlantLevel.value)
+    let filtered = plantLevelsInfo.value.filter((res) => res.id == selectedPlantLevel.value);
 
-    back_bound_from.value = Array(filtered[0]["formula_from"].length).fill(0).map(
-      function(_, i) {
-        return {"identificator": filtered[0]["formula_from"][i].identificator, "count": null}
-      })
+    if (filtered.length){
+      back_bound_from.value = Array(filtered[0]["formula_from"].length).fill(0).map(
+        function(_, i) {
+          return {"identificator": filtered[0]["formula_from"][i].identificator, "count": null}
+        })
+      return filtered[0]["formula_from"]
+    }else{
+      return []
+    }
 
-    return filtered[0]["formula_from"]
   })
 
   function submit_from(){
@@ -43,14 +47,18 @@
   const prodResult_to = ref([])
 
   const plantLevel_to = computed(() => {
-     let filtered = plantLevelsInfo.value.filter((res) => res.id == selectedPlantLevel.value)
+    let filtered = plantLevelsInfo.value.filter((res) => res.id == selectedPlantLevel.value);
 
-     back_bound_to.value = Array(filtered[0]["formula_to"].length).fill(0).map(
+    if (filtered.length){
+      back_bound_to.value = Array(filtered[0]["formula_to"].length).fill(0).map(
         function(_, i) {
           return {"identificator": filtered[0]["formula_to"][i].identificator, "count": null}
         })
+      return filtered[0]["formula_to"]
+    }else{
+      return [];
+    }
 
-    return filtered[0]["formula_to"]
   })
 
 
