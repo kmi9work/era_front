@@ -10,6 +10,24 @@
 
   const emit = defineEmits(['reload-dashboard']);
 
+  async function addItem(player_id){
+    let new_value = prompt("Новое значение");
+    axios.patch(`${import.meta.env.VITE_PROXY}/regions/${player_id}/add_po_item.json`, {value: new_value}) 
+      .then(response => {
+        emit('reload-dashboard');
+      })
+  }
+
+  async function removeItem(item_id){
+    let fl = confirm("Точно удалить?");
+    if (fl){
+      axios.delete(`${import.meta.env.VITE_PROXY}/public_order_items/${item_id}.json`) 
+        .then(response => {
+          emit('reload-dashboard');
+        })
+    }
+  }
+
   async function editItem(item_id, value){
     let new_value = prompt("Новое значение", value);
     axios.patch(`${import.meta.env.VITE_PROXY}/public_order_items/${item_id}.json`, {value: new_value}) 
@@ -60,13 +78,20 @@
                       v-for="(poi, i) in region.public_order_items"
                       :key="i"
                     >
-                      <VListItemTitle v-if="poi.id != 0">
-                        <a href="#" @click="editItem(poi.id, poi.value)">
-                          {{poi.comment}} | {{poi.value}} <span v-if="poi.year">Год: {{poi.year}}</span>
-                        </a>
+                      <VListItemTitle>
+                        {{poi.comment}} | {{poi.value}} <span v-if="poi.year">Год: {{poi.year}}</span>
+                        <IconBtn
+                          icon="ri-delete-bin-line"
+                          class="me-1"
+                          @click="removeItem(poi.id)"
+                        />
                       </VListItemTitle>
-                      <VListItemTitle v-else>
-                        {{poi.comment}} | {{poi.value}}
+                    </VListItem>
+                    <VListItem key="_0">
+                      <VListItemTitle>
+                        <v-btn variant="text" @click="addItem(region.id)">
+                          Добавить ручную правку
+                        </v-btn>
                       </VListItemTitle>
                     </VListItem>
                   </VList>

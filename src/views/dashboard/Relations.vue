@@ -10,16 +10,26 @@
 
   const emit = defineEmits(['reload-dashboard']);
   
-  async function editItem(item_id, value){
-    let new_value = prompt("Новое значение", value);
-    axios.patch(`${import.meta.env.VITE_PROXY}/relation_items/${item_id}.json`, {value: new_value}) 
+  async function addItem(country_id){
+    let new_value = prompt("Новое значение");
+    axios.patch(`${import.meta.env.VITE_PROXY}/countries/${country_id}/add_relation_item.json`, {value: new_value}) 
       .then(response => {
         emit('reload-dashboard');
       })
   }
 
+  async function removeItem(item_id){
+    let fl = confirm("Точно удалить?");
+    if (fl){
+      axios.delete(`${import.meta.env.VITE_PROXY}/relation_items/${item_id}.json`) 
+        .then(response => {
+          emit('reload-dashboard');
+        })
+    }
+  }
+
   async function relationsChange(country_id, value){
-    axios.patch(`${import.meta.env.VITE_PROXY}/countries/${country_id}/change_relations.json?value=${value}`) 
+    axios.patch(`${import.meta.env.VITE_PROXY}/countries/${country_id}/add_relation_item.json?value=${value}`) 
       .then(response => {
         emit('reload-dashboard');
       })
@@ -67,13 +77,20 @@
                       v-for="(item, i) in country.relation_items"
                       :key="i"
                     >
-                      <VListItemTitle v-if="item.id != 0">
-                        <a href="#" @click="editItem(item.id, item.value)">
-                          {{item.comment}} ({{item.value}}) <span v-if="item.year">Год: {{item.year}}</span>
-                        </a>
+                      <VListItemTitle>
+                        {{item.comment}} ({{item.value}}) <span v-if="item.year">Год: {{item.year}}</span>
+                        <IconBtn
+                          icon="ri-delete-bin-line"
+                          class="me-1"
+                          @click="removeItem(item.id)"
+                        />
                       </VListItemTitle>
-                      <VListItemTitle v-else>
-                        {{item.comment}}
+                    </VListItem>
+                    <VListItem key="_0">
+                      <VListItemTitle>
+                        <v-btn variant="text" @click="addItem(country.id)">
+                          Добавить ручную правку
+                        </v-btn>
                       </VListItemTitle>
                     </VListItem>
                   </VList>

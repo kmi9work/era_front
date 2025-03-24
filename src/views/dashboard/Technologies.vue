@@ -11,8 +11,7 @@
   const emit = defineEmits(['reload-dashboard']);
   
   async function editItem(item_id, value){
-    let new_value = prompt("Новое значение", value);
-    axios.patch(`${import.meta.env.VITE_PROXY}/technology_items/${item_id}.json`, {value: new_value}) 
+    axios.patch(`${import.meta.env.VITE_PROXY}/technology_items/${item_id}.json`, {value: value}) 
       .then(response => {
         emit('reload-dashboard');
       })
@@ -61,7 +60,12 @@
                       :key="i"
                     >
                       <VListItemTitle v-if="item.id != 0">
-                        <a href="#" @click="editItem(item.id, item.value)">{{item.comment}} | {{item.value}}</a>
+                        <v-btn variant="text" @click="editItem(item.id, 0)" v-if="item.value == 1">
+                          Закрыть
+                        </v-btn>
+                        <v-btn variant="text" @click="editItem(item.id, 1)" v-else>
+                          Открыть
+                        </v-btn>
                       </VListItemTitle>
                       <VListItemTitle v-else>
                         {{item.comment}}
@@ -72,7 +76,7 @@
               </v-btn>
               
             </td>
-            <td>{{ tech.is_open }}</td>
+            <td>{{ tech.is_open == 1 ? 'Да' : 'Нет' }}</td>
           </tr>
         </tbody>
       </v-table>

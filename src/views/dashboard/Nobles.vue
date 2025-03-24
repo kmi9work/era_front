@@ -10,12 +10,22 @@
   
   const emit = defineEmits(['reload-dashboard']);
 
-  async function editItem(item_id, value){
-    let new_value = prompt("Новое значение", value);
-    axios.patch(`${import.meta.env.VITE_PROXY}/influence_items/${item_id}.json`, {value: new_value}) 
+  async function addItem(player_id){
+    let new_value = prompt("Новое значение");
+    axios.patch(`${import.meta.env.VITE_PROXY}/players/${player_id}/add_influence.json`, {value: new_value}) 
       .then(response => {
         emit('reload-dashboard');
       })
+  }
+
+  async function removeItem(item_id){
+    let fl = confirm("Точно удалить?");
+    if (fl){
+      axios.delete(`${import.meta.env.VITE_PROXY}/influence_items/${item_id}.json`) 
+        .then(response => {
+          emit('reload-dashboard');
+        })
+    }
   }
 
   async function takeIncome(params, player_id){
@@ -85,13 +95,20 @@
                       v-for="(item, i) in player.influence_items"
                       :key="i"
                     >
-                      <VListItemTitle v-if="item.id != 0">
-                        <a href="#" @click="editItem(item.id, item.value)">
-                          {{item.comment}} | {{item.value}} <span v-if="item.year">Год: {{item.year}}</span>
-                        </a>
-                      </VListItemTitle>
-                      <VListItemTitle v-else>
+                      <VListItemTitle>
                         {{item.comment}} | {{item.value}} <span v-if="item.year">Год: {{item.year}}</span>
+                        <IconBtn
+                          icon="ri-delete-bin-line"
+                          class="me-1"
+                          @click="removeItem(item.id)"
+                        />
+                      </VListItemTitle>
+                    </VListItem>
+                    <VListItem key="_0">
+                      <VListItemTitle>
+                        <v-btn variant="text" @click="addItem(player.id)">
+                          Добавить ручную правку
+                        </v-btn>
                       </VListItemTitle>
                     </VListItem>
                   </VList>
