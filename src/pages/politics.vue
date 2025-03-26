@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router'
 import Ownerships from '@/views/pages/politics/Ownerships.vue'
 import PoliticalActions from '@/views/pages/politics/PoliticalActions.vue'
 import Nobles from '@/views/pages/politics/Nobles.vue'
+import Armies from '@/views/pages/politics/Armies.vue'
 
 const route = useRoute()
 const activeTab = ref(route.params.tab)
@@ -18,6 +19,11 @@ const tabs = [
     title: 'Политические действия',
     icon: 'ri-shake-hands-line',
     tab: 'political_actions',
+  },
+  {
+    title: 'Армии',
+    icon: 'ri-sword-line',
+    tab: 'armies',
   },
 ]
 </script>
@@ -54,6 +60,10 @@ const tabs = [
 
       <VWindowItem value="political_actions">
         <PoliticalActions />
+      </VWindowItem>
+
+      <VWindowItem value="armies">
+        <Armies />
       </VWindowItem>
     </VWindow>
   </div>
