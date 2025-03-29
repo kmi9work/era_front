@@ -22,6 +22,7 @@
   const owners = ref([]);
   const selected_owners = ref([]);
   const settlements = ref([]);
+  const troop_types = ref([]);
 
   const filteredArmies = computed(() => {
     if (selected_owners.value.length === 0){
@@ -53,6 +54,11 @@
     await axios.get(`${import.meta.env.VITE_PROXY}/settlements.json?all=1`) 
       .then(response => {
         settlements.value = response.data;
+      })
+
+    await axios.get(`${import.meta.env.VITE_PROXY}/troop_types.json`) 
+      .then(response => {
+        troop_types.value = response.data;
       })
   })
 
@@ -108,6 +114,7 @@
                             :army="army"
                             :settlements="settlements"
                             :armies="armies"
+                            :troop_types="troop_types"
                             @update-armies="updateArmies"
                           />
                         </VCol>

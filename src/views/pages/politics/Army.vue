@@ -1,5 +1,98 @@
 <script setup>
   import axios from 'axios'
+  import stone_brick from '@images/resources/stone_brick.png'
+  import weapon from '@images/resources/weapon.png'
+  import tools from '@images/resources/tools.png'
+  import timber from '@images/resources/timber.png'
+  import stone from '@images/resources/stone.png'
+  import metal_ore from '@images/resources/metal_ore.png'
+  import metal from '@images/resources/metal.png'
+  import meat from '@images/resources/meat.png'
+  import luxury from '@images/resources/luxury.png'
+  import horses from '@images/resources/horses.png'
+  import grain from '@images/resources/grain.png'
+  import gems from '@images/resources/gems.png'
+  import food from '@images/resources/food.png'
+  import flour from '@images/resources/flour.png'
+  import boards from '@images/resources/boards.png'
+  import armor from '@images/resources/armor.png'
+  import money from '@images/resources/money.png'
+
+  const resources = {
+    'stone_brick': {
+      'img': stone_brick,
+      'name': 'Каменный кирпич'
+    },
+    'weapon': {
+      'img': weapon,
+      'name': 'Оружие'
+    },
+    'tools': {
+      'img': tools,
+      'name': 'Инструменты'
+    },
+    'timber': {
+      'img': timber,
+      'name': 'Брёвна'
+    },
+    'stone': {
+      'img': stone,
+      'name': 'Камень'
+    },
+    'metal_ore': {
+      'img': metal_ore,
+      'name': 'Железная руда'
+    },
+    'metal': {
+      'img': metal,
+      'name': 'Металл'
+    },
+    'meat': {
+      'img': meat,
+      'name': 'Мясо'
+    },
+    'luxury': {
+      'img': luxury,
+      'name': 'Роскошь'
+    },
+    'horses': {
+      'img': horses,
+      'name': 'Лошади'
+    },
+    'grain': {
+      'img': grain,
+      'name': 'Зерно'
+    },
+    'gems': {
+      'img': gems,
+      'name': 'Драгоценный металл'
+    },
+    'food': {
+      'img': food,
+      'name': 'Провизия'
+    },
+    'flour': {
+      'img': flour,
+      'name': 'Мука'
+    },
+    'flour': {
+      'img': flour,
+      'name': 'Мука'
+    },
+    'boards': {
+      'img': boards,
+      'name': 'Доски'
+    },
+    'armor': {
+      'img': armor,
+      'name': 'Доспехи'
+    },
+    'money': {
+      'img': money,
+      'name': 'Золото'
+    },
+  }
+
   const props = defineProps({
     army: {
       type: Object,
@@ -13,6 +106,10 @@
       type: Array,
       required: true,
     },
+    troop_types: {
+      type: Array,
+      required: true,
+    }
   })
 
   const emit = defineEmits(['update-armies']);
@@ -23,28 +120,68 @@
   const settle = ref(null);
   const enemy = ref(null);
 
+  const tt_counts = ref([]);
+
+  // Функция для инициализации массива
+  const initializeCounts = () => {
+    tt_counts.value = Array(props.troop_types.length).fill(0);
+  };
+
+  // Инициализируем при монтировании
+  initializeCounts();
+
+  // Следим за изменениями troop_types
+  watch(() => props.troop_types, (newVal) => {
+    if (newVal.length !== tt_counts.value.length) {
+      initializeCounts();
+    }
+  }, { deep: true });
+
   onBeforeMount(async () => {
     // updateArmy();
   })
 
+  const maxBuyCostLength = computed(() => 
+    Math.max(...props.troop_types.map(troop => troop.params.buy_cost.length))
+  );
+
+  const groupedBuyCost = computed((troop_type) => {
+    const groups = {};
+    
+    // Проходим по всем элементам buy_cost
+    troop_type.params.buy_cost.forEach(item => {
+      if (!groups[item.identificator]) {
+        groups[item.identificator] = {
+          identificator: item.identificator,
+          total: 0
+        };
+      }
+      groups[item.identificator].total += item.count;
+    });
+    
+    // Преобразуем объект в массив
+    return Object.values(groups);
+  });
+
+
   async function removeTroop(troop_id) {
     await axios.delete(`${import.meta.env.VITE_PROXY}/troops/${troop_id}.json`)
       .then(async (response) => {
-        emit('update-armies')
+        emit('update-armies');
       })
   };
 
   async function upgradeTroop(troop_id) {
     await axios.patch(`${import.meta.env.VITE_PROXY}/troops/${troop_id}/upgrade.json`)
       .then(async (response) => {
-        emit('update-armies')
+        emit('update-armies');
       })
   };
 
   async function payForTroop(troop_id) {
     await axios.patch(`${import.meta.env.VITE_PROXY}/troops/${troop_id}/pay_for.json`)
       .then(async (response) => {
-        emit('update-armies')
+        emit('update-armies');
       })
   };
 
@@ -52,7 +189,7 @@
     await axios.patch(`${import.meta.env.VITE_PROXY}/armies/${army_id}/goto/${settlement_id}.json`)
       .then(async (response) => {
         goto_dialog.value = false;
-        emit('update-armies')
+        emit('update-armies');
       })
   };
 
@@ -100,6 +237,22 @@
   //   emit(name);
   // }
 
+  const getIdentificator = (index) => {
+    const troopWithResource = props.troop_types.find(troop => troop.params.buy_cost?.[index]);
+    return troopWithResource?.params.buy_cost[index]?.identificator;
+  };
+
+
+  const calculateTotal = (resourceIndex) => {
+    return props.troop_types.reduce((sum, troop, tt_idx) => {
+      const resource = troop.params.buy_cost?.[resourceIndex];
+      if (resource) {
+        return sum + (resource.count * tt_counts.value[tt_idx]);
+      }
+      return sum;
+    }, 0);
+  };
+
 
 </script>
 
@@ -143,11 +296,60 @@
           width="auto"
         >
           <VCard
-            max-width="400"
+            width="1200"
             title=""
           >
             <VCardText>
-              Здесь сложный выбор новых отрядов
+              <v-table>
+                <tbody>
+                  <tr v-for="(troop_type, tt_idx) in troop_types">
+                    <td width="100">
+                      {{troop_type.name}}
+                    </td>
+                    <td v-for="idx in maxBuyCostLength">
+                      <div style="display: inline-block; font-size: 30px">{{troop_type.params['buy_cost'][idx-1]?.count}}</div>
+                      <div style="display: inline-block;">
+                        <VImg
+                          :height="30"
+                          :width="30"
+                          :src="resources[troop_type.params['buy_cost'][idx-1]?.identificator]?.img"
+                          :title="resources[troop_type.params['buy_cost'][idx-1]?.identificator]?.name"
+                        />
+                      </div>
+                    </td>
+                    <td width="300">
+                      Количество: {{tt_counts[tt_idx]}}
+                      <IconBtn
+                        icon="ri-arrow-up-circle-line"
+                        class="me-1"
+                        @click="tt_counts[tt_idx] += 1"
+                      />
+                      <IconBtn
+                        icon="ri-arrow-down-circle-line"
+                        class="me-1"
+                        @click="tt_counts[tt_idx] -= 1"
+                      />
+                    </td>
+                  </tr>
+                  <tr class="total-row">
+                    <td><strong>Итого нужно:</strong></td>
+                    <td v-for="idx in maxBuyCostLength" :key="'total-'+idx">
+                      <div style="display: inline-block; font-size: 30px">
+                        {{ calculateTotal(idx-1) }}
+                      </div>
+                      <div style="display: inline-block;">
+                        <VImg
+                          :height="30"
+                          :width="30"
+                          :src="resources[getIdentificator(idx-1)]?.img"
+                          :title="resources[getIdentificator(idx-1)]?.name"
+                        />
+                      </div>
+                    </td>
+                    <td></td>
+                  </tr>
+                </tbody>
+              </v-table>
             </VCardText>
             <template v-slot:actions>
               <VBtn
@@ -238,3 +440,9 @@
   </VCard>
 </template>
 
+<style scoped>
+  .total-row {
+    background-color: rgba(0, 0, 0, 0.05);
+    font-weight: bold;
+  }
+</style>
