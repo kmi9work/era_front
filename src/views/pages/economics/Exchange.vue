@@ -13,8 +13,17 @@ const gold = ref(null)
 const resToPlayer = ref([])
 const isLoading = ref(true) // Добавляем флаг загрузки
 const showKeyboards = ref(true)
+const showEmbargoDialog = ref(false) // диалог при продаже/покупке
 
-//const showGoldKeyboard = ref(true)
+
+// Следим за изменением selectedCountry
+watch(selectedCountry, (newVal) => {
+  if (newVal) {
+    // Обновляем ресурсы при изменении страны
+    filteredResOffMark.value
+    filteredResToMark.value
+  }
+})
 
 const embargo = computed(() => {
   if (!selectedCountry.value) return false;
@@ -22,7 +31,89 @@ const embargo = computed(() => {
   return country?.params?.embargo || false;
 });
 
-const showEmbargoDialog = ref(false)
+
+const fetchCountries = async () => {
+  try {
+    const response = await axios.get(`${import.meta.env.VITE_PROXY}/countries/foreign_countries.json`);
+    countries.value = response.data;
+  } catch (error) {
+    console.error('Error fetching countries:', error);
+  }
+};
+
+let intervalId;
+
+onMounted(() => {
+  fetchCountries(); // сразу один раз при старте
+
+  // Потом каждые 30 секунд (можешь изменить время при желании)
+  intervalId = setInterval(() => {
+    fetchCountries();
+  }, 5000); // 30000 мс = 30 секунд
+});
+
+onUnmounted(() => {
+  // Очистим интервал при размонтировании компонента
+  clearInterval(intervalId);
+});
+
+
+
+const showEmbargoStatusDialog = ref(false);
+const embargoStatusMessage = ref('');
+const isEmbargoActive = ref(false);
+
+// Сохраняем предыдущее состояние эмбарго
+const prevEmbargoState = ref(null);
+
+// Функция для показа уведомления
+const showEmbargoChangeNotification = (message, isEmbargo) => {
+  embargoStatusMessage.value = message;
+  isEmbargoActive.value = isEmbargo;
+  showEmbargoStatusDialog.value = true;
+  
+  // Автоскрытие через 5 секунд
+  setTimeout(() => {
+    showEmbargoStatusDialog.value = false;
+  }, 5000);
+};
+
+// Watcher для отслеживания изменений эмбарго
+watch(embargo, (newVal, oldVal) => {
+  // Пропускаем первую инициализацию
+  if (oldVal === undefined) return;
+  
+  // Пропускаем, если страна не выбрана
+  if (!selectedCountry.value) return;
+  
+  const country = countries.value.find(c => c.id === selectedCountry.value);
+  if (!country) return;
+  
+  // Показываем уведомление только при изменении состояния
+  if (newVal !== prevEmbargoState.value) {
+    const countryName = country.name;
+    
+    if (newVal) {
+      showEmbargoChangeNotification(`${countryName} ввела эмбарго! Торговля заблокирована.`, true);
+    } else {
+      showEmbargoChangeNotification(`${countryName} сняла эмбарго! Торговля восстановлена.`, false);
+    }
+    
+    prevEmbargoState.value = newVal;
+  }
+}, { immediate: true });
+
+
+// Периодический опрос каждые 30 секунд
+const pollInterval = ref(null);
+
+onMounted(() => {
+  pollInterval.value = setInterval(fetchCountries, 30000); // 30 секунд
+});
+
+onBeforeUnmount(() => {
+  clearInterval(pollInterval.value);
+});
 
 // Загружаем данные при монтировании
 onMounted(async () => {
@@ -48,14 +139,6 @@ onMounted(async () => {
 })
 
 
-// Следим за изменением selectedCountry
-watch(selectedCountry, (newVal) => {
-  if (newVal) {
-    // Обновляем ресурсы при изменении страны
-    filteredResOffMark.value
-    filteredResToMark.value
-  }
-})
 
 const filteredResOffMark = computed(() => {
   if (!resources.value["off_market"] || !selectedCountry.value) return []
@@ -268,9 +351,6 @@ const getButtonColor = (country) => {
       <v-icon icon="mdi-refresh" class="mr-1" />
       Сбросить форму
     </v-btn>
-
-
-
 <VCol>
   <div style="display: flex; gap: 24px;">
     <!-- Форма "Игрок продает" -->
@@ -522,6 +602,24 @@ const getButtonColor = (country) => {
       </v-card-actions>
     </v-card>
   </v-dialog>
+
+
+   <v-dialog v-model="showEmbargoStatusDialog" max-width="500">
+    <v-card :color="isEmbargoActive ? 'error' : 'success'">
+      <v-card-title>
+        {{ isEmbargoActive ? 'Эмбарго введено' : 'Эмбарго снято' }}
+      </v-card-title>
+      <v-card-text>
+        {{ embargoStatusMessage }}
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn @click="showEmbargoStatusDialog = false">Закрыть</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+
 </template>
 
 <style scoped>
