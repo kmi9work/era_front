@@ -108,13 +108,14 @@
             </td>
             <td>
               {{ country.relations }} 
-              <IconBtn icon="ri-arrow-up-double-line" @click="relationsChange(country.id, 1)"></IconBtn>
-              <IconBtn icon="ri-arrow-down-double-line" @click="relationsChange(country.id, -1)"></IconBtn>
+              <IconBtn icon="ri-arrow-up-double-line" @click="relationsChange(country.id, 1)" title="Повысить отношения на 1"></IconBtn>
+              <IconBtn icon="ri-arrow-down-double-line" @click="relationsChange(country.id, -1)" title="Понизить отношения на 1"></IconBtn>
               <IconBtn 
                   icon="ri-store-line" 
                   :color="country.embargo == 1 ? 'error' : 'success'" 
                   @click="setEmbargo(country.id)"
                   v-if="country.embargo != null"
+                  :title="`Эмбарго ${country.embargo == 1 ? 'введено' : 'нет'}`"
               ></IconBtn>
             </td>
           </tr>
