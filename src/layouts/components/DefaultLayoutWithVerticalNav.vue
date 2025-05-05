@@ -37,7 +37,7 @@
   async function changeYear(){
     let fl = confirm("Уверен?");
     if (fl){
-      await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/increase_year.json`)
+      await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/increase_year.json?kaznachei_bonus=1`)
         .then(async (response) => {
           se_paid.value = false
           window.location.reload()

@@ -93,6 +93,15 @@
     updateOwnerships();
   })
 
+
+  async function joinPeace(country_id) {
+    await axios.patch(`${import.meta.env.VITE_PROXY}/countries/${country_id}/join_peace.json`)
+      .then(async (response) => {
+        updateOwnerships();
+        alert("Страна присоединена!")
+      })
+  };
+
   
 </script>
 
@@ -206,6 +215,9 @@
                       v-for="(country, c_i) in foreign_countries"
                       :value="country.id"
                     >
+                      <div style="padding: 20px">
+                        <VBtn @click="joinPeace(country.id)">Присоединить страну миром</VBtn>
+                      </div>
                       <v-card flat>
                         <v-card-text>
                           <VRow>

@@ -32,6 +32,10 @@
   const add_building_dialog = ref(false);
   const change_owner_dialog = ref(false);
 
+  const builder_choice_dialog = ref(false);
+  const current_building_action = ref({ type: '', id: null }); // Хранит текущее действие (add/upgrade) и ID
+
+
   const filteredBuildingTypes = computed(() => {
       return props.building_types.filter(bt => 
         !main_settle.value.buildings?.map(
@@ -60,21 +64,6 @@
       })
   };
 
-  async function upgradeBuilding(building_id) {
-    await axios.patch(`${import.meta.env.VITE_PROXY}/buildings/${building_id}/upgrade.json`)
-      .then(async (response) => {
-        updateOwnership();
-      })
-  };
-
-  async function addBuilding(bt_id) {
-    await axios.post(`${import.meta.env.VITE_PROXY}/settlements/${main_settle.value.id}/build.json?building_type_id=${bt_id}`)
-      .then(async (response) => {
-        add_building_dialog.value = false;
-        updateOwnership();
-      })
-  };
-
   async function changeOwner(player_id) {
     await axios.patch(`${import.meta.env.VITE_PROXY}/settlements/${main_settle.value.id}.json?settlement[player_id]=${player_id}`)
       .then(async (response) => {
@@ -95,11 +84,54 @@
     emit(name);
   }
 
+  async function addBuilding(bt_id, type) {
+    builder_choice_dialog.value = false;
+    let params = '';
+    if (type == 'metropolitan')
+      params = '&metropolitan_bonus=1'
+    else if(type == 'zodchiy'){
+      params = '&zodchiy_bonus=1'
+    }
+
+    await axios.post(`${import.meta.env.VITE_PROXY}/settlements/${main_settle.value.id}/build.json?building_type_id=${bt_id}${params}`)
+      .then(async (response) => {
+        add_building_dialog.value = false;
+        updateOwnership();
+      })
+  };
+
+  async function upgradeBuilding(building_id, type) {
+    builder_choice_dialog.value = false;
+    let params = '';
+    if (type == 'metropolitan')
+      params = '?metropolitan_bonus=1'
+    else if(type == 'zodchiy'){
+      params = '?zodchiy_bonus=1'
+    }
+    
+    await axios.patch(`${import.meta.env.VITE_PROXY}/buildings/${building_id}/upgrade.json${params}`)
+      .then(async (response) => {
+        updateOwnership();
+      })
+  };
+
+  function showBuilderChoice(action, id) {
+    current_building_action.value = { type: action, id };
+    builder_choice_dialog.value = true;
+  }
+
+  async function payChurch(building_id) {
+    await axios.patch(`${import.meta.env.VITE_PROXY}/buildings/${building_id}/pay_for_maintenance.json`)
+      .then(async (response) => {
+        updateOwnership();
+      })
+  };
+
 
 </script>
 
 <template>
-  <VCard :title="name" width="300">
+  <VCard :title="name" width="350">
     <VCardText v-if="main_settle.player">
       {{main_settle.player?.name}} | {{main_settle.player?.jobs.map((j) => j.name)?.join(", ")}}
       <IconBtn
@@ -114,7 +146,9 @@
         <tbody>
           <tr v-for="building in main_settle.buildings">
             <td>
-              {{building.building_level?.building_type?.name}} - {{building.building_level?.level}} 
+              <span :style="building.fined ? 'color: red' : ''">
+                {{building.building_level?.building_type?.name}} - {{building.building_level?.level}} 
+              </span>
             </td>
             <td>
               <IconBtn
@@ -125,7 +159,14 @@
               <IconBtn
                   icon="ri-arrow-up-circle-line"
                   class="me-1"
-                  @click="upgradeBuilding(building.id)"
+                  @click="showBuilderChoice('upgrade', building.id)"
+                />
+              <IconBtn
+                  icon="ri-hand-coin-line"
+                  :color="building.is_paid ? 'success' : 'error'"
+                  class="me-1"
+                  @click="payChurch(building.id)"
+                  v-if="building.building_level?.building_type.id == 1"
                 />
             </td>
           </tr>
@@ -147,7 +188,6 @@
             max-width="400"
             title="Выбрать здание"
           >
-
             <VList>
               <VListItem
                 v-for="(item, i) in filteredBuildingTypes"
@@ -155,12 +195,11 @@
                 :value="item.id"
                 color="primary"
                 rounded="xl"
-                @click="addBuilding(item.id)"
+                @click="showBuilderChoice('add', item.id)"
               >
                 <template v-slot:prepend>
                   <VIcon :icon="item.icon"></VIcon>
                 </template>
-
                 <VListItemTitle v-text="item.name"></VListItemTitle>
               </VListItem>
             </VList>
@@ -174,6 +213,57 @@
           </VCard>
         </VDialog>
       </div>
+      
+      <!-- Модальное окно выбора строителя -->
+      <VDialog
+        v-model="builder_choice_dialog"
+        width="auto"
+      >
+        <VCard
+          width="600"
+          title="Кто строит?"
+        >
+          <VCardText>
+            Выберите, кто выполняет строительство:
+          </VCardText>
+          
+          <VCardActions>
+            <VBtn
+              color="primary"
+              @click="current_building_action.type === 'add' 
+                ? addBuilding(current_building_action.id, 'metropolitan') 
+                : upgradeBuilding(current_building_action.id, 'metropolitan')"
+              v-if="current_building_action.id == 1"
+            >
+              Митрополит
+            </VBtn>
+            
+            <VBtn
+              color="primary"
+              @click="current_building_action.type === 'add' 
+                ? addBuilding(current_building_action.id, 'zodchiy') 
+                : upgradeBuilding(current_building_action.id, 'zodchiy')"
+            >
+              Зодчий
+            </VBtn>
+
+            <VBtn
+              color="primary"
+              @click="current_building_action.type === 'add' 
+                ? addBuilding(current_building_action.id, 'master') 
+                : upgradeBuilding(current_building_action.id, 'master')"
+            >
+              Мастер
+            </VBtn>
+            
+            <VBtn
+              class="ms-auto"
+              text="Отмена"
+              @click="builder_choice_dialog = false"
+            ></VBtn>
+          </VCardActions>
+        </VCard>
+      </VDialog>
     </VCardText>
 
     <VCardActions>

@@ -1,9 +1,8 @@
 <script setup>
   import axios from 'axios'
   import Army from '@/views/pages/politics/Army.vue'
-  import ArmyCreate from '@/views/pages/politics/ArmyCreate.vue'
-  import { reactive, computed } from 'vue'
-  import { ref } from 'vue'
+  import ArmyForm from '@/views/pages/politics/ArmyForm.vue'
+  import { reactive, computed, onBeforeMount, ref } from 'vue'
 
   const tabItems = [
     {
@@ -17,52 +16,86 @@
   ]
 
   const navigationTab = ref('Player')
-
-  const armies = ref([]);
-  const owners = ref([]);
-  const selected_owners = ref([]);
-  const settlements = ref([]);
-  const troop_types = ref([]);
+  const armies = ref([])
+  const owners = ref([])
+  const selected_owners = ref([])
+  const settlements = ref([])
+  const troop_types = ref([])
+  const countries = ref([])
+  const nobles = ref([])
+  const upgrade_paths = ref({})
+  const editingArmy = ref(null)
 
   const filteredArmies = computed(() => {
-    if (selected_owners.value.length === 0){
-      return armies.value;
-    } else{
-      return armies.value.filter(army => selected_owners.value.includes(`${army.owner?.owner_type}-${army.owner?.id}`));
+    if (selected_owners.value.length === 0) {
+      return armies.value
+    } else {
+      return armies.value.filter(army => 
+        selected_owners.value.includes(`${army.owner?.owner_type}-${army.owner?.id}`)
+      )
     }
   })
 
   const armiesByNav = (type) => {
-    return filteredArmies.value.filter(army => army.owner_type == type);
+    return filteredArmies.value.filter(army => army.owner_type == type)
   }
 
   function onlyUnique(value, index, array) {
-    return array.indexOf(value) === index;
+    return array.findIndex(item => item.id === value.id && item.owner_type === value.owner_type) === index
   }
 
-  async function updateArmies(){
+  async function updateArmies() {
     await axios.get(`${import.meta.env.VITE_PROXY}/armies.json`) 
       .then(response => {
-        armies.value = response.data;
-        owners.value = armies.value.map((a) => a.owner).filter(onlyUnique);
+        armies.value = response.data
+        owners.value = armies.value.map((a) => a.owner).filter(onlyUnique)
       })
+  }
+
+  async function loadAllOwners() {
+    try {
+      // Загружаем страны
+      const countriesResponse = await axios.get(`${import.meta.env.VITE_PROXY}/countries.json?foreign=1`)
+      countries.value = countriesResponse.data
+      
+      // Загружаем игроков и фильтруем знатных
+      const playersResponse = await axios.get(`${import.meta.env.VITE_PROXY}/players.json`)
+      nobles.value = playersResponse.data.filter(player => player.player_type?.id == 2) // 2 - Знать
+    } catch (error) {
+      console.error('Ошибка при загрузке владельцев:', error)
+    }
+  }
+
+  async function loadUpgradePaths() {
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_PROXY}/troop_types/upgrade_paths.json`);
+      upgrade_paths.value = response.data;
+    } catch (error) {
+      console.error('Ошибка при загрузке путей улучшений:', error);
+      // Устанавливаем значения по умолчанию на случай ошибки
+      upgrade_paths.value = {
+        '1': 2, // Пехота -> Тяжелая пехота
+        '2': 3, // Тяжелая пехота -> Кавалерия
+        '3': 4  // Кавалерия -> Пушка
+      };
+    }
   }
 
   onBeforeMount(async () => {
-    updateArmies();
-
-    await axios.get(`${import.meta.env.VITE_PROXY}/settlements.json?all=1`) 
-      .then(response => {
-        settlements.value = response.data;
-      })
-
-    await axios.get(`${import.meta.env.VITE_PROXY}/troop_types.json`) 
-      .then(response => {
-        troop_types.value = response.data;
-      })
+    await loadUpgradePaths();
+    await Promise.all([
+      updateArmies(),
+      loadAllOwners(),
+      axios.get(`${import.meta.env.VITE_PROXY}/settlements.json?all=1`)
+        .then(response => {
+          settlements.value = response.data
+        }),
+      axios.get(`${import.meta.env.VITE_PROXY}/troop_types.json`)
+        .then(response => {
+          troop_types.value = response.data
+        })
+    ])
   })
-
-  
 </script>
 
 <template>
@@ -70,13 +103,14 @@
     <v-autocomplete
       v-model="selected_owners"
       :items="owners"
-      label="Фильтр по игроку"
+      label="Фильтр по игроку/стране"
       item-title="name"
-      :item-value="item=>`${item.owner_type}-${item.id}`"
+      :item-value="item => `${item.owner_type}-${item.id}`"
       multiple
       clearable
       persistent-hint
     ></v-autocomplete>
+    
     <VCard>
       <VTabs v-model="navigationTab">
         <VTab
@@ -87,6 +121,7 @@
           {{ item.name }}
         </VTab>
       </VTabs>
+      
       <VWindow v-model="navigationTab" :touch="false">
         <VWindowItem
           v-for="(item) in tabItems"
@@ -98,8 +133,11 @@
               <template v-if="item.key == 'Player'">
                 <div class="d-flex flex-row">
                   <div style="padding: 20px">
-                    <ArmyCreate 
+                    <ArmyForm 
                       title="Создать армию"
+                      :settlements="settlements"
+                      :nobles="nobles"
+                      :countries="countries"
                       @army-created="updateArmies"
                     />
                   </div>
@@ -115,7 +153,12 @@
                             :settlements="settlements"
                             :armies="armies"
                             :troop_types="troop_types"
+                            :upgrade_paths="upgrade_paths"
+                            :foreign="false"
+                            :nobles="nobles"
+                            :countries="countries"
                             @update-armies="updateArmies"
+                            @edit-army="army => editingArmy = army"
                           />
                         </VCol>
                       </VRow>
@@ -127,9 +170,22 @@
               <template v-else-if="item.key == 'Country'">
                 <div class="d-flex flex-row">
                   <div style="padding: 20px">
-                    <ArmyCreate 
+                    <ArmyForm 
                       title="Создать армию"
+                      :settlements="settlements"
+                      :nobles="nobles"
+                      :countries="countries"
                       @army-created="updateArmies"
+                    />
+                    <ArmyForm 
+                      v-if="editingArmy"
+                      title="Редактировать армию"
+                      :settlements="settlements"
+                      :nobles="nobles"
+                      :countries="countries"
+                      :army="editingArmy"
+                      @army-updated="updateArmies"
+                      @close="editingArmy = null"
                     />
                   </div>
                   <v-card flat>
@@ -141,6 +197,15 @@
                         >
                           <Army 
                             :army="army"
+                            :settlements="settlements"
+                            :armies="armies"
+                            :troop_types="troop_types"
+                            :upgrade_paths="upgrade_paths"
+                            :foreign="true"
+                            :nobles="nobles"
+                            :countries="countries"
+                            @update-armies="updateArmies"
+                            @edit-army="army => editingArmy = army"
                           />
                         </VCol>
                       </VRow>

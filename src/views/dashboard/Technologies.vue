@@ -11,7 +11,9 @@
   const emit = defineEmits(['reload-dashboard']);
   
   async function editItem(item_id, value){
-    axios.patch(`${import.meta.env.VITE_PROXY}/technology_items/${item_id}.json`, {value: value}) 
+    const fl = confirm('Добавить бонус Окольничему?')
+    const params = fl ? '?okolnichy_bonus=1' : ''
+    axios.patch(`${import.meta.env.VITE_PROXY}/technology_items/${item_id}.json${params}`, {value: value}) 
       .then(response => {
         emit('reload-dashboard');
       })

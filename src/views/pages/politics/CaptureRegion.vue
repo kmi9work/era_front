@@ -31,7 +31,12 @@
   const capture_stepper = ref(0);
 
   async function captureRegion(region_id, country_id, how) {
-    await axios.patch(`${import.meta.env.VITE_PROXY}/regions/${region_id}/captured_by.json?country_id=${country_id}&how=${by_war.value}`)
+    let zb = ''
+    if (country_id == 1){ //rus
+      let bonus = confirm("Зачислить бонус Великому князю за присоединение земли?")
+      zb = bonus ? '&grand_prince_bonus=1' : ''
+    }
+    await axios.patch(`${import.meta.env.VITE_PROXY}/regions/${region_id}/captured_by.json?country_id=${country_id}&how=${by_war.value}${zb}`)
       .then(async (response) => {
         capture_dialog.value = false;
         emit('capture-region');

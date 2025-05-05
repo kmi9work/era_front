@@ -1,5 +1,6 @@
 <script setup>
   import axios from 'axios'
+  import ArmyDialog from './ArmyDialog.vue' // Добавьте этот импорт
   import stone_brick from '@images/resources/stone_brick.png'
   import weapon from '@images/resources/weapon.png'
   import tools from '@images/resources/tools.png'
@@ -75,10 +76,6 @@
       'img': flour,
       'name': 'Мука'
     },
-    'flour': {
-      'img': flour,
-      'name': 'Мука'
-    },
     'boards': {
       'img': boards,
       'name': 'Доски'
@@ -109,18 +106,168 @@
     troop_types: {
       type: Array,
       required: true,
+    },
+    upgrade_paths:{
+      type: Object,
+      required: true
+    },
+    foreign:{
+      type: Boolean,
+      required: true
+    },
+    nobles:{
+      type: Array,
+      required: true
+    },
+    countries:{
+      type: Array,
+      required: true
     }
   })
 
-  const emit = defineEmits(['update-armies']);
+  const emit = defineEmits(['update-armies', 'edit-army']);
 
   const attack_dialog = ref(false);
   const add_troop_dialog = ref(false);
+
   const goto_dialog = ref(false);
   const settle = ref(null);
   const enemy = ref(null);
 
   const tt_counts = ref([]);
+
+  const selected_troop_types = ref([]); // Массив выбранных типов отрядов
+
+  const editArmyDialog = ref(false)
+
+  // Получаем имя следующего уровня улучшения
+  function getNextLevelName(currentId) {
+    const nextId = props.upgrade_paths[currentId];
+    if (!nextId) return null;
+    return props.troop_types.find(t => t.id === nextId)?.name;
+  }
+
+  // Проверяем, можно ли улучшить отряд с fromType до toType
+  function canUpgradeTo(fromType, toType) {
+    let current = props.troop_types.find(t => t.name === fromType);
+    if (!current) return false;
+    
+    while (current) {
+      if (current.name === toType) return true;
+      const nextId = props.upgrade_paths[current.id];
+      if (!nextId) break;
+      current = props.troop_types.find(t => t.id === nextId);
+    }
+    return false;
+  }
+
+
+  // Вычисляем общую стоимость улучшений
+  const totalCost = computed(() => {
+    const cost = {};
+    
+    selected_troop_types.value.forEach((troopType, index) => {
+      if (!troopType) return;
+      
+      const existingTroop = props.army.troops[index];
+      const targetTroop = props.troop_types.find(t => t.name === troopType);
+      if (!targetTroop) return;
+      
+      if (existingTroop) {
+        // Улучшение существующего отряда
+        const currentTroopType = props.troop_types.find(t => t.id === existingTroop.troop_type.id);
+        if (!currentTroopType || currentTroopType.name === troopType) return;
+        
+        let currentId = currentTroopType.id;
+        let found = false;
+        
+        while (currentId && !found) {
+          const nextId = props.upgrade_paths[currentId];
+          if (!nextId) break;
+          
+          const nextTroop = props.troop_types.find(t => t.id === nextId);
+          if (!nextTroop) break;
+          
+          nextTroop.params.buy_cost?.forEach(res => {
+            cost[res.identificator] = (cost[res.identificator] || 0) + res.count;
+          });
+          
+          if (nextTroop.id === targetTroop.id) found = true;
+          currentId = nextId;
+        }
+      } else {
+        // Создание нового отряда
+        let currentId = 1;
+        let found = false;
+        
+        while (currentId && !found) {
+          const troop = props.troop_types.find(t => t.id === currentId);
+          if (!troop) break;
+          
+          troop.params.buy_cost?.forEach(res => {
+            cost[res.identificator] = (cost[res.identificator] || 0) + res.count;
+          });
+          
+          if (troop.id === targetTroop.id) found = true;
+          currentId = props.upgrade_paths[currentId];
+        }
+      }
+    });
+
+    // Фильтрация нулевых значений
+    return Object.fromEntries(
+      Object.entries(cost).filter(([_, count]) => count > 0)
+    );
+  });
+
+  // Доступные для выбора типы отрядов
+  const availableTroopTypes = computed(() => {
+    return props.troop_types.filter(troop => {
+      // Для новых отрядов проверяем, что можно добавить
+      if (props.army.troops.length < 3) return true;
+      // Для существующих отрядов всегда доступны варианты улучшения
+      return true;
+    });
+  });
+
+  watch(add_troop_dialog, (newVal) => {
+    if (newVal) {
+      selected_troop_types.value = props.army.troops.map(t => t.troop_type.name);
+    }
+  });
+
+  // Добавляем/улучшаем отряды
+  async function createTroops() {
+    try {
+      // Создаем массив промисов для создания/обновления отрядов
+      const promises = selected_troop_types.value.map(async (troopType, index) => {
+        const existingTroop = props.army.troops[index];
+        
+        if (existingTroop) {
+          // Улучшаем существующий отряд
+          if (existingTroop.troop_type.name !== troopType) {
+            return axios.patch(`${import.meta.env.VITE_PROXY}/troops/${existingTroop.id}/upgrade.json`, {
+              target_type_id: props.troop_types.find(t => t.name === troopType).id
+            });
+          }
+        } else {
+          // Создаем новый отряд
+          return axios.post(`${import.meta.env.VITE_PROXY}/armies/${props.army.id}/troops.json`, {
+            troop_type_id: props.troop_types.find(t => t.name === troopType).id
+          });
+        }
+      });
+
+      // Выполняем все запросы
+      await Promise.all(promises.filter(Boolean));
+      emit('update-armies');
+      add_troop_dialog.value = false;
+      selected_troop_types.value = [];
+    } catch (error) {
+      console.error('Ошибка при создании отрядов:', error);
+      alert('Произошла ошибка при создании отрядов');
+    }
+  }
 
   // Функция для инициализации массива
   const initializeCounts = () => {
@@ -138,7 +285,6 @@
   }, { deep: true });
 
   onBeforeMount(async () => {
-    // updateArmy();
   })
 
   const maxBuyCostLength = computed(() => 
@@ -171,13 +317,6 @@
       })
   };
 
-  async function upgradeTroop(troop_id) {
-    await axios.patch(`${import.meta.env.VITE_PROXY}/troops/${troop_id}/upgrade.json`)
-      .then(async (response) => {
-        emit('update-armies');
-      })
-  };
-
   async function payForTroop(troop_id) {
     await axios.patch(`${import.meta.env.VITE_PROXY}/troops/${troop_id}/pay_for.json`)
       .then(async (response) => {
@@ -194,7 +333,7 @@
   };
 
   async function armyAttack(army_id, enemy_id) {
-    await axios.patch(`${import.meta.env.VITE_PROXY}/armies/${army_id}/attack/${enemy_id}.json`)
+    await axios.patch(`${import.meta.env.VITE_PROXY}/armies/${army_id}/attack/${enemy_id}.json?voevoda_bonus=1`)
       .then(async (response) => {
         if (response.data) {
           alert(`Победил ${response.data?.owner?.name}. Урон армии внесён в программу`);
@@ -207,36 +346,6 @@
       })
   };
 
-  
-
-  // async function addBuilding(bt_id) {
-  //   await axios.post(`${import.meta.env.VITE_PROXY}/settlements/${main_settle.value.id}/build.json?building_type_id=${bt_id}`)
-  //     .then(async (response) => {
-  //       add_building_dialog.value = false;
-  //       updateOwnership();
-  //     })
-  // };
-
-  // async function changeOwner(player_id) {
-  //   await axios.patch(`${import.meta.env.VITE_PROXY}/settlements/${main_settle.value.id}.json?settlement[player_id]=${player_id}`)
-  //     .then(async (response) => {
-  //       change_owner_dialog.value = false;
-  //       updateOwnership();
-  //     })
-  // };
-
-  // async function removeOwner() {
-  //   await axios.patch(`${import.meta.env.VITE_PROXY}/settlements/${main_settle.value.id}.json?settlement[player_id]=`)
-  //     .then(async (response) => {
-  //       change_owner_dialog.value = false;
-  //       updateOwnership();
-  //     })
-  // };
-
-  // function superEmit(name){
-  //   emit(name);
-  // }
-
   const getIdentificator = (index) => {
     const troopWithResource = props.troop_types.find(troop => troop.params.buy_cost?.[index]);
     return troopWithResource?.params.buy_cost[index]?.identificator;
@@ -245,19 +354,56 @@
 
   const calculateTotal = (resourceIndex) => {
     return props.troop_types.reduce((sum, troop, tt_idx) => {
-      const resource = troop.params.buy_cost?.[resourceIndex];
-      if (resource) {
-        return sum + (resource.count * tt_counts.value[tt_idx]);
+      const cost = troop.params?.buy_cost;
+      if (cost && cost[resourceIndex]) {
+        return sum + (cost[resourceIndex].count * tt_counts.value[tt_idx]);
       }
       return sum;
     }, 0);
   };
 
+  async function removeArmy(army_id) {
+    if (confirm('Вы уверены, что хотите удалить эту армию?')) {
+      await axios.delete(`${import.meta.env.VITE_PROXY}/armies/${army_id}.json`)
+        .then(async (response) => {
+          emit('update-armies');
+        })
+        .catch(error => {
+          console.error('Ошибка при удалении армии:', error);
+          alert('Не удалось удалить армию');
+        });
+    }
+  };
+
+  // Обработчик сохранения изменений
+  const handleSubmit = async (armyData) => {
+    try {
+      await axios.patch(`${import.meta.env.VITE_PROXY}/armies/${props.army.id}.json`, armyData)
+      emit('update-armies')
+      editArmyDialog.value = false
+    } catch (error) {
+      console.error('Ошибка при обновлении армии:', error)
+      alert('Не удалось обновить армию')
+    }
+  }
+
+  async function scoutArmy(army_id, hidden) {
+    try {
+      let bonus = !hidden && confirm("Зачислить бонус Тайному советнику за разведку?")
+      const params = bonus ? '?tainiy_bonus=1' : ''
+      await axios.patch(`${import.meta.env.VITE_PROXY}/armies/${army_id}.json${params}`, {hidden: hidden})
+      emit('update-armies')
+    } catch (error) {
+      console.error('Ошибка при разведке армии:', error)
+      alert('Не удалось разведать армию')
+    }
+  }
+
 
 </script>
 
 <template>
-  <VCard :title="`${army.owner?.name} - ${army.power}`" width="400">
+  <VCard :title="`${army.name} - ${army.power}`" width="400">
     <VCardText>
       <v-table>
         <tbody>
@@ -268,24 +414,27 @@
             <td>
               {{troop.power}}
             </td>
-            <td>
-              <span v-if="troop.damage > 0" style="color: red">{{troop.health}}/{{troop.max_health}}</span>
-              <span v-else>{{troop.health}}/{{troop.max_health}}</span>
-            </td>
-            <td>
+            <td class="d-flex align-center">
               <VBtn 
                 :color="troop.is_paid ? 'success' : 'error'"
                 @click="payForTroop(troop.id)"
+                class="mr-2"
+                v-if="!foreign"
               >
                 Оплата
               </VBtn>
+              <IconBtn
+                icon="ri-delete-bin-line"
+                color="error"
+                @click="removeTroop(troop.id)"
+              />
             </td>
           </tr>
         </tbody>
       </v-table>
-      <div v-if="army.troops.length < 3" class="text-center pa-4">
+      <div class="text-center pa-4">
         <IconBtn
-            icon="ri-arrow-up-circle-line"
+            icon="ri-add-circle-line"
             class="me-1"
             fill="rgba(100,205,138,1)"
             @click="add_troop_dialog = true"
@@ -297,73 +446,103 @@
         >
           <VCard
             width="1200"
-            title=""
+            title="Формирование армии"
           >
             <VCardText>
-              <v-table>
-                <tbody>
-                  <tr v-for="(troop_type, tt_idx) in troop_types">
-                    <td width="100">
-                      {{troop_type.name}}
-                    </td>
-                    <td v-for="idx in maxBuyCostLength">
-                      <div style="display: inline-block; font-size: 30px">{{troop_type.params['buy_cost'][idx-1]?.count}}</div>
-                      <div style="display: inline-block;">
-                        <VImg
-                          :height="30"
-                          :width="30"
-                          :src="resources[troop_type.params['buy_cost'][idx-1]?.identificator]?.img"
-                          :title="resources[troop_type.params['buy_cost'][idx-1]?.identificator]?.name"
+              <!-- Отображение текущих отрядов -->
+              <div v-for="(troop, index) in army.troops" :key="troop.id" class="mb-4">
+                <h3>Текущий отряд {{ index + 1 }}: {{ troop.troop_type.name }}</h3><br>
+                <VSelect
+                  v-model="selected_troop_types[index]"
+                  :items="availableTroopTypes.filter(t => 
+                    t.name === troop.troop_type.name || 
+                    canUpgradeTo(troop.troop_type.name, t.name)
+                  )"
+                  item-title="name"
+                  item-value="name"
+                  :label="`Улучшить отряд ${index + 1}`"
+                  clearable
+                />
+              </div>
+              
+              <!-- Добавление новых отрядов -->
+              <div v-for="index in 3 - army.troops.length" :key="'new-'+index" class="mb-4">
+                <h3>Новый отряд {{ army.troops.length + index }}</h3>
+                <VSelect
+                  v-model="selected_troop_types[army.troops.length + index - 1]"
+                  :items="availableTroopTypes"
+                  item-title="name"
+                  item-value="name"
+                  label="Выберите тип отряда"
+                  clearable
+                />
+              </div>
+              
+              <div v-if="Object.keys(totalCost).length > 0" class="mt-4">
+                <h3>Общая стоимость:</h3>
+                <v-list>
+                  <v-list-item
+                    v-for="([res, count], index) in Object.entries(totalCost)"
+                    :key="index"
+                  >
+                    <template v-slot:prepend>
+                      <v-avatar size="30" class="mr-2">
+                        <v-img
+                          :src="resources[res]?.img"
+                          :title="resources[res]?.name"
                         />
-                      </div>
-                    </td>
-                    <td width="300">
-                      Количество: {{tt_counts[tt_idx]}}
-                      <IconBtn
-                        icon="ri-arrow-up-circle-line"
-                        class="me-1"
-                        @click="tt_counts[tt_idx] += 1"
-                      />
-                      <IconBtn
-                        icon="ri-arrow-down-circle-line"
-                        class="me-1"
-                        @click="tt_counts[tt_idx] -= 1"
-                      />
-                    </td>
-                  </tr>
-                  <tr class="total-row">
-                    <td><strong>Итого нужно:</strong></td>
-                    <td v-for="idx in maxBuyCostLength" :key="'total-'+idx">
-                      <div style="display: inline-block; font-size: 30px">
-                        {{ calculateTotal(idx-1) }}
-                      </div>
-                      <div style="display: inline-block;">
-                        <VImg
-                          :height="30"
-                          :width="30"
-                          :src="resources[getIdentificator(idx-1)]?.img"
-                          :title="resources[getIdentificator(idx-1)]?.name"
-                        />
-                      </div>
-                    </td>
-                    <td></td>
-                  </tr>
-                </tbody>
-              </v-table>
+                      </v-avatar>
+                    </template>
+                    
+                    <v-list-item-title>
+                      {{ count }} {{ resources[res]?.name }}
+                    </v-list-item-title>
+                  </v-list-item>
+                </v-list>
+              </div>
             </VCardText>
-            <template v-slot:actions>
+            
+            <VCardActions>
               <VBtn
-                class="ms-auto"
-                text="Отмена"
+                color="primary"
+                @click="createTroops"
+                :disabled="selected_troop_types.filter(Boolean).length === 0"
+              >
+                Подтвердить
+              </VBtn>
+              <VBtn
                 @click="add_troop_dialog = false"
-              ></VBtn>
-            </template>
+              >
+                Отмена
+              </VBtn>
+            </VCardActions>
           </VCard>
         </VDialog>
       </div>
     </VCardText>
     <VCardText>
       Город: {{army.settlement?.name}}
+    </VCardText>
+    <VCardText>
+      Разведана: 
+      <template v-if="army.hidden">
+        <VBtn 
+          color="error"
+          variant="text"
+          @click="scoutArmy(army.id, false)"
+        >
+          Нет (разведать)
+        </VBtn>
+      </template>
+      <template v-else>
+        <VBtn 
+          color="success"
+          variant="text"
+          @click="scoutArmy(army.id, true)"
+        >
+          Да (спрятать)
+        </VBtn>
+      </template>
     </VCardText>
 
     <VCardActions>
@@ -381,7 +560,7 @@
               v-model="enemy"
               :items="armies"
               label="Армия"
-              item-title="owner.name"
+              :item-title="item => `${item.owner.name}(${item.owner.id})`"
               item-value="id"
               clearable
               persistent-hint
@@ -436,13 +615,37 @@
           </template>
         </VCard>
       </VDialog>
+      <VSpacer />
+      <IconBtn
+        icon="ri-pencil-line"
+        color="primary"
+        @click="editArmyDialog = true"
+        class="mr-2"
+      />
+      <IconBtn
+        icon="ri-delete-bin-line"
+        color="error"
+        @click="removeArmy(army.id)"
+      />
     </VCardActions>
   </VCard>
+  <ArmyDialog
+    v-model="editArmyDialog"
+    :army="army"
+    :settlements="settlements"
+    :nobles="nobles"
+    :countries="countries"
+    @submit="handleSubmit"
+  />
 </template>
 
 <style scoped>
   .total-row {
     background-color: rgba(0, 0, 0, 0.05);
     font-weight: bold;
+  }
+
+  .delete-army-btn {
+    margin-left: auto;
   }
 </style>
