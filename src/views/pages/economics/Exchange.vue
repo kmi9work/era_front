@@ -36,7 +36,7 @@ const fetchCountries = async () => {
       return {
         name: item.name,
         relations: item.relations,
-        embargo: item.params["embargo"]
+        embargo: item.embargo
       };
     });
 
@@ -201,7 +201,7 @@ const embargo = computed(() => {
 
 // Проверялка на предмет эмбарго для кнопок
 const hasEmbargo = (country) => {
-  return country.params?.embargo === true
+  return country.embargo === 1
 }
 
 // Метод для определения цвета кнопки страны
