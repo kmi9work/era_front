@@ -79,7 +79,6 @@ watch(
 
     if (changedCountry) {
       isEmbargoActive.value = (changedCountry.embargo > 0); // 1 = введено, 0 = снято
-      console.log(isEmbargoActive.value)
       embargoStatusMessage.value = (changedCountry.embargo > 0)
         ? `${changedCountry.name} ввела эмбарго против Руси!`
         : `${changedCountry.name} сняла эмбарго!`;
@@ -184,7 +183,6 @@ async function submit() {
     showEmbargoDialog.value = true
     return
   }
-console.log(embargo.value)
   await sendCaravanRequest()
 }
 
