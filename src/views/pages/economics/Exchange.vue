@@ -17,7 +17,7 @@ const resources = ref([])
 const resourcesPlSells = ref([])
 const resourcesPlBuys = ref([])
 const resToPlayer = ref([])
-
+const resToBack = ref ([])
 
 // Отношения (для цен) и эмбарго
 const countriesRelations = ref([])          // Массив хэшей [{имя, отношение, эмбарго}]
@@ -36,7 +36,7 @@ const fetchCountries = async () => {
       return {
         name: item.name,
         relations: item.relations,
-        embargo: item.embargo
+        embargo: item.params["embargo"]
       };
     });
 
@@ -78,11 +78,11 @@ watch(
     });
 
     if (changedCountry) {
-      isEmbargoActive.value = changedCountry.embargo; // true = введено, false = снято
-      embargoStatusMessage.value = changedCountry.embargo
+      isEmbargoActive.value = (changedCountry.embargo > 0); // 1 = введено, 0 = снято
+      console.log(isEmbargoActive.value)
+      embargoStatusMessage.value = (changedCountry.embargo > 0)
         ? `${changedCountry.name} ввела эмбарго против Руси!`
         : `${changedCountry.name} сняла эмбарго!`;
-      
       showEmbargoStatusDialog.value = true;
     }
   },
@@ -107,7 +107,6 @@ const filteredResOffMark = computed(() => {
 
   resourcesPlBuys.value = filtered.map(
     (item) => ({
-      "name_and_b_pr": item.name_and_b_pr,
       "identificator": item.identificator,
       "count": null
     })
@@ -138,14 +137,12 @@ const filteredResToMark = computed(() => {
 
   // Создаем копию для resourcesPlSells
   resourcesPlSells.value = filtered.map(item => ({
-    name_and_s_pr: item.name_and_s_pr,
     identificator: item.identificator,
     count: null
   }))
 
   // Добавляем золото в оба массива
   const goldItem = {
-    name_and_s_pr: "Золотишко",
     identificator: "gold",
     count: null
   }
@@ -156,7 +153,8 @@ const filteredResToMark = computed(() => {
   // Возвращаем filtered с добавленным золотом
   return [...filtered, {...goldItem}]
 })
-const resToBack = ref ([])
+
+
 async function sendCaravanRequest(isContraband = false) {
   try {
     const resToBack = {
@@ -164,7 +162,7 @@ async function sendCaravanRequest(isContraband = false) {
       res_pl_sells: resourcesPlSells.value,
       res_pl_buys: resourcesPlBuys.value
     };
-
+    showEmbargoDialog.value = false
     const response = await axios.post(
       `${import.meta.env.VITE_PROXY}/resources/send_caravan`,
       resToBack
@@ -186,7 +184,7 @@ async function submit() {
     showEmbargoDialog.value = true
     return
   }
-
+console.log(embargo.value)
   await sendCaravanRequest()
 }
 
@@ -194,21 +192,30 @@ async function submit() {
 
 // Сообщение о том, что какая-то страна ввела эмбарго. 
 const embargo = computed(() => {
-  if (!selectedCountry.value) return false;
+  if (selectedCountry.value == null) return false;
   const country = countries.value.find(c => c.id === selectedCountry.value);
-  return country?.params?.embargo || false;
+  return Number(country?.params?.embargo) > 0;
 });
 
 // Проверялка на предмет эмбарго для кнопок
 const hasEmbargo = (country) => {
-  return country.embargo === 1
+  return (country?.params?.embargo > 0) 
 }
 
 // Метод для определения цвета кнопки страны
 const getButtonColor = (country) => {
-  if (selectedCountry.value === country.id) return 'primary'
+  if (selectedCountry.value === country.id && !hasEmbargo(country)) return 'success'
+  if (selectedCountry.value === country.id && hasEmbargo(country)) return 'secondary'  
   if (hasEmbargo(country)) return 'error'
   return undefined
+}
+
+const nameChecker = (item) => {
+  if (item){
+    return `По ${item}` 
+  }else{
+    return "Золото"
+  }
 }
 
 // Загружаем данные при монтировании
@@ -256,20 +263,16 @@ async function confirmContraband() {
   }
 }
 
-
-
 //Кнопки и прочее
 function resetForm() {
   // Очищаем введённые значения покупки
   resourcesPlBuys.value = filteredResOffMark.value.map(item => ({
-    "name_and_b_pr": item.name_and_b_pr,
     "identificator": item.identificator,
     "count": null
   }));
 
   // Очищаем введённые значения продажи
   resourcesPlSells.value = filteredResToMark.value.map(item => ({
-    "name_and_s_pr": item.name_and_s_pr,
     "identificator": item.identificator,
     "count": null
   }));
@@ -286,23 +289,23 @@ function resetForm() {
 
     <!-- Кнопки стран с флагами -->
 
-<div class="country-buttons">
-  <v-btn
-    v-for="country in countries"
-    :key="country.id"
-    @click="selectedCountry = country.id"
-    class="compact-combined"
-    :color="getButtonColor(country)"
-  >
-    <v-img
-      :src="`/src/assets/images/countries/${country.name}.png`"
-      width="32"
-      height="24"
-    />
-    <span class="short-name">{{ getShortName(country.name) }}</span>
-  </v-btn>
-
-</div>
+<v-btn
+  v-for="country in countries"
+  :key="country.id"
+  @click="selectedCountry = country.id"
+  class="compact-combined"
+  :color="getButtonColor(country)"
+  :class="{ 'embargo-border': hasEmbargo(country) }"
+>
+  <v-img
+    :src="`/src/assets/images/countries/${country.name}.png`"
+    width="32"
+    height="24"
+  />
+  <span class="short-name">{{ getShortName(country.name) }}</span>
+  
+  <span v-if="hasEmbargo(country)" class="embargo-label">Эмбарго</span>
+</v-btn>
  
 <div style="display: flex; flex-direction: column; gap: 24px;">
   <!-- Форма "Игрок продает" -->
@@ -332,7 +335,7 @@ function resetForm() {
               </div>
               <v-text-field
                 v-model.number="resourcesPlSells[index].count"
-                :label="item.name_and_s_pr"
+                :label="nameChecker(item.sell_price)"
                 type="number"
                 variant="outlined"
                 density="compact"
@@ -372,7 +375,7 @@ function resetForm() {
               </div>
               <v-text-field
                 v-model.number="resourcesPlBuys[index].count"
-                :label="item.name_and_b_pr"
+                :label="nameChecker(item.buy_price)"
                 type="number"
                 variant="outlined"
                 density="compact"
@@ -482,6 +485,24 @@ function resetForm() {
     </v-card>
   </v-dialog>
 
+  <v-dialog v-model="showEmbargoDialog" max-width="500">
+    <v-card>
+      <v-card-title class="text-h5">Эта страна ввела эмбарго против Руси!</v-card-title>
+      <v-card-text>
+        Для совершения операций с этой страной нужна Контрабанда!
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn color="grey-darken-1" text @click="sendCaravanRequest(true) ">
+          Есть карточка контрабанды!
+        </v-btn>
+          <v-btn color="grey-darken-1" text @click="showEmbargoDialog = false">
+          Закрыть
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
 
 
 </template>
@@ -541,11 +562,6 @@ function resetForm() {
   margin-bottom: 12px;
 }
 
-.increment-buttons {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
 
 .submit-btn {
   margin: 16px 0;
@@ -614,4 +630,32 @@ function resetForm() {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+
+
+
+.country-buttons {
+  position: relative;
+}
+
+.embargo-border {
+  position: relative;
+  border: 2px solid red !important;
+  box-shadow: 0 0 0 2px rgba(255, 0, 0, 0.5) !important;
+}
+
+.embargo-label {
+  position: absolute;
+  top: -10px;
+  right: -5px;
+  background: red;
+  background-color: rgba(255, 0, 0, 0.0); /* 20% прозрачности */
+  color: white;
+  text-shadow: 0 0 3px red, 0 0 1px black;
+  font-size: 10px;
+  padding: 2px 5px;
+  border-radius: 15px;
+  z-index: 2;
+}
+
+
 </style>
