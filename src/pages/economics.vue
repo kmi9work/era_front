@@ -36,7 +36,7 @@ const tabs = [
     title: 'Политические действия',
     icon: 'ri-shake-hands-line',
     tab: 'buyer_actions',
-  },
+  }
 ]
 </script>
 

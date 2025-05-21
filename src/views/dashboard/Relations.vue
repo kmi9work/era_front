@@ -35,6 +35,14 @@
         emit('reload-dashboard');
       })
   }
+
+  async function setEmbargo(country_id){
+    axios.patch(`${import.meta.env.VITE_PROXY}/countries/${country_id}/set_embargo.json`) 
+      .then(response => {
+        emit('reload-dashboard');
+      })
+  }
+
 </script>
 
 
@@ -101,8 +109,15 @@
             </td>
             <td>
               {{ country.relations }} 
-              <IconBtn icon="ri-arrow-up-double-line" @click="relationsChange(country.id, 1)"></IconBtn>
-              <IconBtn icon="ri-arrow-down-double-line" @click="relationsChange(country.id, -1)"></IconBtn>
+              <IconBtn icon="ri-arrow-up-double-line" @click="relationsChange(country.id, 1)" title="Повысить отношения на 1"></IconBtn>
+              <IconBtn icon="ri-arrow-down-double-line" @click="relationsChange(country.id, -1)" title="Понизить отношения на 1"></IconBtn>
+              <IconBtn 
+                  icon="ri-store-line" 
+                  :color="country.embargo == 1 ? 'error' : 'success'" 
+                  @click="setEmbargo(country.id)"
+                  v-if="country.embargo != null"
+                  :title="`Эмбарго ${country.embargo == 1 ? 'введено' : 'нет'}`"
+              ></IconBtn>
             </td>
           </tr>
         </tbody>
