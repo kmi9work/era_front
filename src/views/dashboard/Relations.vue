@@ -43,16 +43,6 @@
       })
   }
 
-  // async function imposeOrLiftEmbargo(country_id, value){
-  //   axios.patch(`${import.meta.env.VITE_PROXY}/countries/${country_id}/embargo`) 
-  //     .then(response => {
-  //       emit('reload-dashboard');
-  //     })
-  // }
-
-
-
-
 </script>
 
 
