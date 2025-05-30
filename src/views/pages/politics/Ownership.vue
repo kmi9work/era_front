@@ -172,7 +172,7 @@
           </tr>
         </tbody>
       </v-table>
-      <div v-if="filteredBuildingTypes.length > 0 && main_settle.player" class="text-center pa-4">
+      <div class="text-center pa-4">
         <IconBtn
             icon="ri-add-circle-line"
             class="me-1"
