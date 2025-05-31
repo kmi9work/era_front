@@ -70,7 +70,7 @@
             item-value="id"
           >
             <template v-slot:item="{ props, item }">
-              <v-list-item v-bind="props" :subtitle="item.raw.job.name"></v-list-item>
+              <v-list-item v-bind="props" :subtitle="item.raw.jobs[0].name"></v-list-item>
             </template>
 
           </v-select>
