@@ -23,6 +23,14 @@ import VerticalNavLink from '@layouts/components/VerticalNavLink.vue'
 
   <VerticalNavLink
     :item="{
+      title: 'Сражения',
+      icon: 'ri-sword-line',
+      to: '/armies',
+    }"
+  />
+
+  <VerticalNavLink
+    :item="{
       title: 'Экономика',
       icon: 'ri-line-chart-line',
       to: '/economics',
