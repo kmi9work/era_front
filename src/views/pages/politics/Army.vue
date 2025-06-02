@@ -409,9 +409,21 @@
         <tbody>
           <tr v-for="troop in army.troops">
             <td>
-              {{troop.troop_type?.name}}
+              <span
+                  :style="`${troop.to_destroy && !foreign ? 'color: red;' : ''}`"
+              >
+                {{troop.troop_type?.name}}
+              </span>
+              
             </td>
-            <td>
+            <td style="padding: 0px">
+              <v-icon 
+                  
+                  :title="`Оплачены года [${troop.params['paid'].join(', ')}] с ${troop.params['first_year']}`"
+                  icon="ri-question-line">
+              </v-icon>
+            </td>
+            <td style="padding-right: 0px">
               {{troop.power}}
             </td>
             <td class="d-flex align-center">
@@ -560,7 +572,7 @@
               v-model="enemy"
               :items="armies"
               label="Армия"
-              :item-title="item => `${item.owner.name}(${item.owner.id})`"
+              :item-title="item => `${item.name}(${item.settlement?.name})`"
               item-value="id"
               clearable
               persistent-hint
