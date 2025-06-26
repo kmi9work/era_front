@@ -296,7 +296,7 @@ function resetForm() {
   :class="{ 'embargo-border': hasEmbargo(country) }"
 >
   <v-img
-    :src="`/public/images/countries/${country.name}.png`"
+    :src="`/images/countries/${country.name}.png`"
     width="32"
     height="24"
   />
