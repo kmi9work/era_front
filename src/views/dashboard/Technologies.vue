@@ -24,7 +24,7 @@
 <template>
   <VCard max-width="600">
     <VCardItem>
-      <VCardTitle>РРРРРРРРРРРРРРРРР</VCardTitle>
+      <VCardTitle>Технологии</VCardTitle>
     </VCardItem>
 
     <VCardText>
