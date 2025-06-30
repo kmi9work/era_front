@@ -296,7 +296,7 @@ function resetForm() {
   :class="{ 'embargo-border': hasEmbargo(country) }"
 >
   <v-img
-    :src="`/src/assets/images/countries/${country.name}.png`"
+    :src="`/images/countries/${country.name}.png`"
     width="32"
     height="24"
   />
@@ -325,7 +325,7 @@ function resetForm() {
             <div style="display: flex; align-items: center; gap: 8px;">
               <div style="display: flex; align-items: center;">
                 <v-img
-                  :src="`/src/assets/images/resources/${item.identificator}.png`"
+                  :src="`/images/resources/${item.identificator}.png`"
                   width="40"
                   height="40"
                   class="resource-icon"
@@ -365,7 +365,7 @@ function resetForm() {
             <div style="display: flex; align-items: center; gap: 8px;">
               <div style="display: flex; align-items: center;">
                 <v-img
-                  :src="`/src/assets/images/resources/${item.identificator}.png`"
+                  :src="`/images/resources/${item.identificator}.png`"
                   width="40"
                   height="40"
                   class="resource-icon"
