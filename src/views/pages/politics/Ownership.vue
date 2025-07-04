@@ -116,7 +116,7 @@
   };
 
   function showBuilderChoice(action, id) {
-    current_building_action.value = { type: action, id };
+    current_building_action.value = { type: action, id: id };
     builder_choice_dialog.value = true;
   }
 
@@ -131,7 +131,13 @@
 </script>
 
 <template>
-  <VCard :title="name" width="350">
+  <VCard width="350">
+    <v-card-title>
+      <span>
+        {{name}}<br>
+        <small><i>({{main_settle?.settlement_type?.name}})</i></small>
+      </span>
+    </v-card-title>
     <VCardText v-if="main_settle.player">
       {{main_settle.player?.name}} | {{main_settle.player?.jobs.map((j) => j.name)?.join(", ")}}
       <IconBtn
@@ -159,7 +165,7 @@
               <IconBtn
                   icon="ri-arrow-up-circle-line"
                   class="me-1"
-                  @click="showBuilderChoice('upgrade', building.id)"
+                  @click="showBuilderChoice('upgrade', building?.building_level?.building_type?.id)"
                 />
               <IconBtn
                   icon="ri-hand-coin-line"
@@ -225,6 +231,7 @@
         >
           <VCardText>
             Выберите, кто выполняет строительство:
+            {{current_building_action}}
           </VCardText>
           
           <VCardActions>
