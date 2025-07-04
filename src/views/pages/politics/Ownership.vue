@@ -231,7 +231,6 @@
         >
           <VCardText>
             Выберите, кто выполняет строительство:
-            {{current_building_action}}
           </VCardText>
           
           <VCardActions>
