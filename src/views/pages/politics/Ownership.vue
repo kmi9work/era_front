@@ -165,7 +165,7 @@
               <IconBtn
                   icon="ri-arrow-up-circle-line"
                   class="me-1"
-                  @click="showBuilderChoice('upgrade', building?.building_level?.building_type?.id)"
+                  @click="showBuilderChoice('upgrade', building.id)"
                 />
               <IconBtn
                   icon="ri-hand-coin-line"
@@ -239,7 +239,6 @@
               @click="current_building_action.type === 'add' 
                 ? addBuilding(current_building_action.id, 'metropolitan') 
                 : upgradeBuilding(current_building_action.id, 'metropolitan')"
-              v-if="current_building_action.id == 1"
             >
               Митрополит
             </VBtn>
