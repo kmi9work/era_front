@@ -6,6 +6,7 @@ import Exchange from '@/views/pages/economics/Exchange.vue'
 import PoliticalActions from '@/views/pages/economics/PoliticalActions.vue'
 import Production from '@/views/pages/economics/Production.vue'
 
+
 const route = useRoute()
 const activeTab = ref(route.params.tab)
 
@@ -37,6 +38,7 @@ const tabs = [
     icon: 'ri-shake-hands-line',
     tab: 'buyer_actions',
   }
+
 ]
 </script>
 

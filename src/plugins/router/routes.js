@@ -20,6 +20,13 @@ export const routes = [
         path: 'armies',
         component: () => import('@/pages/armies.vue'),
       },
+      {
+        path: 'aux',
+        component: () => import('@/pages/aux.vue'),
+      }
+
+
+
     ],
   },
 ]
