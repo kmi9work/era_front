@@ -1,172 +1,126 @@
-<script setup>
-import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue'
-import axios from 'axios'
+  <script setup>
+  // Таймер
+  import { useTimerStore } from '@/stores/timer'
+  import { onMounted } from 'vue'
 
+  const timerStore = useTimerStore()
 
-defineProps({
-  title: {
-    type: String,
-    default: 'Таймер'
-  }
-})
-
-const isLoading = ref(false)
-//Отметка о том, что таймер запущен
-const timerTicking = ref (0)
-
-//Осталось секунд
-const remainingTime = ref(1)
-let timerInterval = null // Для хранения идентификатора интервала
-
-
-async function switchTimer() {
-  try {
-    await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/switch_timer`)
-    const response = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/show_time.json`);
-    timerTicking.value = response.data.timer.ticking
-   } catch (error) {
-    console.error('Ошибка при переключении таймера:', error)
-  }
-}
-
-// Добавляем вотчер для remainingTime
-watch(timerTicking, (newValue) => {
-  // Останавливаем таймер при выключении
-  if (!newValue && timerInterval) {
-    clearInterval(timerInterval);
-    timerInterval = null;
-  }
-  
-  // Запускаем таймер при включении и наличии времени
-  if (newValue && remainingTime.value > 0) {
-    startTimer();
-  }
-});
-
-async function fetchRemainingTime() {
-  try {
-    const response = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/show_time.json`);
-    remainingTime.value = response.data.timer.time 
-    timerTicking.value = response.data.timer.ticking
-
-    // Если таймер должен тикать, запускаем интервал
-    if (timerTicking.value > 0) {
-      startTimer()
-    }
-
-  } catch (error) {
-    console.error('Ошибка при получении времени:', error)
-  }
-}
-
-function startTimer() {
-  // Очищаем предыдущий интервал, если он был
-  if (timerInterval) {
-    clearInterval(timerInterval);
-  }
-
-  // Запускаем новый интервал только если таймер активен
-  if(timerTicking.value) { // Проверяем флаг активности таймера
-    timerInterval = setInterval(() => {
-      if (remainingTime.value > 0) {
-        remainingTime.value -= 1;
-      } else {
-        // Если время вышло, очищаем интервал
-        clearInterval(timerInterval);
-        timerTicking.value = false; // Добавляем сброс флага
-      }
-    }, 1000);
-  }
-}
-
-onMounted(() => {
-  fetchRemainingTime()
-})
-
-const formattedTime = computed(() => {
-  const hours = Math.floor(remainingTime.value / 3600);
-  const minutes = Math.floor((remainingTime.value % 3600) / 60);
-  const seconds = remainingTime.value % 60;
-  
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-});
+  // Опционально - если нужно обновить при монтировании компонента
+  onMounted(() => {
+    timerStore.fetchRemainingTime()
+  })
 
 
 
 </script>
 
 <template>
-  <div>
-    <VCard>
 
+<div>
+    <VCard>
       <VCardText>
         <div class="text-h2 text-center my-6">
-
-          {{ formattedTime }} 
-          
+          {{ timerStore.formattedTime }}          
         </div>
-
   <button 
-    @click="switchTimer"
-    :disabled="isLoading"
-    class="timer-switch-button"
+    @click="timerStore.switchTimer"
+    :disabled="timerStore.isLoading"
+    class="timer-button"
+   :class="{ 
+          'active': timerStore.timerTicking,
+          'loading': timerStore.isLoading
+        }"
   >
     <span v-if="!isLoading">
-      {{ timerTicking > 0 ? 'Остановить таймер' : 'Запустить таймер' }}
+      {{ timerStore.timerTicking > 0 ? 'Остановить таймер' : 'Запустить таймер' }}
     </span>
     <span v-else class="loader"></span>
   </button>
-
-
       </VCardText>
-
  
     </VCard>
   </div>
 </template>
 
 <style scoped>
-/* Дополнительные стили при необходимости */
-.gap-4 {
-  gap: 16px;
-}
 
-
-.timer-switch-button {
-  padding: 10px 20px;
-  background-color: #4CAF50;
-  color: white;
+.timer-button {
+  display: block;
+  width: 100%;
+  max-width: 240px;
+  margin: 0 auto;
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: 500;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 16px;
-  transition: background-color 0.3s;
-  min-width: 160px;
-  height: 40px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+  color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.timer-switch-button:hover {
-  background-color: #45a049;
+.timer-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
-.timer-switch-button:disabled {
-  background-color: #cccccc;
+.timer-button:active {
+  transform: translateY(0);
+}
+
+.timer-button.active {
+  background: linear-gradient(135deg, #F44336 0%, #C62828 100%);
+}
+
+.timer-button.loading {
+  background: #607D8B;
   cursor: not-allowed;
 }
 
+.button-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
 .loader {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  border: 3px solid rgba(255,255,255,.3);
-  border-radius: 50%;
-  border-top-color: white;
-  animation: spin 1s ease-in-out infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+/* Эффект волны при клике */
+.timer-button::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.5);
+  opacity: 0;
+  border-radius: 100%;
+  transform: scale(1, 1) translate(-50%);
+  transform-origin: 50% 50%;
 }
 
+.timer-button:focus:not(:active)::after {
+  animation: ripple 0.6s ease-out;
+}
 
+@keyframes ripple {
+  0% {
+    transform: scale(0, 0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(20, 20);
+    opacity: 0;
+  }
+}
 </style>

@@ -13,7 +13,7 @@
   const se_paid = ref(false);
   const game_parameters = ref([]);
   const current_year = ref(0);
-
+  
   async function payStateExpenses(){
     let fl = confirm("Уверен? Это необратимо.");
     if (fl){
@@ -54,6 +54,19 @@
       })
   })
 
+  // Таймер
+  import { useTimerStore } from '@/stores/timer'
+  import { onMounted } from 'vue'
+
+  const timerStore = useTimerStore()
+
+  // Опционально - если нужно обновить при монтировании компонента
+  onMounted(() => {
+    timerStore.fetchRemainingTime()
+  })
+
+
+
 </script>
 
 <template>
@@ -69,9 +82,16 @@
           <VIcon icon="ri-menu-line" />
         </IconBtn>
 
-        
+          <div>
+
+  </div>
 
         <VSpacer />
+
+  <div>
+    {{ timerStore.formattedTime }}
+  </div>
+
 
         <VBtn 
           @click="payStateExpenses"
