@@ -60,12 +60,9 @@
 
   const timerStore = useTimerStore()
 
-  // Опционально - если нужно обновить при монтировании компонента
   onMounted(() => {
     timerStore.fetchRemainingTime()
   })
-
-
 
 </script>
 
@@ -88,10 +85,31 @@
 
         <VSpacer />
 
-  <div>
-    {{ timerStore.formattedTime }}
-  </div>
-
+  <div class="timer-container">
+          <div class="timer-display">
+            <VIcon icon="ri-time-line" class="timer-icon" />
+            <span class="time-text">{{ timerStore.formattedTime }}</span>
+          </div>
+          <VBtn
+            v-if="showTimerControl"
+            @click="timerStore.switchTimer"
+            :disabled="timerStore.isLoading"
+            :color="timerStore.timerTicking ? 'error' : 'success'"
+            size="small"
+            class="timer-control"
+          >
+            <VIcon v-if="!timerStore.isLoading">
+              {{ timerStore.timerTicking ? 'ri-pause-line' : 'ri-play-line' }}
+            </VIcon>
+            <VProgressCircular
+              v-else
+              indeterminate
+              size="16"
+              width="2"
+              color="white"
+            />
+          </VBtn>
+        </div>
 
         <VBtn 
           @click="payStateExpenses"
@@ -164,4 +182,74 @@
     text-transform: uppercase;
   }
 }
+
+.timer-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 16px;
+  padding: 0 12px;
+  height: 100%;
+}
+
+.timer-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: rgba(var(--v-theme-on-background), var(--v-high-emphasis-opacity));
+  background: rgba(var(--v-theme-primary), 0.1);
+  padding: 6px 12px;
+  border-radius: 6px;
+  min-width: 110px;
+  justify-content: center;
+}
+
+.timer-icon {
+  font-size: 1.2rem;
+  color: rgba(var(--v-theme-primary), 1);
+}
+
+.time-text {
+  letter-spacing: 1px;
+}
+
+.timer-control {
+  min-width: 32px;
+  padding: 0 8px;
+}
+
+/* Анимация для таймера */
+.timer-display {
+  transition: all 0.3s ease;
+}
+
+.timer-display:hover {
+  background: rgba(var(--v-theme-primary), 0.2);
+  transform: translateY(-1px);
+}
+
+/* Адаптивность */
+@media (max-width: 960px) {
+  .timer-display {
+    font-size: 1rem;
+    min-width: auto;
+    padding: 4px 8px;
+  }
+  
+  .timer-icon {
+    display: none;
+  }
+}
+
+
+
+
+
+
+
+
+
 </style>
