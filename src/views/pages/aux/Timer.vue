@@ -20,7 +20,8 @@
     <VCard>
       <VCardText>
         <div class="text-h2 text-center my-6">
-          {{ timerStore.formattedTime }}          
+          {{ timerStore.formattedTime }} 
+               
         </div>
   <button 
     @click="timerStore.switchTimer"

@@ -6,9 +6,10 @@ export const useTimerStore = defineStore('timer', () => {
   const isLoading = ref(false)
   const timerTicking = ref(0)
   const remainingTime = ref(1)
+  const timerFinish = ref(0)
   let timerInterval = null
 
-  // Вычисляемое свойство для форматированного времени (без дублирования)
+  ////Вычисляемое свойство для форматированного времени (без дублирования)
   const formattedTime = computed(() => {
     const hours = Math.floor(remainingTime.value / 3600)
     const minutes = Math.floor((remainingTime.value % 3600) / 60)
@@ -36,13 +37,20 @@ export const useTimerStore = defineStore('timer', () => {
     if (timerTicking.value > 0) {
       timerInterval = setInterval(() => {
         if (remainingTime.value > 0 && timerTicking.value > 0) {
-          remainingTime.value -= 1
+          remainingTime.value % 20 == 0? tickTimer() : remainingTime.value -= 1
+          //remainingTime.value -= 1
+          //tickTimer()
         } else {
           clearInterval(timerInterval)
           timerTicking.value = 0
         }
       }, 1000)
     }
+  }
+
+  async function tickTimer(){
+    const response = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/show_time.json`)
+    remainingTime.value = response.data.timer.time
   }
 
   async function fetchRemainingTime() {
@@ -68,6 +76,7 @@ export const useTimerStore = defineStore('timer', () => {
     remainingTime,
     formattedTime,
     switchTimer,
-    fetchRemainingTime
+    fetchRemainingTime,
+    timerFinish
   }
 })
