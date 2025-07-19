@@ -60,10 +60,6 @@
 
   const timerStore = useTimerStore()
 
-  onMounted(() => {
-    timerStore.fetchRemainingTime()
-  })
-
 </script>
 
 <template>
@@ -88,27 +84,9 @@
   <div class="timer-container">
           <div class="timer-display">
             <VIcon icon="ri-time-line" class="timer-icon" />
-            <span class="time-text">{{ timerStore.formattedTime }}</span>
+            <span class="time-text">{{ timerStore.formattedRemainingTime }}</span>
           </div>
-          <VBtn
-            v-if="showTimerControl"
-            @click="timerStore.switchTimer"
-            :disabled="timerStore.isLoading"
-            :color="timerStore.timerTicking ? 'error' : 'success'"
-            size="small"
-            class="timer-control"
-          >
-            <VIcon v-if="!timerStore.isLoading">
-              {{ timerStore.timerTicking ? 'ri-pause-line' : 'ri-play-line' }}
-            </VIcon>
-            <VProgressCircular
-              v-else
-              indeterminate
-              size="16"
-              width="2"
-              color="white"
-            />
-          </VBtn>
+         
         </div>
 
         <VBtn 

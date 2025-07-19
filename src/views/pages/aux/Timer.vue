@@ -5,11 +5,6 @@
 
   const timerStore = useTimerStore()
 
-  // Опционально - если нужно обновить при монтировании компонента
-  onMounted(() => {
-    timerStore.fetchRemainingTime()
-  })
-
 
 
 </script>
@@ -20,23 +15,25 @@
     <VCard>
       <VCardText>
         <div class="text-h2 text-center my-6">
-          {{ timerStore.formattedTime }} 
-               
+
+          <div>
+            {{timerStore.formattedRemainingTime}}
+            </div>   
         </div>
-  <button 
-    @click="timerStore.switchTimer"
+ <button 
+    @click="timerStore.toggleTimer"
     :disabled="timerStore.isLoading"
     class="timer-button"
    :class="{ 
-          'active': timerStore.timerTicking,
+          'active': timerStore.toggleTimer,
           'loading': timerStore.isLoading
         }"
   >
     <span v-if="!isLoading">
-      {{ timerStore.timerTicking > 0 ? 'Остановить таймер' : 'Запустить таймер' }}
+      {{ timerStore.isPaused ? 'Запустить таймер' :  'Остановить таймер'}}
     </span>
     <span v-else class="loader"></span>
-  </button>
+  </button> -->
       </VCardText>
  
     </VCard>
