@@ -29,11 +29,11 @@
           'loading': timerStore.isLoading
         }"
   >
-    <span v-if="!isLoading">
+    <span v-if="!timerStore.isLoading">
       {{ timerStore.isPaused ? 'Запустить таймер' :  'Остановить таймер'}}
     </span>
     <span v-else class="loader"></span>
-  </button> -->
+  </button> 
       </VCardText>
  
     </VCard>
