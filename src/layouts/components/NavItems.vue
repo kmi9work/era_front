@@ -36,4 +36,14 @@ import VerticalNavLink from '@layouts/components/VerticalNavLink.vue'
       to: '/economics',
     }"
   />
+
+  <VerticalNavLink
+    :item="{
+      title: 'Служебное',
+      icon: 'ri-line-chart-line',
+      to: '/aux',
+    }"
+  />
+
+
 </template>
