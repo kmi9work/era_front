@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 
 export const useTimerStore = defineStore('timer', () => {
@@ -12,6 +12,15 @@ export const useTimerStore = defineStore('timer', () => {
   const timeNotice = ref("Перерыв")
   const isPaused = ref(true)
   const broadcastChannel = ref(null)
+  const range = ref({})
+  const isOutOfRange = ref(false)
+  const outOfRangeMessage = ref("Эпоха Перемен")
+
+
+  const checkIfOutOfRange = async () => {
+    isOutOfRange.value = Math.floor(Date.now() / 1000) < range.value.start || Math.floor(Date.now() / 1000) > range.value.finish
+  }
+
 
   // Инициализация Broadcast Channel
   const initBroadcastChannel = () => {
@@ -62,12 +71,14 @@ export const useTimerStore = defineStore('timer', () => {
     try {
       isLoading.value = true
       
+      
       // Отправляем запрос на сервер
       await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/toggle_timer`)
       
       // Получаем актуальное расписание
       const response = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/show_schedule.json`)
       schedule.value = response.data.timer.schedule || []
+
       
       // Обновляем состояние
 
@@ -87,6 +98,7 @@ export const useTimerStore = defineStore('timer', () => {
       
       // Синхронизируем с другими вкладками
       broadcastState()
+      checkIfOutOfRange()
       
     } catch (error) {
       console.error('Ошибка при переключении таймера:', error)
@@ -117,7 +129,10 @@ export const useTimerStore = defineStore('timer', () => {
       schedule.value = response.data.timer.schedule || []
       isPaused.value = !(parseInt(response.data.timer.ticking) > 0)
       presentTime.value = Math.floor(Date.now() / 1000)
-      
+
+      range.value["start"] = schedule.value[0]["unix_start"]
+      range.value["finish"] = schedule.value[schedule.value.length - 1]["unix_finish"]
+      checkIfOutOfRange()// костыльно(())
       if (currentScheduleItem.value) {
         remainingTime.value = Math.max(0, currentScheduleItem.value.unix_finish - presentTime.value)
       }
@@ -137,6 +152,8 @@ export const useTimerStore = defineStore('timer', () => {
       isLoading.value = false
     }
   }
+
+
 
   // Текущий элемент расписания
   const currentScheduleItem = computed(() => {
@@ -196,9 +213,21 @@ export const useTimerStore = defineStore('timer', () => {
     }
   })
 
-  // Инициализация
-  initBroadcastChannel()
-  fetchSchedule()
+  const initStore = () => {
+    initBroadcastChannel()
+    fetchSchedule()
+    checkIfOutOfRange()
+  }
+
+
+  // // Инициализация
+  // initBroadcastChannel()
+  // fetchSchedule()
+
+  // Вызываем инициализацию
+  initStore()
+
+
 
   return {
     isLoading,
@@ -208,6 +237,8 @@ export const useTimerStore = defineStore('timer', () => {
     formattedRemainingTime,
     currentScheduleItemName,
     fetchSchedule,
-    toggleTimer
+    toggleTimer,
+    isOutOfRange,
+    outOfRangeMessage
   }
 })
