@@ -216,7 +216,6 @@ export const useTimerStore = defineStore('timer', () => {
   const initStore = () => {
     initBroadcastChannel()
     fetchSchedule()
-    checkIfOutOfRange()
   }
 
 
