@@ -1,124 +1,227 @@
-  <script setup>
-  // Таймер
-  import { useTimerStore } from '@/stores/timer'
-  import { onMounted } from 'vue'
+<script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useTimerStore } from '@/stores/timer'
 
-  const timerStore = useTimerStore()
+const timerStore = useTimerStore()
+const isFullscreen = ref(false)
+const timerRunning = ref(false)
+
+const enterFullscreen = () => {
+  const element = document.getElementById('fullscreen-content')
+  if (!element) return
+  
+  if (element.requestFullscreen) {
+    element.requestFullscreen()
+  } else if (element.webkitRequestFullscreen) {
+    element.webkitRequestFullscreen()
+  } else if (element.msRequestFullscreen) {
+    element.msRequestFullscreen()
+  }
+}
+
+const exitFullscreen = () => {
+  if (document.exitFullscreen) {
+    document.exitFullscreen()
+  } else if (document.webkitExitFullscreen) {
+    document.webkitExitFullscreen()
+  } else if (document.msExitFullscreen) {
+    document.msExitFullscreen()
+  }
+}
+
+// Watcher для isPaused
+watch(() => timerStore.isPaused, (newValue) => {
+  timerRunning.value = timerStore.isPaused
+ 
+})
 
 
+const handleKeyDown = (e) => {
+  if (e.key === 'Escape' && isFullscreen.value) {
+    exitFullscreen()
+  }
+}
 
+onMounted(() => {
+  document.addEventListener('keydown', handleKeyDown)
+  document.addEventListener('fullscreenchange', () => {
+    isFullscreen.value = !!document.fullscreenElement
+  })
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeyDown)
+  document.removeEventListener('fullscreenchange', () => {})
+})
 </script>
 
 <template>
-
-<div>
+  <!-- Основной контент -->
+  <div v-if="!isFullscreen">
     <VCard>
       <VCardText>
-        <div class="text-h2 text-center my-6">
-
-          <div>
-            {{timerStore.formattedRemainingTime}}
-            </div>   
+        <div class="timer-container">
+          <div v-if="timerStore.isOutOfRange">
+            <p class="timer-value">{{ timerStore.outOfRangeMessage }}</p>
+          </div>
+          <div v-else>
+            <p class="schedule-name">{{ timerStore.currentScheduleItemName }}</p>
+            <p class="timer-value">{{ timerStore.formattedRemainingTime }}</p>
+          </div>
         </div>
- <button 
-    @click="timerStore.toggleTimer"
-    :disabled="timerStore.isLoading"
-    class="timer-button"
-   :class="{ 
-          'active': timerStore.toggleTimer,
-          'loading': timerStore.isLoading
-        }"
-  >
-    <span v-if="!timerStore.isLoading">
-      {{ timerStore.isPaused ? 'Запустить таймер' :  'Остановить таймер'}}
-    </span>
-    <span v-else class="loader"></span>
-  </button> 
+        
+        <button 
+          @click="timerStore.toggleTimer"
+          :disabled="timerStore.isLoading"
+          class="timer-button"
+          :class="{ 
+            'active': !timerStore.isPaused,
+            'loading': timerStore.isLoading
+          }"
+        >
+          <span v-if="!timerStore.isLoading">
+            {{ timerStore.isPaused ? 'Запустить таймер' : 'Остановить таймер' }}
+          </span>
+          <span v-else class="loader">Загрузка...</span>
+        </button>
+
+        <button @click="enterFullscreen" class="fullscreen-button">
+          Полный экран
+        </button>
       </VCardText>
- 
     </VCard>
+  </div>
+
+  <!-- Полноэкранный режим -->
+  <div 
+    id="fullscreen-content" 
+    class="fullscreen-mode" 
+    :class="{ 'active': isFullscreen }"
+  >
+    <div class="fullscreen-timer-container">
+       <div v-if="timerStore.isOutOfRange">
+        <p class="fullscreen-timer-value">{{ timerStore.outOfRangeMessage }}</p>
+       </div>
+       <div v-else>
+        <p class="fullscreen-schedule-name">{{ timerStore.currentScheduleItemName }}</p>
+        <p class="fullscreen-timer-value">{{ timerStore.formattedRemainingTime }}</p>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
+/* Общие стили для контейнера */
+.timer-container,
+.fullscreen-timer-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.5rem;
+}
 
+/* Стили для обычного режима */
+.schedule-name {
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: inherit;
+}
+
+.timer-value {
+  font-size: 3rem;
+  font-weight: bold;
+}
+
+/* Стили для полноэкранного режима */
+.fullscreen-mode {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #121212 url('@/assets/images/background/back.jpg') no-repeat center center;
+  background-size: cover;
+  z-index: 1000;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+}
+
+.fullscreen-mode.active {
+  display: flex;
+}
+
+.fullscreen-schedule-name {
+  font-family: 'Beryozki', sans-serif;
+  font-size: 12rem;
+  font-weight: 500;
+  font-weight: bold;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  margin-bottom: 1rem;
+}
+
+.fullscreen-timer-value {
+  font-family: 'Beryozki', sans-serif;
+  font-size: 25rem;
+  font-weight: bold;
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
+  line-height: 1;
+}
+
+/* Кнопки */
 .timer-button {
   display: block;
   width: 100%;
   max-width: 240px;
-  margin: 0 auto;
+  margin: 2rem auto 0;
   padding: 12px 24px;
   font-size: 1rem;
   font-weight: 500;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
   background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
   color: white;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.timer-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-}
-
-.timer-button:active {
-  transform: translateY(0);
 }
 
 .timer-button.active {
   background: linear-gradient(135deg, #F44336 0%, #C62828 100%);
 }
 
-.timer-button.loading {
-  background: #607D8B;
-  cursor: not-allowed;
+.fullscreen-button {
+  display: block;
+  width: 100%;
+  max-width: 240px;
+  margin: 1rem auto 0;
+  padding: 12px 24px;
+  background: #1976D2;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
 }
 
-.button-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
 
-.loader {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Эффект волны при клике */
-.timer-button::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 5px;
-  height: 5px;
-  background: rgba(255, 255, 255, 0.5);
-  opacity: 0;
-  border-radius: 100%;
-  transform: scale(1, 1) translate(-50%);
-  transform-origin: 50% 50%;
-}
-
-.timer-button:focus:not(:active)::after {
-  animation: ripple 0.6s ease-out;
-}
-
-@keyframes ripple {
-  0% {
-    transform: scale(0, 0);
-    opacity: 0.5;
+/* Адаптивность */
+@media (max-width: 768px) {
+  .fullscreen-schedule-name {
+    font-size: 2rem;
   }
-  100% {
-    transform: scale(20, 20);
-    opacity: 0;
+  
+  .fullscreen-timer-value {
+    font-size: 5rem;
+  }
+  
+  .schedule-name {
+    font-size: 1.25rem;
+  }
+  
+  .timer-value {
+    font-size: 2.5rem;
   }
 }
 </style>
