@@ -15,9 +15,15 @@ export const useTimerStore = defineStore('timer', () => {
   const range = ref({})
   const isOutOfRange = ref(false)
   const outOfRangeMessage = ref("Эпоха Перемен")
+  const noScheduleInTheBase = ref(false)
+  const noScheduleInTheBaseMessage = ref("В базе нет расписания")
 
 
   const checkIfOutOfRange = async () => {
+    if (noScheduleInTheBase.value) {
+      isOutOfRange.value = true
+    }
+
     isOutOfRange.value = Math.floor(Date.now() / 1000) < range.value.start || Math.floor(Date.now() / 1000) > range.value.finish
   }
 
@@ -130,8 +136,13 @@ export const useTimerStore = defineStore('timer', () => {
       isPaused.value = !(parseInt(response.data.timer.ticking) > 0)
       presentTime.value = Math.floor(Date.now() / 1000)
 
-      range.value["start"] = schedule.value[0]["unix_start"]
-      range.value["finish"] = schedule.value[schedule.value.length - 1]["unix_finish"]
+      if (schedule.value.length == 0) {
+        noScheduleInTheBase.value = true
+      }else{
+        range.value["start"] = schedule.value[0]["unix_start"]
+        range.value["finish"] = schedule.value[schedule.value.length - 1]["unix_finish"]
+      }
+
       checkIfOutOfRange()// костыльно(())
       if (currentScheduleItem.value) {
         remainingTime.value = Math.max(0, currentScheduleItem.value.unix_finish - presentTime.value)
@@ -238,6 +249,8 @@ export const useTimerStore = defineStore('timer', () => {
     fetchSchedule,
     toggleTimer,
     isOutOfRange,
-    outOfRangeMessage
+    outOfRangeMessage,
+    noScheduleInTheBase,
+    noScheduleInTheBaseMessage
   }
 })

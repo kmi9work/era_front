@@ -56,12 +56,14 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- Основной контент -->
   <div v-if="!isFullscreen">
     <VCard>
       <VCardText>
         <div class="timer-container">
-          <div v-if="timerStore.isOutOfRange">
+          <div v-if="timerStore.noScheduleInTheBase">
+            <p class="timer-value">{{ timerStore.noScheduleInTheBaseMessage }}</p>
+          </div>
+          <div v-else-if="timerStore.isOutOfRange">
             <p class="timer-value">{{ timerStore.outOfRangeMessage }}</p>
           </div>
           <div v-else>
@@ -69,6 +71,7 @@ onUnmounted(() => {
             <p class="timer-value">{{ timerStore.formattedRemainingTime }}</p>
           </div>
         </div>
+
         
         <button 
           @click="timerStore.toggleTimer"
@@ -99,7 +102,7 @@ onUnmounted(() => {
     :class="{ 'active': isFullscreen }"
   >
     <div class="fullscreen-timer-container">
-       <div v-if="timerStore.isOutOfRange">
+       <div v-if="timerStore.isOutOfRange || timerStore.noScheduleInTheBase">
         <p class="fullscreen-timer-value">{{ timerStore.outOfRangeMessage }}</p>
        </div>
        <div v-else>

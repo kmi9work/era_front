@@ -9,8 +9,8 @@ const activeTab = ref(route.params.tab || 'timer') // Значение по ум
 // Определяем вкладки
 const tabs = [
   {
-    title: 'Timer',
-    icon: 'ri-exchange-line',
+    title: 'Таймер',
+    icon: 'ri-timer-flash-fill',
     tab: 'timer',
   },
   // Добавьте другие вкладки при необходимости
