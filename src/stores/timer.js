@@ -72,6 +72,18 @@ export const useTimerStore = defineStore('timer', () => {
     }
   }
 
+ // Создание таймера
+  const createSchedule = async () => {
+    try {
+   const response =  await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/create_schedule`)
+    }catch(error){
+      console.error
+    }
+  }
+
+
+
+
   // Переключение таймера
   const toggleTimer = async () => {
     try {
@@ -251,6 +263,7 @@ export const useTimerStore = defineStore('timer', () => {
     isOutOfRange,
     outOfRangeMessage,
     noScheduleInTheBase,
-    noScheduleInTheBaseMessage
+    noScheduleInTheBaseMessage,
+    createSchedule
   }
 })

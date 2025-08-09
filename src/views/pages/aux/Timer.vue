@@ -58,41 +58,85 @@ onUnmounted(() => {
 <template>
   <div v-if="!isFullscreen">
     <VCard>
-      <VCardText>
-        <div class="timer-container">
-          <div v-if="timerStore.noScheduleInTheBase">
-            <p class="timer-value">{{ timerStore.noScheduleInTheBaseMessage }}</p>
-          </div>
-          <div v-else-if="timerStore.isOutOfRange">
-            <p class="timer-value">{{ timerStore.outOfRangeMessage }}</p>
-          </div>
-          <div v-else>
-            <p class="schedule-name">{{ timerStore.currentScheduleItemName }}</p>
-            <p class="timer-value">{{ timerStore.formattedRemainingTime }}</p>
-          </div>
-        </div>
+  <VCardText>
+    <div class="timer-container">
+      <div v-if="timerStore.noScheduleInTheBase">
+        <p class="timer-value">{{ timerStore.noScheduleInTheBaseMessage }}</p>
+      </div>
+      <div v-else-if="timerStore.isOutOfRange">
+        <p class="timer-value">{{ timerStore.outOfRangeMessage }}</p>
+      </div>
+      <div v-else>
+        <p class="schedule-name">{{ timerStore.currentScheduleItemName }}</p>
+        <p class="timer-value">{{ timerStore.formattedRemainingTime }}</p>
+      </div>
+    </div>
 
-        
+    
+      <div v-if="timerStore.noScheduleInTheBase">
+      <div class="buttons-container">
         <button 
-          @click="timerStore.toggleTimer"
-          :disabled="timerStore.isLoading"
-          class="timer-button"
-          :class="{ 
-            'active': !timerStore.isPaused,
-            'loading': timerStore.isLoading
-          }"
-        >
-          <span v-if="!timerStore.isLoading">
-            {{ timerStore.isPaused ? 'Запустить таймер' : 'Остановить таймер' }}
-          </span>
-          <span v-else class="loader">Загрузка...</span>
-        </button>
+        @click="timerStore.toggleTimer"
+        :disabled="timerStore.isLoading"
+        class="timer-button"
+        :class="{ 
+          'active': !timerStore.isPaused,
+          'loading': timerStore.isLoading
+        }"
+      >
+        <span v-if="!timerStore.isLoading">
+          {{ timerStore.isPaused ? 'Запустить таймер' : 'Остановить таймер' }}
+        </span>
+        <span v-else class="loader">Загрузка...</span>
+      </button>
 
-        <button @click="enterFullscreen" class="fullscreen-button">
-          Полный экран
-        </button>
-      </VCardText>
-    </VCard>
+      <button 
+        @click="timerStore.createSchedule"
+        :disabled="timerStore.isLoading"
+        class="timer-button secondary"
+      >
+        <span>Создать расписание</span>
+      </button>
+
+      <button 
+        @click="enterFullscreen" 
+        class="timer-button fullscreen-button"
+      >
+        <span>Полный экран</span>
+      </button>
+    </div> 
+    </div>    
+
+
+    <div v-else>
+      <div class="buttons-container">
+      <button 
+        @click="timerStore.toggleTimer"
+        :disabled="timerStore.isLoading"
+        class="timer-button"
+        :class="{ 
+          'active': !timerStore.isPaused,
+          'loading': timerStore.isLoading
+        }"
+      >
+        <span v-if="!timerStore.isLoading">
+          {{ timerStore.isPaused ? 'Запустить таймер' : 'Остановить таймер' }}
+        </span>
+        <span v-else class="loader">Загрузка...</span>
+      </button>
+
+      <button 
+        @click="enterFullscreen" 
+        class="timer-button fullscreen-button"
+      >
+        <span>Полный экран</span>
+      </button>
+    </div>
+     </div>
+
+  </VCardText>
+</VCard>
+
   </div>
 
   <!-- Полноэкранный режим -->
@@ -176,37 +220,104 @@ onUnmounted(() => {
 }
 
 /* Кнопки */
-.timer-button {
-  display: block;
+
+.buttons-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
   width: 100%;
-  max-width: 240px;
-  margin: 2rem auto 0;
+}
+
+.buttons-wrapper {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 800px; /* Ограничиваем максимальную ширину при больших экранах */
+}
+
+.timer-button {
   padding: 12px 24px;
-  font-size: 1rem;
-  font-weight: 500;
-  border: none;
   border-radius: 8px;
+  border: none;
+  font-weight: 500;
+  font-size: 14px;
   cursor: pointer;
-  background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
-  color: white;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 160px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.timer-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .timer-button.active {
-  background: linear-gradient(135deg, #F44336 0%, #C62828 100%);
+  background-color: #4CAF50;
+  color: white;
 }
 
-.fullscreen-button {
-  display: block;
-  width: 100%;
-  max-width: 240px;
-  margin: 1rem auto 0;
-  padding: 12px 24px;
-  background: #1976D2;
+.timer-button:not(.active):not(.secondary):not(.fullscreen-button) {
+  background-color: #f44336;
   color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
 }
+
+.timer-button.secondary {
+  background-color: #2196F3;
+  color: white;
+}
+
+.timer-button.fullscreen-button {
+  background-color: #FF9800;
+  color: white;
+}
+
+.timer-button:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.loader {
+  display: inline-flex;
+  align-items: center;
+}
+
+.timer-container {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.timer-value {
+  font-size: 24px;
+  font-weight: bold;
+  margin: 10px 0;
+}
+
+.schedule-name {
+  font-size: 18px;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+@media (max-width: 600px) {
+  .buttons-wrapper {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .timer-button {
+    width: 100%;
+  }
+}
+
+
 
 
 /* Адаптивность */

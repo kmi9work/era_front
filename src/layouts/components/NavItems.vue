@@ -40,7 +40,7 @@ import VerticalNavLink from '@layouts/components/VerticalNavLink.vue'
   <VerticalNavLink
     :item="{
       title: 'Служебное',
-      icon: 'ri-line-chart-line',
+      icon: 'ri-settings-5-fill',
       to: '/aux',
     }"
   />
