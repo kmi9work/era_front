@@ -6,7 +6,7 @@ import Results from '@/views/pages/aux/Results.vue'
 import Screen from '@/views/pages/aux/Screen.vue'
 
 const route = useRoute()
-const activeTab = ref(route.params.tab || 'results') // Значение по умолчанию
+const activeTab = ref(route.params.tab || 'screen') // Значение по умолчанию
 
 // Определяем вкладки
 const tabs = [
