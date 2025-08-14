@@ -4,6 +4,8 @@ import { useRoute } from 'vue-router'
 import Timer from '@/views/pages/aux/Timer.vue' // Убедитесь, что путь правильный
 import Results from '@/views/pages/aux/Results.vue'
 import Screen from '@/views/pages/aux/Screen.vue'
+import ScreenControl from '@/views/pages/aux/ScreenControl.vue'
+
 
 const route = useRoute()
 const activeTab = ref(route.params.tab || 'screen') // Значение по умолчанию
@@ -11,9 +13,14 @@ const activeTab = ref(route.params.tab || 'screen') // Значение по у�
 // Определяем вкладки
 const tabs = [
   {
-    title: 'Экран',
+    title: 'Вывод на экран',
     icon: 'ri-timer-flash-fill',
     tab: 'screen',
+  },
+  {
+    title: 'Управление экраном',
+    icon: 'ri-timer-flash-fill',
+    tab: 'screen_constrol',
   },
 
   {
@@ -71,6 +78,11 @@ watch(
 
       <VWindowItem value="screen">
         <Screen /> 
+      </VWindowItem>
+
+
+      <VWindowItem value="screen_constrol">
+        <ScreenControl /> 
       </VWindowItem>
 
       <VWindowItem value="timer">

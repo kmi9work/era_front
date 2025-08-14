@@ -1,10 +1,9 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useTimerStore } from '@/stores/timer'
 
 const timerStore = useTimerStore()
 const isFullscreen = ref(false)
-const timerRunning = ref(false)
 
 const enterFullscreen = () => {
   const element = document.getElementById('fullscreen-content')
@@ -29,12 +28,9 @@ const exitFullscreen = () => {
   }
 }
 
-// Watcher для isPaused
-watch(() => timerStore.isPaused, (newValue) => {
-  timerRunning.value = timerStore.isPaused
- 
-})
-
+const handleFullscreenChange = () => {
+  isFullscreen.value = !!document.fullscreenElement
+}
 
 const handleKeyDown = (e) => {
   if (e.key === 'Escape' && isFullscreen.value) {
@@ -44,99 +40,69 @@ const handleKeyDown = (e) => {
 
 onMounted(() => {
   document.addEventListener('keydown', handleKeyDown)
-  document.addEventListener('fullscreenchange', () => {
-    isFullscreen.value = !!document.fullscreenElement
-  })
+  document.addEventListener('fullscreenchange', handleFullscreenChange)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeyDown)
-  document.removeEventListener('fullscreenchange', () => {})
+  document.removeEventListener('fullscreenchange', handleFullscreenChange)
 })
 </script>
 
 <template>
   <div v-if="!isFullscreen">
     <VCard>
-  <VCardText>
-    <div class="timer-container">
-      <div v-if="timerStore.noScheduleInTheBase">
-        <p class="timer-value">{{ timerStore.noScheduleInTheBaseMessage }}</p>
-      </div>
-      <div v-else-if="timerStore.isOutOfRange">
-        <p class="timer-value">{{ timerStore.outOfRangeMessage }}</p>
-      </div>
-      <div v-else>
-        <p class="schedule-name">{{ timerStore.currentScheduleItemName }}</p>
-        <p class="timer-value">{{ timerStore.formattedRemainingTime }}</p>
-      </div>
-    </div>
+      <VCardText>
+        <div class="timer-container">
+          <div v-if="timerStore.noScheduleInTheBase">
+            <p class="timer-value">{{ timerStore.noScheduleInTheBaseMessage }}</p>
+          </div>
+          <div v-else-if="timerStore.isOutOfRange">
+            <p class="timer-value">{{ timerStore.outOfRangeMessage }}</p>
+          </div>
+          <div v-else>
+            <p class="schedule-name">{{ timerStore.currentScheduleItemName }}</p>
+            <p class="timer-value">{{ timerStore.formattedRemainingTime }}</p>
+          </div>
+        </div>
 
-    
-      <div v-if="timerStore.noScheduleInTheBase">
-      <div class="buttons-container">
-        <button 
-        @click="timerStore.toggleTimer"
-        :disabled="timerStore.isLoading"
-        class="timer-button"
-        :class="{ 
-          'active': !timerStore.isPaused,
-          'loading': timerStore.isLoading
-        }"
-      >
-        <span v-if="!timerStore.isLoading">
-          {{ timerStore.isPaused ? 'Запустить таймер' : 'Остановить таймер' }}
-        </span>
-        <span v-else class="loader">Загрузка...</span>
-      </button>
+        <div class="buttons-container">
+          <!-- Кнопка управления таймером (отображается всегда) -->
+          <button 
+            @click="timerStore.toggleTimer"
+            :disabled="timerStore.isLoading"
+            class="timer-button"
+            :class="{ 
+              'active': !timerStore.isPaused,
+              'loading': timerStore.isLoading
+            }"
+          >
+            <span v-if="!timerStore.isLoading">
+              {{ timerStore.isPaused ? 'Запустить таймер' : 'Остановить таймер' }}
+            </span>
+            <span v-else class="loader">Загрузка...</span>
+          </button>
 
-      <button 
-        @click="timerStore.createSchedule"
-        :disabled="timerStore.isLoading"
-        class="timer-button secondary"
-      >
-        <span>Создать расписание</span>
-      </button>
+          <!-- Кнопка создания расписания (только когда нет расписания) -->
+          <button 
+            v-if="timerStore.noScheduleInTheBase"
+            @click="timerStore.createSchedule"
+            :disabled="timerStore.isLoading"
+            class="timer-button secondary"
+          >
+            <span>Создать расписание</span>
+          </button>
 
-      <button 
-        @click="enterFullscreen" 
-        class="timer-button fullscreen-button"
-      >
-        <span>Полный экран</span>
-      </button>
-    </div> 
-    </div>    
-
-
-    <div v-else>
-      <div class="buttons-container">
-      <button 
-        @click="timerStore.toggleTimer"
-        :disabled="timerStore.isLoading"
-        class="timer-button"
-        :class="{ 
-          'active': !timerStore.isPaused,
-          'loading': timerStore.isLoading
-        }"
-      >
-        <span v-if="!timerStore.isLoading">
-          {{ timerStore.isPaused ? 'Запустить таймер' : 'Остановить таймер' }}
-        </span>
-        <span v-else class="loader">Загрузка...</span>
-      </button>
-
-      <button 
-        @click="enterFullscreen" 
-        class="timer-button fullscreen-button"
-      >
-        <span>Полный экран</span>
-      </button>
-    </div>
-     </div>
-
-  </VCardText>
-</VCard>
-
+          <!-- Кнопка полноэкранного режима (отображается всегда) -->
+          <button 
+            @click="enterFullscreen" 
+            class="timer-button fullscreen-button"
+          >
+            <span>Полный экран</span>
+          </button>
+        </div>
+      </VCardText>
+    </VCard>
   </div>
 
   <!-- Полноэкранный режим -->
@@ -146,10 +112,10 @@ onUnmounted(() => {
     :class="{ 'active': isFullscreen }"
   >
     <div class="fullscreen-timer-container">
-       <div v-if="timerStore.isOutOfRange || timerStore.noScheduleInTheBase">
+      <div v-if="timerStore.isOutOfRange || timerStore.noScheduleInTheBase">
         <p class="fullscreen-timer-value">{{ timerStore.outOfRangeMessage }}</p>
-       </div>
-       <div v-else>
+      </div>
+      <div v-else>
         <p class="fullscreen-schedule-name">{{ timerStore.currentScheduleItemName }}</p>
         <p class="fullscreen-timer-value">{{ timerStore.formattedRemainingTime }}</p>
       </div>
@@ -205,7 +171,6 @@ onUnmounted(() => {
 .fullscreen-schedule-name {
   font-family: 'Beryozki', sans-serif;
   font-size: 12rem;
-  font-weight: 500;
   font-weight: bold;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
   margin-bottom: 1rem;
@@ -220,20 +185,13 @@ onUnmounted(() => {
 }
 
 /* Кнопки */
-
 .buttons-container {
   display: flex;
   justify-content: center;
+  gap: 12px;
   margin-top: 20px;
   width: 100%;
-}
-
-.buttons-wrapper {
-  display: flex;
-  gap: 12px;
   flex-wrap: wrap;
-  justify-content: center;
-  max-width: 800px; /* Ограничиваем максимальную ширину при больших экранах */
 }
 
 .timer-button {
@@ -289,45 +247,14 @@ onUnmounted(() => {
   align-items: center;
 }
 
-.timer-container {
-  margin-bottom: 20px;
-  text-align: center;
-}
-
-.timer-value {
-  font-size: 24px;
-  font-weight: bold;
-  margin: 10px 0;
-}
-
-.schedule-name {
-  font-size: 18px;
-  color: #666;
-  margin-bottom: 5px;
-}
-
-@media (max-width: 600px) {
-  .buttons-wrapper {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .timer-button {
-    width: 100%;
-  }
-}
-
-
-
-
 /* Адаптивность */
 @media (max-width: 768px) {
   .fullscreen-schedule-name {
-    font-size: 2rem;
+    font-size: 8rem;
   }
   
   .fullscreen-timer-value {
-    font-size: 5rem;
+    font-size: 15rem;
   }
   
   .schedule-name {
@@ -336,6 +263,26 @@ onUnmounted(() => {
   
   .timer-value {
     font-size: 2.5rem;
+  }
+
+  .buttons-container {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .timer-button {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .fullscreen-schedule-name {
+    font-size: 4rem;
+  }
+  
+  .fullscreen-timer-value {
+    font-size: 8rem;
   }
 }
 </style>
