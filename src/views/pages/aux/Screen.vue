@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useTimerStore } from '@/stores/timer'
 import axios from 'axios'
 
@@ -7,99 +7,128 @@ import axios from 'axios'
 import previewTimer from '@/assets/images/preview_timer.jpg'
 import previewPlaceholder from '@/assets/images/preview_placeholder.jpg'
 import previewResults from '@/assets/images/preview_results.jpg'
+import nobleIcon from '@/assets/images/noble.jpeg'
 
 const timerStore = useTimerStore()
 const isFullscreen = ref(false)
 const selectedScreen = ref('timer')
 const isTransitioning = ref(false)
-
-
-
-const top3 = computed(() => playersList.value.slice(0, 3));
-
-const positions = computed(() => {
-  return {
-    third: currentPlaceShown.value === 1 ? 50 : currentPlaceShown.value >= 2 ? 60 : 50,
-    second: currentPlaceShown.value === 2 ? 40 : currentPlaceShown.value >= 3 ? 50 : 40,
-    first: currentPlaceShown.value === 3 ? 30 : 30
-  };
-});
-
-
-
-// Состояние для управления отображением результатов
 const playersList = ref([])
+const noblesList = ref([])
 const errorMessage = ref('')
-const currentPlaceShown = ref(0) // 0 - не показывать, 1-3 - места, 4 - все
+const currentPlaceShown = ref(0)
 const showAllResults = ref(false)
 
-// Загрузка списка игроков
-const loadPlayers = async () => {
-  try {
-    const response = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/show_sorted_results`)
-    playersList.value = response.data || []
-    // Сортируем по месту (place) в возрастающем порядке
-    playersList.value.sort((a, b) => a.place - b.place)
-  } catch (error) {
-    console.error('Ошибка загрузки игроков:', error)
-    errorMessage.value = 'Ошибка загрузки списка игроков'
-  }
+// Форматирование чисел
+const formatNumber = (num) => {
+  return num?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') || '0'
 }
 
-// Смена экрана с анимацией
+// Топ-3 игроков
+const top3 = computed(() => playersList.value.slice(0, 3))
+
+// Позиции для анимации
+const positions = computed(() => ({
+  third: currentPlaceShown.value === 1 ? 50 : currentPlaceShown.value >= 2 ? 60 : 50,
+  second: currentPlaceShown.value === 2 ? 40 : currentPlaceShown.value >= 3 ? 50 : 40,
+  first: currentPlaceShown.value === 3 ? 30 : 30
+}))
+
+// Методы для графика
+const calculateBarHeight = (influence) => {
+  const maxInfluence = Math.max(...noblesList.value.map(n => Math.abs(n.influence)))
+  if (maxInfluence === 0) return 50
+  return Math.max((Math.abs(influence) / maxInfluence) * 200, 30)
+}
+
+const getBarClass = (influence) => {
+  return influence >= 0 ? 'positive' : 'negative'
+}
+
+const shouldShowImage = (influence) => {
+  return Math.abs(influence) > 0
+}
+
+// Загрузка данных
+const loadPlayers = async () => {
+  try {
+    // Загружаем и обрабатываем обычных игроков
+    const playersRes = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/show_sorted_results`);
+    playersList.value = (playersRes.data || []).sort((a, b) => a.place - b.place);
+    
+    // Загружаем и обрабатываем знать
+    const nobResponse = await axios.get(`${import.meta.env.VITE_PROXY}/players.json`);
+    
+    const nobles = (nobResponse.data || [])
+      .filter(player => player?.player_type?.id === 2) // Безопасная проверка
+      .map(player => ({
+        ...player,
+        influence: player.influence || 0 // Устанавливаем значение по умолчанию
+      }))
+      .sort((a, b) => b.influence - a.influence); // Сортировка по убыванию
+    
+    // Добавляем ранги
+    let currentRank = 1;
+    nobles.forEach((noble, index) => {
+      if (index > 0 && noble.influence < nobles[index - 1].influence) {
+        currentRank = index + 1;
+      }
+      noble.place = currentRank;
+    });
+    
+    noblesList.value = nobles;
+
+  } catch (error) {
+    console.error('Ошибка загрузки данных:', error);
+    errorMessage.value = 'Ошибка загрузки данных';
+  }
+};
+// Смена экрана
 const changeScreen = (screen) => {
   if (selectedScreen.value === screen || isTransitioning.value) return
   
   isTransitioning.value = true
   setTimeout(() => {
     selectedScreen.value = screen
-    // Сбрасываем состояние результатов при переключении
-    if (screen === 'results') {
-      currentPlaceShown.value = 0
-      showAllResults.value = false
-    }
+    currentPlaceShown.value = 0
+    showAllResults.value = false
     isTransitioning.value = false
   }, 300)
 }
 
 // Полноэкранный режим
-const enterFullscreen = () => {
-  const element = document.getElementById('fullscreen-content')
-  if (!element) return
-  
-  if (element.requestFullscreen) {
-    element.requestFullscreen()
-  } else if (element.webkitRequestFullscreen) {
-    element.webkitRequestFullscreen()
-  } else if (element.msRequestFullscreen) {
-    element.msRequestFullscreen()
-  }
-}
-
-// Выход из полноэкранного режима
-const exitFullscreen = () => {
-  if (document.exitFullscreen) {
+const toggleFullscreen = () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(err => {
+      console.error('Ошибка полноэкранного режима:', err)
+    })
+  } else {
     document.exitFullscreen()
-  } else if (document.webkitExitFullscreen) {
-    document.webkitExitFullscreen()
-  } else if (document.msExitFullscreen) {
-    document.msExitFullscreen()
   }
 }
 
-// Обработка клавиш
-// Обновим обработчик Enter
+let keyDownTimeout;
+
 const handleKeyDown = (e) => {
-  if (e.key === 'Escape' && isFullscreen.value) {
-    exitFullscreen();
-  }
-  if (e.key === 'Enter' && isFullscreen.value && selectedScreen.value === 'results') {
-    if (currentPlaceShown.value < 3) {
-      currentPlaceShown.value++;
-    } else if (currentPlaceShown.value === 3) {
-      showAllResults.value = true;
+  if (!e) return;
+  
+  clearTimeout(keyDownTimeout);
+  
+  const key = e.key;
+  const isFullscreenMode = isFullscreen.value;
+  const isResultsScreen = selectedScreen.value === 'results';
+  
+  keyDownTimeout = setTimeout(() => {
+    if (key === 'Escape' && isFullscreenMode) {
+      toggleFullscreen();
+    } else if (key === 'Enter' && isFullscreenMode && isResultsScreen) {
+      if (currentPlaceShown.value < 3) {
+        currentPlaceShown.value++;
+      } else {
+        showAllResults.value = true;
+      }
     }
-  }
+  }, 100);
 };
 
 // Инициализация
@@ -108,15 +137,10 @@ onMounted(() => {
   document.addEventListener('keydown', handleKeyDown)
   document.addEventListener('fullscreenchange', () => {
     isFullscreen.value = !!document.fullscreenElement
-    // Сбрасываем состояние при выходе из полноэкранного режима
-    if (!isFullscreen.value) {
-      currentPlaceShown.value = 0
-      showAllResults.value = false
-    }
   })
 })
 
-// Убираем обработчики
+// Очистка
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeyDown)
 })
@@ -127,45 +151,28 @@ onUnmounted(() => {
   <div v-if="!isFullscreen" class="preview-container">
     <div class="preview-selector">
       <button 
+        v-for="screen in [
+          { id: 'timer', label: 'Таймер', icon: previewTimer },
+          { id: 'placeholder', label: 'Заглушка', icon: previewPlaceholder },
+          { id: 'results', label: 'Результаты', icon: previewResults },
+          { id: 'nobles', label: 'Знать', icon: nobleIcon },
+        ]"
+        :key="screen.id"
         class="preview-item"
-        :class="{ active: selectedScreen === 'timer' }"
-        @click="changeScreen('timer')"
+        :class="{ active: selectedScreen === screen.id }"
+        @click="changeScreen(screen.id)"
         :disabled="isTransitioning"
       >
-        <img :src="previewTimer" alt="Таймер">
-        <p>Таймер</p>
-      </button>
-      
-      <button 
-        class="preview-item"
-        :class="{ active: selectedScreen === 'placeholder' }"
-        @click="changeScreen('placeholder')"
-        :disabled="isTransitioning"
-      >
-        <img :src="previewPlaceholder" alt="Заглушка">
-        <p>Заглушка</p>
-      </button>
-      
-      <button 
-        class="preview-item"
-        :class="{ active: selectedScreen === 'results' }"
-        @click="changeScreen('results')"
-        :disabled="isTransitioning"
-      >
-        <img :src="previewResults" alt="Результаты">
-        <p>Результаты</p>
+        <img :src="screen.icon" :alt="screen.label">
+        <p>{{ screen.label }}</p>
       </button>
     </div>
 
-        <button 
-      class="fullscreen-button" 
-      @click="enterFullscreen"
-      :disabled="isTransitioning"
-    >
+    <button class="fullscreen-button" @click="toggleFullscreen">
       <span>Полный экран</span>
     </button>
 
-    <!-- Окно предпросмотра с анимацией -->
+    <!-- Окно предпросмотра -->
     <transition name="fade" mode="out-in">
       <div v-if="selectedScreen" class="preview-window" :key="selectedScreen">
         <template v-if="selectedScreen === 'timer'">
@@ -179,123 +186,184 @@ onUnmounted(() => {
           <img class="preview-image" :src="previewPlaceholder" alt="Заглушка">
         </template>
 
+        <template v-else-if="selectedScreen === 'nobles'">
+          <div class="results-preview">
+             <h3>Результаты дворян</h3>
+            <div class="table-container">
+              <table class="preview-results-table">
+                <thead>
+                  <tr>
+                    <th>Место</th>
+                    <th>Имя</th>
+                    <th>Влияние</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(noble, index) in noblesList" :key="`noble-${noble.id}-${index}`">
+                    <td>{{ noble.place }}</td>
+                    <td>{{ noble.name }}</td>
+                    <td>{{ formatNumber(noble.influence) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </template>
+
         <template v-else-if="selectedScreen === 'results'">
-  <div class="results-preview">
-    <h3>Результаты купцов</h3>
-    <table class="preview-results-table">
-      <thead>
-        <tr>
-          <th>Место</th>
-          <th>Название</th>
-          <th>Число игроков</th>
-          <th>Общий капитал</th>
-          <th>Капитал на игрока</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="player in playersList" :key="player.player_id">
-          <td>{{ player.place }}</td>
-          <td>{{ player.player }}</td>
-          <td>{{ player.number_of_players }}</td>
-          <td>{{ player.capital }}</td>
-          <td>{{ player.cap_per_pl }}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</template>
+          <div class="results-preview">
+            <h3>Результаты купцов</h3>
+            <div class="table-container">
+              <table class="preview-results-table">
+                <thead>
+                  <tr>
+                    <th>Место</th>
+                    <th>Название</th>
+                    <th>Игроков</th>
+                    <th>Капитал</th>
+                    <th>На игрока</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="player in playersList" :key="`player-${player.player_id}`">
+                    <td>{{ player.place }}</td>
+                    <td>{{ player.player }}</td>
+                    <td>{{ player.number_of_players }}</td>
+                    <td>{{ formatNumber(player.capital) }}</td>
+                    <td>{{ formatNumber(player.cap_per_pl) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+
+          </div>
+        </template>
       </div>
     </transition>
-
-
   </div>
 
   <!-- Полноэкранный режим -->
-  <div v-show="isFullscreen" id="fullscreen-content" class="fullscreen">
-    <transition name="fade" mode="out-in">
-      <template v-if="selectedScreen === 'timer'">
-        <div class="fullscreen-timer">
-          <p>{{ timerStore.currentScheduleItemName }}</p>
-          <p>{{ timerStore.formattedRemainingTime }}</p>
+  <!-- Полноэкранный режим -->
+<div v-if="isFullscreen" id="fullscreen-content" class="fullscreen">
+  <transition name="fade" mode="out-in">
+    <!-- Таймер -->
+    <template v-if="selectedScreen === 'timer'">
+      <div class="fullscreen-timer">
+        <p class="schedule-name">{{ timerStore.currentScheduleItemName }}</p>
+        <p class="timer-value">{{ timerStore.formattedRemainingTime }}</p>
+      </div>
+    </template>
+
+    <!-- Заглушка -->
+    <template v-else-if="selectedScreen === 'placeholder'">
+      <img class="fullscreen-image" :src="previewPlaceholder" alt="Заглушка">
+    </template>
+
+    <!-- График влияния дворян -->
+    <template v-else-if="selectedScreen === 'nobles'">
+      <div class="fullscreen-results">
+        <h2 class="results-title">График влияния дворян</h2>
+        <div class="influence-graph-container">
+          <div class="influence-graph">
+            <div 
+              v-for="(noble, index) in noblesList" 
+              :key="`graph-noble-${noble.id}-${index}`"
+              class="bar-container"
+              :style="{ height: calculateBarHeight(noble.influence) + 'px' }"
+            >
+              <div class="bar" :class="getBarClass(noble.influence)">
+                <img 
+                  v-if="shouldShowImage(noble.influence)"
+                  :src="nobleIcon" 
+                  class="bar-image"
+                  :alt="noble.name"
+                >
+              </div>
+              <div class="bar-label">
+                <span>{{ noble.name }}</span>
+                <span class="influence-value">{{ noble.influence }}</span>
+              </div>
+            </div>
+          </div>
         </div>
-      </template>
+      </div>
+    </template>
 
-      <template v-else-if="selectedScreen === 'placeholder'">
-        <img :src="previewPlaceholder" alt="Заглушка">
-      </template>
+    <!-- Результаты -->
+    <template v-else-if="selectedScreen === 'results'">
+      <div class="fullscreen-results">
+        <h2 class="results-title">Результаты</h2>
+        
+        <div v-if="!showAllResults" class="top3-stage">
+          <transition name="fade-slide">
+            <div v-if="currentPlaceShown >= 1" class="place-line third-place" :style="{ top: positions.third + '%' }">
+              {{ top3[2]?.place }} место — {{ top3[2]?.player }} — {{ formatNumber(top3[2]?.capital) }}
+            </div>
+          </transition>
 
-<template v-else-if="selectedScreen === 'results'">
-  <div class="fullscreen-results-container">
-    <h2 class="results-title">Результаты Купцов</h2>
+          <transition name="fade-slide">
+            <div v-if="currentPlaceShown >= 2" class="place-line second-place" :style="{ top: positions.second + '%' }">
+              {{ top3[1]?.place }} место — {{ top3[1]?.player }} — {{ formatNumber(top3[1]?.capital) }}
+            </div>
+          </transition>
 
-    <!-- Пошаговый показ топ-3 -->
-    <div v-if="!showAllResults" class="top3-stage">
-      <transition name="fade-slide">
-        <div v-if="currentPlaceShown >= 1" key="third" class="place-line third-place" :style="{ top: positions.third + '%' }">
-          {{ top3[2].place }} место — {{ top3[2].player }} — {{ top3[2].capital }}
+          <transition name="fade-slide">
+            <div v-if="currentPlaceShown >= 3" class="place-line first-place" :style="{ top: positions.first + '%' }">
+              {{ top3[0]?.place }} место — {{ top3[0]?.player }} — {{ formatNumber(top3[0]?.capital) }}
+            </div>
+          </transition>
         </div>
-      </transition>
 
-      <transition name="fade-slide">
-        <div v-if="currentPlaceShown >= 2" key="second" class="place-line second-place" :style="{ top: positions.second + '%' }">
-          {{ top3[1].place }} место — {{ top3[1].player }} — {{ top3[1].capital }}
+
+         <div v-if="showAllResults" class="top3-stage">
+        <transition name="fade-slide">
+          <div class="fullscreen-tables">
+          <table class="fullscreen-table">
+            <thead>
+              <tr>
+                <th>Место</th>
+                <th>Название</th>
+                <th>Капитал</th>
+                <th>Капитал на игрока</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="player in playersList" :key="`full-player-${player.player_id}`">
+                <td>{{ player.place }}</td>
+                <td>{{ player.player }}</td>
+                <td>{{ formatNumber(player.capital) }}</td>
+                <td>{{ formatNumber(player.cap_per_pl) }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-      </transition>
 
-      <transition name="fade-slide">
-        <div v-if="currentPlaceShown >= 3" key="first" class="place-line first-place" :style="{ top: positions.first + '%' }">
-          {{ top3[0].place }} место — {{ top3[0].player }} — {{ top3[0].capital }}
-        </div>
-      </transition>
-    </div>
+        </transition>
+      </div>
 
-    <!-- Полный список -->
-    <transition name="fade">
-      <table v-if="showAllResults" class="fullscreen-results-table">
-        <thead>
-          <tr>
-            <th>Место</th>
-            <th>Название</th>
-            <th>Игроков</th>
-            <th>Капитал</th>
-            <th>Капитал/игрока</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="player in playersList" :key="player.player_id">
-            <td>{{ player.place }}</td>
-            <td>{{ player.player }}</td>
-            <td>{{ player.number_of_players }}</td>
-            <td>{{ player.capital }}</td>
-            <td>{{ player.cap_per_pl }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </transition>
-  </div>
-</template>
-
-
-
-
-    </transition>
-  </div>
+      </div>
+    </template>
+  </transition>
+</div>
 </template>
 
 <style scoped>
-/* Основные стили */
+/* Базовые стили */
 .preview-container {
   display: flex;
   flex-direction: column;
   gap: 2rem;
-  padding: 1rem;
-  align-items: center;
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .preview-selector {
   display: flex;
-  gap: 1rem;
+  gap: 1.5rem;
   justify-content: center;
+  flex-wrap: wrap;
   margin-bottom: 2rem;
 }
 
@@ -308,19 +376,23 @@ onUnmounted(() => {
   background: none;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .preview-item:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .preview-item.active {
   border-color: #42b983;
+  box-shadow: 0 0 0 2px #42b983;
 }
 
 .preview-item img {
   width: 100%;
-  height: 100%;
+  height: 120px;
   object-fit: cover;
   border-radius: 6px 6px 0 0;
 }
@@ -329,70 +401,9 @@ onUnmounted(() => {
   margin: 0.5rem 0 0;
   font-size: 1rem;
   font-weight: 500;
-}
-
-/* Окно предпросмотра */
-.preview-window {
-  width: 1200px;
-  height: 450px;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  overflow: hidden;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #f5f5f5;
-  margin-bottom: 2rem;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.preview-timer {
   text-align: center;
-  padding: 1rem;
 }
 
-.preview-schedule-name {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
-  color: #333;
-}
-
-.preview-timer-value {
-  font-size: 3rem;
-  font-weight: bold;
-  color: #333;
-}
-
-.preview-image {
-  max-width: 100%;
-  max-height: 100%;
-}
-
-/* Стили для результатов в обычном режиме */
-.results-preview {
-  width: 100%;
-  padding: 1rem;
-}
-
-.results-preview h3 {
-  text-align: center;
-  margin-bottom: 1rem;
-  color: #333;
-}
-
-.preview-results {
-  list-style: none;
-  padding: 0;
-}
-
-.preview-results li {
-  padding: 0.5rem;
-  font-size: 1.2rem;
-  color: #333;
-  border-bottom: 1px solid #eee;
-}
-
-/* Кнопка полного экрана */
 .fullscreen-button {
   width: 200px;
   padding: 0.75rem;
@@ -401,29 +412,133 @@ onUnmounted(() => {
   border: none;
   border-radius: 4px;
   font-size: 1rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  align-self: center;
 }
 
 .fullscreen-button:hover {
   background-color: #3aa876;
+  transform: translateY(-1px);
 }
 
-.fullscreen-button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+.fullscreen-button:active {
+  transform: translateY(0);
+}
+
+/* Окно предпросмотра */
+.preview-window {
+  width: 100%;
+  min-height: 500px;
+  border: 2px solid #e1e1e1;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f8f9fa;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.preview-timer {
+  text-align: center;
+  padding: 2rem;
+  width: 100%;
+}
+
+.preview-schedule-name {
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+  color: #333;
+  font-weight: 500;
+}
+
+.preview-timer-value {
+  font-size: 4rem;
+  font-weight: bold;
+  color: #2c3e50;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.preview-image {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+/* Стили таблиц */
+.results-preview {
+  width: 100%;
+  padding: 1.5rem;
+}
+
+.results-preview h3 {
+  text-align: center;
+  margin: 1.5rem 0;
+  color: #2c3e50;
+  font-size: 1.5rem;
+}
+
+.table-container {
+  overflow-x: auto;
+  margin-bottom: 3rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  background: white;
+}
+
+.preview-results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1.1rem;
+  min-width: 800px;
+}
+
+.preview-results-table th {
+  background-color: #f5f7fa;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.preview-results-table th,
+.preview-results-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.preview-results-table tr:hover {
+  background-color: #f8fafc;
+}
+
+.preview-results-table tr:nth-child(even) {
+  background-color: #fafafa;
 }
 
 /* Полноэкранные стили */
+/* Полноэкранные стили */
 .fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  width: 100%;
-  height: 100%;
-  background: #121212 url('@/assets/images/background/back.jpg') no-repeat center center;
+  background: #121212 url('@/assets/images/background/back.jpg') no-repeat center center/cover;
   color: white;
+  z-index: 9999;
+  overflow: auto;
 }
 
 .fullscreen-timer p {
@@ -441,47 +556,199 @@ onUnmounted(() => {
   text-align: center;
 }
 
-.results-title {
-  font-size: 4rem;
+.schedule-name {
+  font-size: 3rem;
   margin-bottom: 2rem;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
+.timer-value {
+  font-size: 10rem;
+  font-weight: bold;
+  font-family: 'Roboto Mono', monospace;
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
+}
+
+.fullscreen-image {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* Стили для результатов в полноэкранном режиме */
 .fullscreen-results {
-  list-style: none;
-  padding: 0;
-  font-size: 3rem;
+  width: 100%;
+  max-width: 1200px;
+  padding: 2rem;
 }
 
-.fullscreen-results li {
-  margin-bottom: 1rem;
-  padding: 1rem;
-  transition: all 0.3s ease;
+.results-title {
+  font-size: 3.5rem;
+  margin-bottom: 3rem;
+  text-align: center;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  color: #fff;
 }
 
-.third-place {
-  color: #cd7f32; /* Бронза */
+.top3-stage {
+  position: relative;
+  width: 100%;
+  height: 60vh;
+  margin-bottom: 3rem;
+}
+
+.place-line {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 3.5rem;
   font-weight: bold;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  background-color: rgba(0, 0, 0, 0.3);
 }
 
-.second-place {
-  color: #c0c0c0; /* Серебро */
-  font-weight: bold;
+.first-place { 
+  color: #ffd700;
+  background-color: rgba(255, 215, 0, 0.1);
 }
 
-.first-place {
-  color: #ffd700; /* Золото */
-  font-weight: bold;
+.second-place { 
+  color: #c0c0c0;
+  background-color: rgba(192, 192, 192, 0.1);
 }
 
-.highlighted {
-  animation: highlight 0.5s ease;
+.third-place { 
+  color: #cd7f32;
+  background-color: rgba(205, 127, 50, 0.1);
 }
+
+.fullscreen-tables {
+  width: 90%;
+  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+  margin: 2rem auto;
+}
+
+.fullscreen-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1.8rem;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.fullscreen-table th {
+  background-color: rgba(255, 255, 255, 0.15);
+  padding: 1.5rem;
+  text-align: center;
+  font-weight: 600;
+  color: white;
+  border-bottom: 2px solid white;
+}
+
+.fullscreen-table td {
+  padding: 1.2rem 1.5rem;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.fullscreen-table tr:last-child td {
+  border-bottom: none;
+}
+
+.fullscreen-table tr:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Стили для заголовков столбцов */
+.fullscreen-table th:nth-child(1) { width: 15%; } /* Место */
+.fullscreen-table th:nth-child(2) { width: 35%; } /* Название */
+.fullscreen-table th:nth-child(3) { width: 25%; } /* Капитал */
+.fullscreen-table th:nth-child(4) { width: 25%; } /* Капитал на игрока */
 
 .press-enter {
-  font-size: 2rem;
-  margin-top: 2rem;
+  font-size: 1.8rem;
+  margin-top: 3rem;
+  text-align: center;
   opacity: 0.7;
+  animation: pulse 2s infinite;
+}
+
+/* Стили для графика влияния */
+.influence-graph-container {
+  width: 100%;
+  margin-bottom: 3rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+.influence-graph {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 15px;
+  height: 250px;
+  padding: 20px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.bar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 60px;
+  transition: height 0.5s ease;
+}
+
+.bar {
+  width: 40px;
+  border-radius: 4px 4px 0 0;
+  transition: all 0.3s ease;
+  position: relative;
+  animation: grow 0.8s ease-out forwards;
+  transform-origin: bottom;
+}
+
+.bar.positive {
+  background: linear-gradient(to top, #4CAF50, #81C784);
+}
+
+.bar.negative {
+  background: linear-gradient(to top, #F44336, #E57373);
+}
+
+.bar-image {
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 40px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.bar-label {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.influence-value {
+  font-weight: bold;
+  margin-top: 5px;
 }
 
 /* Анимации */
@@ -495,151 +762,228 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-.list-enter-active,
-.list-leave-active {
-  transition: all 0.5s ease;
+.fade-slide-enter-active {
+  transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
-
-.list-enter-from,
-.list-leave-to {
+.fade-slide-leave-active {
+  transition: all 0.3s ease;
+}
+.fade-slide-enter-from {
   opacity: 0;
   transform: translateY(30px);
 }
+.fade-slide-leave-to {
+  opacity: 0;
+}
 
-@keyframes highlight {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
+@keyframes pulse {
+  0% { opacity: 0.7; }
+  50% { opacity: 1; }
+  100% { opacity: 0.7; }
+}
+
+@keyframes grow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+/* Полоса прокрутки */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 /* Адаптивность */
-@media (max-width: 900px) {
+@media (max-width: 1200px) {
+  .fullscreen-table {
+    font-size: 1.5rem;
+  }
+  
+  .place-line {
+    font-size: 3rem;
+  }
+}
+
+@media (max-width: 992px) {
   .preview-window {
-    width: 95%;
-    height: 400px;
+    min-height: 400px;
+  }
+  
+  .preview-timer-value {
+    font-size: 3rem;
+  }
+  
+  .timer-value {
+    font-size: 8rem;
+  }
+  
+  .fullscreen-table {
+    font-size: 1.3rem;
+  }
+  
+  .place-line {
+    font-size: 2.5rem;
+    white-space: normal;
+    text-align: center;
+    width: 90%;
+  }
+  
+  .influence-graph {
+    gap: 10px;
+    height: 200px;
+  }
+  
+  .bar-container {
+    width: 50px;
+  }
+  
+  .bar {
+    width: 35px;
+  }
+  
+  .bar-image {
+    width: 35px;
+    height: 35px;
+    top: -20px;
   }
 }
 
 @media (max-width: 768px) {
+  .preview-selector {
+    gap: 1rem;
+  }
+  
+  .preview-item {
+    width: 160px;
+    height: 120px;
+  }
+  
+  .preview-item img {
+    height: 90px;
+  }
+  
+  .preview-schedule-name {
+    font-size: 1.4rem;
+  }
+  
+  .preview-timer-value {
+    font-size: 2.5rem;
+  }
+  
+  .schedule-name {
+    font-size: 2rem;
+  }
+  
+  .timer-value {
+    font-size: 6rem;
+  }
+  
   .results-title {
     font-size: 2.5rem;
   }
   
-  .fullscreen-results {
-    font-size: 2rem;
+  .fullscreen-table {
+    font-size: 1.1rem;
   }
   
-  .fullscreen-results li {
-    padding: 0.5rem;
+  .place-line {
+    font-size: 2rem;
+    padding: 0.8rem 1rem;
   }
   
   .press-enter {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
+  }
+  
+  .influence-graph {
+    gap: 8px;
+    height: 180px;
+  }
+  
+  .bar-container {
+    width: 40px;
+  }
+  
+  .bar {
+    width: 30px;
+  }
+  
+  .bar-image {
+    width: 30px;
+    height: 30px;
+    top: -15px;
+  }
+  
+  .bar-label {
+    font-size: 12px;
   }
 }
 
-@media (max-width: 600px) {
-  .preview-selector {
-  display: flex;
-  gap: 1.5rem; /* было 1rem */
-  justify-content: center;
-  margin-bottom: 2rem;
-}
+@media (max-width: 576px) {
+  .preview-container {
+    padding: 1rem;
+  }
+  
+  .preview-item {
+    width: 120px;
+    height: 100px;
+  }
+  
+  .preview-item img {
+    height: 70px;
+  }
+  
+  .preview-item p {
+    font-size: 0.9rem;
+  }
   
   .preview-window {
-    height: 300px;
+    min-height: 300px;
   }
   
-  .preview-schedule-name {
-    font-size: 1.2rem;
+  .timer-value {
+    font-size: 4rem;
   }
   
-  .preview-timer-value {
-    font-size: 2rem;
+  .place-line {
+    font-size: 1.6rem;
   }
   
-  .fullscreen-timer p {
-    font-size: 6rem;
+  .influence-graph {
+    gap: 5px;
+    height: 150px;
+  }
+  
+  .bar-container {
+    width: 30px;
+  }
+  
+  .bar {
+    width: 25px;
+  }
+  
+  .bar-image {
+    width: 25px;
+    height: 25px;
+    top: -12px;
+  }
+  
+  .bar-label {
+    font-size: 10px;
   }
 }
-
-.preview-results-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 1.2rem;
-  color: #333;
-}
-
-.preview-results-table th,
-.preview-results-table td {
-  border: 1px solid #eee;
-  padding: 0.5rem 1rem;
-  text-align: left;
-}
-
-.preview-results-table th {
-  background-color: #f0f0f0;
-  font-weight: bold;
-}
-
-.preview-results-table tr:nth-child(even) {
-  background-color: #fafafa;
-}
-
-.top3-stage {
-  position: relative;
-  width: 100%;
-  height: 60vh;
-}
-
-.place-line {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 3.5rem;
-  font-weight: bold;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
-  white-space: nowrap;
-}
-
-.first-place { color: #ffd700; }
-.second-place { color: #c0c0c0; }
-.third-place { color: #cd7f32; }
-
-.fade-slide-enter-active {
-  transition: all 0.6s ease, opacity 0.6s ease;
-}
-.fade-slide-enter-from {
-  opacity: 0;
-  transform: translate(-50%, -20px);
-}
-.fade-slide-enter-to {
-  opacity: 1;
-  transform: translate(-50%, 0);
-}
-
-.fullscreen-results-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 2rem;
-  margin-top: 2rem;
-}
-
-.fullscreen-results-table th,
-.fullscreen-results-table td {
-  padding: 0.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.fullscreen-results-table th {
-  text-align: center;
-}
-
-
-
-
-
-
-
-
 </style>

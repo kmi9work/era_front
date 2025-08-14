@@ -9,27 +9,27 @@ const formData = ref({
   number_of_players: 1
 });
 
-const originalPlayerName = ref('');
-
-const editPlayer = (player) => {
-  editingPlayer.value = { ...player };
-  originalPlayerName.value = player.player; // Сохраняем оригинальное имя
-};
-
 // Состояния UI
 const isLoading = ref(false);
 const isFormVisible = ref(false);
 const errorMessage = ref(null);
 const successMessage = ref(null);
-const playersList = ref([]);
-const editingPlayer = ref(null);
+const merchantsList = ref([]);
+const noblesList = ref([]);
+const editingMerchant = ref(null);
+const originalPlayerName = ref('');
+
+const editPlayer = (player) => {
+  editingMerchant.value = { ...player };
+  originalPlayerName.value = player.player; // Сохраняем оригинальное имя
+};
 
 const cancelEdit = () => {
-  editingPlayer.value = null;
+  editingMerchant.value = null;
 };
 
 const updatePlayer = async () => {
-  if (!editingPlayer.value) return;
+  if (!editingMerchant.value) return;
   
   isLoading.value = true;
   errorMessage.value = null;
@@ -37,25 +37,25 @@ const updatePlayer = async () => {
   
   try {
     const requestData = {
-      player_id: editingPlayer.value.player_id,
-      player: editingPlayer.value.player,
-      capital: editingPlayer.value.capital,
-      number_of_players: editingPlayer.value.number_of_players
+      player_id: editingMerchant.value.player_id,
+      player: editingMerchant.value.player,
+      capital: editingMerchant.value.capital,
+      number_of_players: editingMerchant.value.number_of_players
     };
 
     const response = await axios.patch(
       `${import.meta.env.VITE_PROXY}/game_parameters/update_results`, 
       { request: requestData }
     );
-    await loadPlayers();
+    await loadPMerchantsAndNobles();
     
-    const index = playersList.value.findIndex(p => p.player === editingPlayer.value.player);
+    const index = merchantsList.value.findIndex(p => p.player === editingMerchant.value.player);
     if (index !== -1) {
-      playersList.value[index] = { ...editingPlayer.value };
+      merchantsList.value[index] = { ...editingMerchant.value };
     }
     
     successMessage.value = 'Данные игрока обновлены!';
-    editingPlayer.value = null;
+    editingMerchant.value = null;
   } catch (error) {
     errorMessage.value = error.response?.data?.message || 'Ошибка при обновлении данных';
   } finally {
@@ -64,15 +64,19 @@ const updatePlayer = async () => {
 };
 
 // Загрузка списка игроков
-const loadPlayers = async () => {
+const loadPMerchantsAndNobles = async () => {
   try {
-    const response = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/show_sorted_results`);
-    playersList.value = response.data || [];
+    const merchResponse = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/show_sorted_results`);
+    merchantsList.value = merchResponse.data || [];
+
+
   } catch (error) {
     console.error('Ошибка загрузки игроков:', error);
     errorMessage.value = 'Ошибка загрузки списка игроков';
   }
 };
+
+
 
 const deleteResult = async (player) => {
   if (!confirm(`Удалить игрока ${player.player}?`)) return;
@@ -82,13 +86,13 @@ const deleteResult = async (player) => {
   
   try {
     const requestData = {
-      player_id: editingPlayer.value.player_id
+      player_id: editingMerchant.value.player_id
     };
 
     await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/delete_result`, { request: requestData });
     
     successMessage.value = 'Игрок удален!';
-    await loadPlayers();
+    await loadPMerchantsAndNobles();
   } catch (error) {
     errorMessage.value = error.response?.data?.message || 'Ошибка при удалении игрока';
   } finally {
@@ -110,7 +114,7 @@ const addResult = async () => {
     successMessage.value = 'Данные успешно сохранены!';
     formData.value = { player: '', capital: 0, number_of_players: 1 };
     isFormVisible.value = false;
-    await loadPlayers();
+    await loadPMerchantsAndNobles();
   } catch (error) {
     errorMessage.value = error.response?.data?.message || 'Произошла ошибка при отправке данных';
   } finally {
@@ -120,7 +124,7 @@ const addResult = async () => {
 
 // Загружаем игроков при монтировании
 onMounted(() => {
-  loadPlayers();
+  loadPMerchantsAndNobles();
 });
 </script>
 
@@ -203,12 +207,13 @@ onMounted(() => {
       <div class="players-list">
         <h4>Список игроков</h4>
         
-        <div v-if="playersList.length === 0" class="empty-list">
+        <div v-if="merchantsList.length === 0" class="empty-list">
           Нет данных об игроках
+           <div> {{noblesList}}</div>
         </div>
 
         <div v-else class="player-items">
-          <div v-for="(player, index) in playersList" :key="index" class="player-item">
+          <div v-for="(player, index) in merchantsList" :key="index" class="player-item">
             <div class="player-info">
               <span class="player-name">{{ player.player }}</span>
               <span class="player-capital">Капитал: {{ player.capital }}</span>
@@ -224,20 +229,20 @@ onMounted(() => {
                 Изменить
               </button>
             </div>
-            
+           
             <!-- Форма редактирования -->
-            <div v-if="editingPlayer && originalPlayerName === player.player" class="edit-form">
+            <div v-if="editingMerchant && originalPlayerName === player.player" class="edit-form">
               <div class="form-group">
                 <label>Имя:</label>
-                <input v-model="editingPlayer.player" type="text" required>
+                <input v-model="editingMerchant.player" type="text" required>
               </div>
               <div class="form-group">
                 <label>Капитал:</label>
-                <input v-model.number="editingPlayer.capital" type="number" min="0" required>
+                <input v-model.number="editingMerchant.capital" type="number" min="0" required>
               </div>
               <div class="form-group">
                 <label>Игроков:</label>
-                <input v-model.number="editingPlayer.number_of_players" type="number" min="1" required>
+                <input v-model.number="editingMerchant.number_of_players" type="number" min="1" required>
               </div>
               <div class="form-actions">
                 <button @click="updatePlayer" class="save-btn" :disabled="isLoading">
