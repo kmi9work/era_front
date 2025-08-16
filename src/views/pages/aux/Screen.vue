@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
 import axios from 'axios'
 import { useTimerStore } from '@/stores/timer'
 import previewPlaceholder from '@/assets/images/preview_placeholder.jpg'
@@ -10,6 +10,7 @@ const selectedScreen = ref('placeholder')
 const timerStore = useTimerStore()
 const isTransitioning = ref(false)
 const timerMessage = ref('Проверьте расписание. Либо его нет, либо циклы еще не начались, либо уже закончились')
+const pollInterval = ref(null)
 
 // Функции для работы с полноэкранным режимом
 const toggleFullscreen = () => {
@@ -46,12 +47,19 @@ const handleKeyDown = (e) => {
 const loadScreen = async () => {
   try {
     const response = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/get_screen`)
-    selectedScreen.value = response.data
+    if (response.data !== selectedScreen.value) {
+      selectedScreen.value = response.data
+    }
   } catch (error) {
     console.error('Ошибка загрузки данных:', error)
   }
 }
 
+// Настройка polling
+const startPolling = () => {
+  loadScreen()
+  pollInterval.value = setInterval(loadScreen, 5000)
+}
 
 // Смена экрана
 const changeScreen = async (screen) => {
@@ -72,13 +80,20 @@ const changeScreen = async (screen) => {
   }
 }
 
-
 // Хуки жизненного цикла
 onMounted(() => {
   document.addEventListener('keydown', handleKeyDown)
   document.addEventListener('fullscreenchange', () => {
     isFullscreen.value = !!document.fullscreenElement
   })
+  startPolling()
+})
+
+onBeforeUnmount(() => {
+  if (pollInterval.value) {
+    clearInterval(pollInterval.value)
+    pollInterval.value = null
+  }
 })
 
 onUnmounted(() => {
@@ -156,9 +171,6 @@ onUnmounted(() => {
       <button class="fullscreen-button" @click="toggleFullscreen">
         <span>Вывести на экран</span>
       </button>
-      <div>
-        {{timerStore.isPaused}}
-      </div>
     </div>
   </div>
 
@@ -167,24 +179,28 @@ onUnmounted(() => {
     <Transition name="fade" mode="out-in">
       <div class="fullscreen-content-wrapper" :key="selectedScreen">
         <template v-if="selectedScreen === 'placeholder'">
-          <Transition name="slide-fade">
-            <div class="screen-content"> 
-              <img class="fullscreen-image" :src="previewPlaceholder" alt="Заглушка">
-            </div>
-          </Transition>
+          <div class="screen-content"> 
+            <img class="fullscreen-image" :src="previewPlaceholder" alt="Заглушка">
+          </div>
         </template>
         
         <template v-else-if="selectedScreen === 'timer'">
-          <Transition name="slide-fade">
-            <div class="fullscreen-text-container"> 
+          <Transition name="timer-fade" mode="out-in">
+            <div class="fullscreen-text-container" :key="timerStore.isPaused ? 'paused' : 'running'">
               <div v-if="timerStore.isOutOfRange">
                 <p class="fullscreen-timer-value">{{ timerStore.outOfRangeMessage }}</p>
               </div>
-              <div v-else class="fullscreen-text-content">
-                <p class="fullscreen-schedule-name">{{ timerStore.currentScheduleItemName }}</p>
-                <p class="fullscreen-timer-value">{{ timerStore.formattedRemainingTime }}</p>
-
-
+              <div v-else>
+                <Transition name="text-fade" mode="out-in">
+                  <p key="schedule" class="fullscreen-schedule-name">
+                    {{ timerStore.currentScheduleItemName }}
+                  </p>
+                </Transition>
+                <Transition name="text-fade" mode="out-in">
+                  <p key="timer" class="fullscreen-timer-value">
+                    {{ timerStore.formattedRemainingTime }}
+                  </p>
+                </Transition>
               </div>
             </div>
           </Transition>
@@ -409,30 +425,28 @@ onUnmounted(() => {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  width: 100%;
-  height: 100%;
-}
-
-.fullscreen-text-content {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
+  height: 100vh;
+  width: 100vw;
+  text-align: center;
 }
 
 .fullscreen-schedule-name {
-  font-size: 5rem;
+  font-family: 'Beryozki', sans-serif;
+  font-size: 12rem;
   font-weight: bold;
-  margin-bottom: 1rem;
-  text-align: center;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  margin-bottom: 6rem;
+  line-height: 1;
 }
 
 .fullscreen-timer-value {
-  font-size: 10rem;
+  font-family: 'Beryozki', monospace;
+  font-size: 20rem;
+  font-feature-settings: "tnum";
+  text-rendering: optimizeLegibility;
   font-weight: bold;
-  line-height: 1;
-  text-align: center;
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+  line-height: 0.8;
 }
 
 .screen-content {
@@ -445,10 +459,8 @@ onUnmounted(() => {
 
 /* Анимации */
 .fade-enter-active,
-.fade-leave-active,
-.slide-fade-enter-active,
-.slide-fade-leave-active {
-  transition: all 0.5s ease;
+.fade-leave-active {
+  transition: opacity 0.5s ease;
 }
 
 .fade-enter-from,
@@ -456,18 +468,26 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-.slide-fade-enter-from {
-  opacity: 0;
-  transform: translateX(30px);
+.timer-fade-enter-active,
+.timer-fade-leave-active {
+  transition: all 0.5s ease;
 }
 
-.slide-fade-leave-to {
+.timer-fade-enter-from,
+.timer-fade-leave-to {
   opacity: 0;
-  transform: translateX(-30px);
+
 }
 
-.fullscreen-mode {
-  transition: opacity 0.3s ease;
+.text-fade-enter-active,
+.text-fade-leave-active {
+  transition: all 0.5s ease;
+}
+
+.text-fade-enter-from,
+.text-fade-leave-to {
+  opacity: 0;
+  filter: blur(5px);
 }
 
 /* Индикатор загрузки */
@@ -502,11 +522,12 @@ onUnmounted(() => {
 /* Адаптивность */
 @media (max-width: 768px) {
   .fullscreen-schedule-name {
-    font-size: 3rem;
+    font-size: 6rem;
+    margin-bottom: 3rem;
   }
   
   .fullscreen-timer-value {
-    font-size: 6rem;
+    font-size: 10rem;
   }
   
   .preview-card {
@@ -516,11 +537,12 @@ onUnmounted(() => {
 
 @media (max-width: 480px) {
   .fullscreen-schedule-name {
-    font-size: 2rem;
+    font-size: 4rem;
+    margin-bottom: 2rem;
   }
   
   .fullscreen-timer-value {
-    font-size: 4rem;
+    font-size: 6rem;
   }
   
   .preview-selector {
