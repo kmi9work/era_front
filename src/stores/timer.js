@@ -1,3 +1,4 @@
+
 import { defineStore } from 'pinia'
 import { ref, computed, onUnmounted } from 'vue'
 import axios from 'axios'
@@ -13,6 +14,30 @@ export const useTimerStore = defineStore('timer', () => {
   const isPaused = ref(false)
   const range = ref({ start: 0, finish: 0 }) // Добавлено отсутствующее объявление
   const controller = new AbortController() // Для отмены запросов
+  const pollTime = 5000
+  const isTimerRunning = ref(false)
+
+  const checkIfTimerRunning = async () => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_PROXY}/game_parameters/show_schedule.json`
+      );
+      
+      // Проверка структуры ответа
+      if (response.data?.timer?.ticking !== undefined) {
+        isPaused.value.value = !Number(response.data.timer.ticking) > 0;
+      }
+      
+      console.error('Неверная структура ответа:', response.data);
+      return false;
+      
+    } catch (error) {
+      console.error('Ошибка при проверке таймера:', error);
+      return false;
+    }
+};
+
+
 
   const isOutOfRange = ref(false)
   const outOfRangeMessage = ref("Эпоха Перемен")
@@ -200,6 +225,7 @@ export const useTimerStore = defineStore('timer', () => {
     noScheduleInTheBaseMessage,
     fetchSchedule,
     stopTimers,
-    toggleTimer
+    toggleTimer,
+    timeNotice
   }
 })

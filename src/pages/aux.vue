@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Screen from '@/views/pages/aux/Screen.vue'
-import ScreenControl from '@/views/pages/aux/ScreenControl.vue'
+
 
 
 const route = useRoute()
@@ -15,12 +15,6 @@ const tabs = [
     icon: 'ri-fullscreen-line',
     tab: 'screen',
   },
-  {
-    title: 'Управление экраном',
-    icon: 'ri-remote-control-line',
-    tab: 'screen_constrol',
-  },
-
 
 ]
 
@@ -64,11 +58,6 @@ watch(
 
       <VWindowItem value="screen">
         <Screen /> 
-      </VWindowItem>
-
-
-      <VWindowItem value="screen_constrol">
-        <ScreenControl /> 
       </VWindowItem>
 
 
