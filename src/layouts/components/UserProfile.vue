@@ -1,26 +1,34 @@
 <script setup>
-  import axios from 'axios'
+import { ref, defineExpose } from 'vue'
+import axios from 'axios'
 
-  const users = ref([]);
-  const current_user = ref({});
+const users = ref([]);
+const current_user = ref({});
 
-  onBeforeMount(async () => {
-    await axios.get(`${import.meta.env.VITE_PROXY}/users.json`)
-      .then(async (response) => {
-        users.value = response.data;
-      })
-    await axios.get(`${import.meta.env.VITE_PROXY}/current_user.json`)
-      .then(async (response) => {
-        current_user.value = response.data;
-      })
-  })
+// Добавляем эту строку для экспорта
+defineExpose({
+  current_user,
+  // Можно добавить другие свойства/методы
+  getUserName: () => current_user.value.name
+})
 
-  async function loginUser(user_id) {
-    await axios.get(`${import.meta.env.VITE_PROXY}/login/${user_id}.json`)
-      .then(async (response) => {
-        current_user.value = response.data; 
-      })
-  };
+onBeforeMount(async () => {
+  await axios.get(`${import.meta.env.VITE_PROXY}/users.json`)
+    .then(async (response) => {
+      users.value = response.data;
+    })
+  await axios.get(`${import.meta.env.VITE_PROXY}/current_user.json`)
+    .then(async (response) => {
+      current_user.value = response.data;
+    })
+})
+
+async function loginUser(user_id) {
+  await axios.get(`${import.meta.env.VITE_PROXY}/login/${user_id}.json`)
+    .then(async (response) => {
+      current_user.value = response.data; 
+    })
+};
 </script>
 
 <template>
