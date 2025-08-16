@@ -401,10 +401,12 @@ onUnmounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: #121212;
+  background: #121212 url('@/assets/images/background/back.jpg') no-repeat center center/cover;
   z-index: 100;
   color: white;
 }
+
+
 
 .fullscreen-mode.active {
   display: flex;
@@ -476,7 +478,6 @@ onUnmounted(() => {
 .timer-fade-enter-from,
 .timer-fade-leave-to {
   opacity: 0;
-
 }
 
 .text-fade-enter-active,
