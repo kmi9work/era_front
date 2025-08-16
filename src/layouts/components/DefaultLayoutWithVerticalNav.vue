@@ -89,6 +89,8 @@
          
         </div>
 
+        
+
         <VBtn 
           @click="payStateExpenses"
           :color="se_paid ? 'success' : 'error'"

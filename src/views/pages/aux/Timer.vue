@@ -53,6 +53,7 @@ onUnmounted(() => {
   <div v-if="!isFullscreen">
     <VCard>
       <VCardText>
+        <div> {{timerStore.formattedRemainingTime}} </div>
         <div class="timer-container">
           <div v-if="timerStore.noScheduleInTheBase">
             <p class="timer-value">{{ timerStore.noScheduleInTheBaseMessage }}</p>

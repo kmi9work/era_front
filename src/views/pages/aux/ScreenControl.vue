@@ -5,71 +5,39 @@ import axios from 'axios'
 
 import Timer from '@/views/pages/aux/Timer.vue'
 
-// Импортируем картинки
 import previewTimer from '@/assets/images/preview_timer.jpg'
 import previewPlaceholder from '@/assets/images/preview_placeholder.jpg'
 import previewResults from '@/assets/images/preview_results.jpg'
 import nobleIcon from '@/assets/images/noble.jpeg'
 
 const timerStore = useTimerStore()
-const isFullscreen = ref(false)
 const selectedScreen = ref('timer')
 const isTransitioning = ref(false)
 const playersList = ref([])
 const noblesList = ref([])
 const errorMessage = ref('')
-const currentPlaceShown = ref(0)
-const showAllResults = ref(false)
 
-// Форматирование чисел
+
+
+
 const formatNumber = (num) => {
   return num?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') || '0'
 }
 
-// Топ-3 игроков
-const top3 = computed(() => playersList.value.slice(0, 3))
-
-// Позиции для анимации
-const positions = computed(() => ({
-  third: currentPlaceShown.value === 1 ? 50 : currentPlaceShown.value >= 2 ? 60 : 50,
-  second: currentPlaceShown.value === 2 ? 40 : currentPlaceShown.value >= 3 ? 50 : 40,
-  first: currentPlaceShown.value === 3 ? 30 : 30
-}))
-
-// Методы для графика
-const calculateBarHeight = (influence) => {
-  const maxInfluence = Math.max(...noblesList.value.map(n => Math.abs(n.influence)))
-  if (maxInfluence === 0) return 50
-  return Math.max((Math.abs(influence) / maxInfluence) * 200, 30)
-}
-
-const getBarClass = (influence) => {
-  return influence >= 0 ? 'positive' : 'negative'
-}
-
-const shouldShowImage = (influence) => {
-  return Math.abs(influence) > 0
-}
-
-// Загрузка данных
 const loadPlayers = async () => {
   try {
-    // Загружаем и обрабатываем обычных игроков
     const playersRes = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/show_sorted_results`);
     playersList.value = (playersRes.data || []).sort((a, b) => a.place - b.place);
-    
-    // Загружаем и обрабатываем знать
+
     const nobResponse = await axios.get(`${import.meta.env.VITE_PROXY}/players.json`);
-    
     const nobles = (nobResponse.data || [])
-      .filter(player => player?.player_type?.id === 2) // Безопасная проверка
+      .filter(player => player?.player_type?.id === 2)
       .map(player => ({
         ...player,
-        influence: player.influence || 0 // Устанавливаем значение по умолчанию
+        influence: player.influence || 0
       }))
-      .sort((a, b) => b.influence - a.influence); // Сортировка по убыванию
-    
-    // Добавляем ранги
+      .sort((a, b) => b.influence - a.influence);
+
     let currentRank = 1;
     nobles.forEach((noble, index) => {
       if (index > 0 && noble.influence < nobles[index - 1].influence) {
@@ -77,7 +45,7 @@ const loadPlayers = async () => {
       }
       noble.place = currentRank;
     });
-    
+
     noblesList.value = nobles;
 
   } catch (error) {
@@ -85,42 +53,28 @@ const loadPlayers = async () => {
     errorMessage.value = 'Ошибка загрузки данных';
   }
 };
-// Смена экрана
-const changeScreen = async (screen) => {  // Добавлен async
-  if (selectedScreen.value === screen || isTransitioning.value) return;
 
-  // Определяем тип экрана (без computed, так как switch не работает внутри computed)
+const changeScreen = async (screen) => {
+  if (selectedScreen.value === screen || isTransitioning.value) return;
   const getScreenType = (screen) => {
     switch (screen) {
-      case "placeholder":
-        return 0;
-      case "timer":
-        return 1;
-      case "results":
-        return 2;
-      default:
-        return 0;  // Исправлен default (добавлен return)
+      case "placeholder": return 0;
+      case "timer": return 1;
+      case "results": return 2;
+      case "nobles": return 3;
+      default: return 0;
     }
   };
-
-  const typeOfScreen = getScreenType(screen);  // Получаем тип экрана
-
-  // Предположим, что requestData должен содержать typeOfScreen
-  const requestData = typeOfScreen
-    // другие данные, если нужны
- 
+  const typeOfScreen = getScreenType(screen);
 
   try {
-    const tt = await axios.patch(
+    await axios.patch(
       `${import.meta.env.VITE_PROXY}/game_parameters/toggle_screen`,
-      { request: requestData }
+      { request: typeOfScreen }
     );
-
     isTransitioning.value = true;
     setTimeout(() => {
       selectedScreen.value = screen;
-      currentPlaceShown.value = 0;
-      showAllResults.value = false;
       isTransitioning.value = false;
     }, 300);
   } catch (error) {
@@ -128,60 +82,14 @@ const changeScreen = async (screen) => {  // Добавлен async
   }
 };
 
-
-// Полноэкранный режим
-const toggleFullscreen = () => {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen().catch(err => {
-      console.error('Ошибка полноэкранного режима:', err)
-    })
-  } else {
-    document.exitFullscreen()
-  }
-}
-
-let keyDownTimeout;
-
-const handleKeyDown = (e) => {
-  if (!e) return;
-  
-  clearTimeout(keyDownTimeout);
-  
-  const key = e.key;
-  const isFullscreenMode = isFullscreen.value;
-  const isResultsScreen = selectedScreen.value === 'results';
-  
-  keyDownTimeout = setTimeout(() => {
-    if (key === 'Escape' && isFullscreenMode) {
-      toggleFullscreen();
-    } else if (key === 'Enter' && isFullscreenMode && isResultsScreen) {
-      if (currentPlaceShown.value < 3) {
-        currentPlaceShown.value++;
-      } else {
-        showAllResults.value = true;
-      }
-    }
-  }, 100);
-};
-
-// Инициализация
 onMounted(() => {
   loadPlayers()
-  document.addEventListener('keydown', handleKeyDown)
-  document.addEventListener('fullscreenchange', () => {
-    isFullscreen.value = !!document.fullscreenElement
-  })
-})
-
-// Очистка
-onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeyDown)
 })
 </script>
 
 <template>
-  <!-- Обычный режим -->
-  <div v-if="!isFullscreen" class="preview-container">
+  <div class="preview-container">
+    <!-- Выбор экрана -->
     <div class="preview-selector">
       <button 
         v-for="screen in [
@@ -201,9 +109,28 @@ onUnmounted(() => {
       </button>
     </div>
 
-    <button class="fullscreen-button" @click="toggleFullscreen">
-      <span>Полный экран</span>
-    </button>
+    <!-- Кнопка под выбором экрана -->
+    <div v-if="selectedScreen === 'timer'" class="preview-controls">
+    <div class="preview-controls">
+      <div class="buttons-container">
+      <button 
+        @click="timerStore.toggleTimer"
+        :disabled="timerStore.isLoading"
+        class="timer-button"
+        :class="{ 
+          'active': !timerStore.isPaused,
+          'loading': timerStore.isLoading
+        }"
+      >
+        <span v-if="!timerStore.isLoading">
+          {{ timerStore.isPaused ? 'Запустить таймер' : 'Остановить таймер' }}
+        </span>
+        <span v-else class="loader">Загрузка...</span>
+      </button>
+    </div>
+    <p class="timer-value">{{ timerStore.noScheduleInTheBaseMessage }}</p>
+  </div>
+    </div>
 
     <!-- Окно предпросмотра -->
     <transition name="fade" mode="out-in">
@@ -221,7 +148,7 @@ onUnmounted(() => {
 
         <template v-else-if="selectedScreen === 'nobles'">
           <div class="results-preview">
-             <h3>Результаты дворян</h3>
+            <h3>Результаты дворян</h3>
             <div class="table-container">
               <table class="preview-results-table">
                 <thead>
@@ -268,121 +195,19 @@ onUnmounted(() => {
                 </tbody>
               </table>
             </div>
-
-
           </div>
         </template>
       </div>
     </transition>
   </div>
-
-  <!-- Полноэкранный режим -->
-  <!-- Полноэкранный режим -->
-<div v-if="isFullscreen" id="fullscreen-content" class="fullscreen">
-  <transition name="fade" mode="out-in">
-    <!-- Таймер -->
-    <template v-if="selectedScreen === 'timer'">
-      <div class="fullscreen-timer">
-        <p class="schedule-name">{{ timerStore.currentScheduleItemName }}</p>
-        <p class="timer-value">{{ timerStore.formattedRemainingTime }}</p>
-      </div>
-    </template>
-
-    <!-- Заглушка -->
-    <template v-else-if="selectedScreen === 'placeholder'">
-      <img class="fullscreen-image" :src="previewPlaceholder" alt="Заглушка">
-    </template>
-
-    <!-- График влияния дворян -->
-    <template v-else-if="selectedScreen === 'nobles'">
-      <div class="fullscreen-results">
-        <h2 class="results-title">График влияния дворян</h2>
-        <div class="influence-graph-container">
-          <div class="influence-graph">
-            <div 
-              v-for="(noble, index) in noblesList" 
-              :key="`graph-noble-${noble.id}-${index}`"
-              class="bar-container"
-              :style="{ height: calculateBarHeight(noble.influence) + 'px' }"
-            >
-              <div class="bar" :class="getBarClass(noble.influence)">
-                <img 
-                  v-if="shouldShowImage(noble.influence)"
-                  :src="nobleIcon" 
-                  class="bar-image"
-                  :alt="noble.name"
-                >
-              </div>
-              <div class="bar-label">
-                <span>{{ noble.name }}</span>
-                <span class="influence-value">{{ noble.influence }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </template>
-
-    <!-- Результаты -->
-    <template v-else-if="selectedScreen === 'results'">
-      <div class="fullscreen-results">
-        <h2 class="results-title">Результаты</h2>
-        
-        <div v-if="!showAllResults" class="top3-stage">
-          <transition name="fade-slide">
-            <div v-if="currentPlaceShown >= 1" class="place-line third-place" :style="{ top: positions.third + '%' }">
-              {{ top3[2]?.place }} место — {{ top3[2]?.player }} — {{ formatNumber(top3[2]?.capital) }}
-            </div>
-          </transition>
-
-          <transition name="fade-slide">
-            <div v-if="currentPlaceShown >= 2" class="place-line second-place" :style="{ top: positions.second + '%' }">
-              {{ top3[1]?.place }} место — {{ top3[1]?.player }} — {{ formatNumber(top3[1]?.capital) }}
-            </div>
-          </transition>
-
-          <transition name="fade-slide">
-            <div v-if="currentPlaceShown >= 3" class="place-line first-place" :style="{ top: positions.first + '%' }">
-              {{ top3[0]?.place }} место — {{ top3[0]?.player }} — {{ formatNumber(top3[0]?.capital) }}
-            </div>
-          </transition>
-        </div>
-
-
-         <div v-if="showAllResults" class="top3-stage">
-        <transition name="fade-slide">
-          <div class="fullscreen-tables">
-          <table class="fullscreen-table">
-            <thead>
-              <tr>
-                <th>Место</th>
-                <th>Название</th>
-                <th>Капитал</th>
-                <th>Капитал на игрока</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="player in playersList" :key="`full-player-${player.player_id}`">
-                <td>{{ player.place }}</td>
-                <td>{{ player.player }}</td>
-                <td>{{ formatNumber(player.capital) }}</td>
-                <td>{{ formatNumber(player.cap_per_pl) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        </transition>
-      </div>
-
-      </div>
-    </template>
-  </transition>
-</div>
 </template>
 
+
+
+
+
 <style scoped>
-/* Базовые стили */
+/* здесь оставил только стили для предпросмотра */
 .preview-container {
   display: flex;
   flex-direction: column;
@@ -398,6 +223,14 @@ onUnmounted(() => {
   justify-content: center;
   flex-wrap: wrap;
   margin-bottom: 2rem;
+}
+.buttons-container {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 20px;
+  width: 100%;
+  flex-wrap: wrap;
 }
 
 .preview-item {
@@ -435,29 +268,6 @@ onUnmounted(() => {
   font-size: 1rem;
   font-weight: 500;
   text-align: center;
-}
-
-.fullscreen-button {
-  width: 200px;
-  padding: 0.75rem;
-  background-color: #42b983;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  align-self: center;
-}
-
-.fullscreen-button:hover {
-  background-color: #3aa876;
-  transform: translateY(-1px);
-}
-
-.fullscreen-button:active {
-  transform: translateY(0);
 }
 
 /* Окно предпросмотра */
@@ -554,41 +364,6 @@ onUnmounted(() => {
   background-color: #fafafa;
 }
 
-/* Полноэкранные стили */
-/* Полноэкранные стили */
-.fullscreen {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  background: #121212 url('@/assets/images/background/back.jpg') no-repeat center center/cover;
-  color: white;
-  z-index: 9999;
-  overflow: auto;
-}
-
-.fullscreen-timer p {
-  font-family: 'Beryozki', sans-serif;
-  font-size: 12rem;
-  font-weight: bold;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-  margin-bottom: 1rem;
-}
-
-/* Стили для результатов в полноэкранном режиме */
-.fullscreen-results-container {
-  width: 100%;
-  max-width: 800px;
-  text-align: center;
-}
-
 .schedule-name {
   font-size: 3rem;
   margin-bottom: 2rem;
@@ -610,12 +385,7 @@ onUnmounted(() => {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
-/* Стили для результатов в полноэкранном режиме */
-.fullscreen-results {
-  width: 100%;
-  max-width: 1200px;
-  padding: 2rem;
-}
+
 
 .results-title {
   font-size: 3.5rem;
@@ -669,45 +439,6 @@ onUnmounted(() => {
   margin: 2rem auto;
 }
 
-.fullscreen-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 1.8rem;
-  background-color: rgba(0, 0, 0, 0.3);
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.fullscreen-table th {
-  background-color: rgba(255, 255, 255, 0.15);
-  padding: 1.5rem;
-  text-align: center;
-  font-weight: 600;
-  color: white;
-  border-bottom: 2px solid white;
-}
-
-.fullscreen-table td {
-  padding: 1.2rem 1.5rem;
-  text-align: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
-}
-
-.fullscreen-table tr:last-child td {
-  border-bottom: none;
-}
-
-.fullscreen-table tr:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-/* Стили для заголовков столбцов */
-.fullscreen-table th:nth-child(1) { width: 15%; } /* Место */
-.fullscreen-table th:nth-child(2) { width: 35%; } /* Название */
-.fullscreen-table th:nth-child(3) { width: 25%; } /* Капитал */
-.fullscreen-table th:nth-child(4) { width: 25%; } /* Капитал на игрока */
 
 .press-enter {
   font-size: 1.8rem;
