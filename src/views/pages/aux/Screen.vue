@@ -6,34 +6,10 @@ import previewPlaceholder from '@/assets/images/preview_placeholder.jpg'
 
 // Состояния
 const isFullscreen = ref(false)
-const timerRunning = ref(false)
 const selectedScreen = ref('placeholder')
-const pollInterval = ref(null)
-const pollTime = 5000 // 5 секунд - интервал опроса сервера
 const timerStore = useTimerStore()
-const isTimerRunning = ref(false)
 const isTransitioning = ref(false)
 const timerMessage = ref('Проверьте расписание. Либо его нет, либо циклы еще не начались, либо уже закончились')
-
-const checkIfTimerRunning = async () => {
-  try {
-    const response = await axios.get(
-      `${import.meta.env.VITE_PROXY}/game_parameters/show_schedule.json`
-    )
-    
-    if (response.data?.timer?.ticking !== undefined) {
-      isTimerRunning.value = Number(response.data.timer.ticking) > 0
-      return true
-    }
-    
-    console.error('Неверная структура ответа:', response.data)
-    return false
-    
-  } catch (error) {
-    console.error('Ошибка при проверке таймера:', error)
-    return false
-  }
-}
 
 // Функции для работы с полноэкранным режимом
 const toggleFullscreen = () => {
@@ -76,34 +52,6 @@ const loadScreen = async () => {
   }
 }
 
-// Объединенная функция для polling
-const checkAndLoad = async () => {
-  try {
-    await Promise.all([
-      loadScreen(),
-      checkIfTimerRunning()
-    ])
-  } catch (error) {
-    console.error('Ошибка при polling:', error)
-  }
-}
-
-// Запуск периодической проверки
-const startPolling = () => {
-  // Первый вызов сразу
-  checkAndLoad()
-  
-  // Затем по интервалу
-  pollInterval.value = setInterval(checkAndLoad, pollTime)
-}
-
-// Остановка polling
-const stopPolling = () => {
-  if (pollInterval.value) {
-    clearInterval(pollInterval.value)
-    pollInterval.value = null
-  }
-}
 
 // Смена экрана
 const changeScreen = async (screen) => {
@@ -124,14 +72,9 @@ const changeScreen = async (screen) => {
   }
 }
 
-// Наблюдатель за состоянием таймера
-watch(() => timerStore.isPaused, (newValue) => {
-  timerRunning.value = !newValue
-})
 
 // Хуки жизненного цикла
 onMounted(() => {
-  startPolling()
   document.addEventListener('keydown', handleKeyDown)
   document.addEventListener('fullscreenchange', () => {
     isFullscreen.value = !!document.fullscreenElement
@@ -139,7 +82,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  stopPolling()
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('fullscreenchange', () => {})
 })
@@ -174,14 +116,8 @@ onUnmounted(() => {
                 {{ timerMessage }}
               </div>
               <div v-else>
-                <div>Таймер {{ isTimerRunning ? 'запущен' : 'остановлен' }}</div>
                 <p class="preview-schedule-name">{{ timerStore.currentScheduleItemName }}</p>
-                <div v-if="isTimerRunning">
                 <p class="preview-timer-value">{{ timerStore.formattedRemainingTime }}</p>
-                </div>
-                <div v-else>
-                  <p class="preview-timer-value">{{ timerStore.timeNotice }}</p>
-                </div>
               </div>
             </div>
           </div>
@@ -220,6 +156,9 @@ onUnmounted(() => {
       <button class="fullscreen-button" @click="toggleFullscreen">
         <span>Вывести на экран</span>
       </button>
+      <div>
+        {{timerStore.isPaused}}
+      </div>
     </div>
   </div>
 
@@ -243,12 +182,8 @@ onUnmounted(() => {
               </div>
               <div v-else class="fullscreen-text-content">
                 <p class="fullscreen-schedule-name">{{ timerStore.currentScheduleItemName }}</p>
-                <div v-if="isTimerRunning">
                 <p class="fullscreen-timer-value">{{ timerStore.formattedRemainingTime }}</p>
-              </div>
-              <div v-else>
-                <p class="fullscreen-timer-value">{{ timerStore.timeNotice }}</p>
-              </div>
+
 
               </div>
             </div>
