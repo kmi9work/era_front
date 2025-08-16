@@ -54,6 +54,7 @@ const iconsList = [
   ' ri-contract-left-line',
   ' ri-contract-left-fill',
   ' ri-contract-right-line',
+  ' ri-settings-5-fill'
 ]
 </script>
 
