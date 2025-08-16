@@ -1,8 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import Timer from '@/views/pages/aux/Timer.vue' // Убедитесь, что путь правильный
-import Results from '@/views/pages/aux/Results.vue'
 import Screen from '@/views/pages/aux/Screen.vue'
 import ScreenControl from '@/views/pages/aux/ScreenControl.vue'
 
@@ -14,26 +12,14 @@ const activeTab = ref(route.params.tab || 'screen') // Значение по у�
 const tabs = [
   {
     title: 'Вывод на экран',
-    icon: 'ri-timer-flash-fill',
+    icon: 'ri-fullscreen-line',
     tab: 'screen',
   },
   {
     title: 'Управление экраном',
-    icon: 'ri-timer-flash-fill',
+    icon: 'ri-remote-control-line',
     tab: 'screen_constrol',
   },
-
-  {
-    title: 'Таймер',
-    icon: 'ri-timer-flash-fill',
-    tab: 'timer',
-  },
-  {
-    title: 'Результаты',
-    icon: 'ri-timer-flash-fill',
-    tab: 'results',
-  },
-  
 
 
 ]
@@ -85,13 +71,7 @@ watch(
         <ScreenControl /> 
       </VWindowItem>
 
-      <VWindowItem value="timer">
-        <Timer /> 
-      </VWindowItem>
 
-      <VWindowItem value="results">
-        <Results /> 
-      </VWindowItem>
       
       <!-- Добавьте другие VWindowItem для дополнительных вкладок -->
     </VWindow>

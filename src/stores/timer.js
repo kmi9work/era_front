@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import axios from 'axios'
 
 export const useTimerStore = defineStore('timer', () => {
@@ -10,212 +10,161 @@ export const useTimerStore = defineStore('timer', () => {
   const schedule = ref([])
   const presentTime = ref(Math.floor(Date.now()/1000))
   const timeNotice = ref("Перерыв")
-  const isPaused = ref(true)
-  const broadcastChannel = ref(null)
-  const range = ref({})
+  const isPaused = ref(false)
+  const range = ref({ start: 0, finish: 0 }) // Добавлено отсутствующее объявление
+  const controller = new AbortController() // Для отмены запросов
+
   const isOutOfRange = ref(false)
   const outOfRangeMessage = ref("Эпоха Перемен")
   const noScheduleInTheBase = ref(false)
   const noScheduleInTheBaseMessage = ref("В базе нет расписания")
+  const lastToggleTime = ref(0) // Защита от частых переключений
 
-
-  const checkIfOutOfRange = async () => {
+  // Проверка выхода за временные границы
+  const checkIfOutOfRange = () => {
     if (noScheduleInTheBase.value) {
       isOutOfRange.value = true
+      return
     }
 
-    isOutOfRange.value = Math.floor(Date.now() / 1000) < range.value.start || Math.floor(Date.now() / 1000) > range.value.finish
+    const now = Math.floor(Date.now() / 1000)
+    isOutOfRange.value = now < range.value.start || now > range.value.finish
   }
 
+  // Текущий активный элемент расписания
+  const currentScheduleItem = computed(() => {
+    if (!Array.isArray(schedule.value) || schedule.value.length === 0) return null
+    return schedule.value.find(item => 
+      item.unix_start <= presentTime.value && 
+      presentTime.value <= item.unix_finish
+    )
+  })
 
-  // Инициализация Broadcast Channel
-  const initBroadcastChannel = () => {
-    broadcastChannel.value = new BroadcastChannel('timer_sync_channel')
-    
-    broadcastChannel.value.onmessage = async (event) => {
-      if (event.data.type === 'TIMER_UPDATE') {
-        // Обновляем состояние без триггера нового сообщения
-        isPaused.value = event.data.isPaused
-        remainingTime.value = event.data.remainingTime
-        presentTime.value = event.data.presentTime
-        
-        if (!isPaused.value && !timerInterval.value) {
-          startTimers()
-        } else if (isPaused.value) {
-          stopTimers()
-        }
-      }
-      
-      if (event.data.type === 'REQUEST_STATE') {
-        // Отвечаем текущим состоянием
-        broadcastChannel.value.postMessage({
-          type: 'TIMER_UPDATE',
-          isPaused: isPaused.value,
-          remainingTime: remainingTime.value,
-          presentTime: presentTime.value,
-          timestamp: Date.now()
-        })
-      }
-    }
-  }
+  // Название текущего элемента расписания
+  const currentScheduleItemName = computed(() => {
+    return currentScheduleItem.value?.identificator ?? timeNotice.value
+  })
 
-  // Отправка обновления состояния
-  const broadcastState = () => {
-    if (broadcastChannel.value) {
-      broadcastChannel.value.postMessage({
-        type: 'TIMER_UPDATE',
-        isPaused: isPaused.value,
-        remainingTime: remainingTime.value,
-        presentTime: presentTime.value,
-        timestamp: Date.now()
-      })
-    }
-  }
-
- // Создание таймера
-  const createSchedule = async () => {
-    try {
-   const response =  await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/create_schedule`)
-    }catch(error){
-      console.error
-    }
-  }
-
-
-
-
-  // Переключение таймера
-  const toggleTimer = async () => {
-    try {
-      isLoading.value = true
-      
-      
-      // Отправляем запрос на сервер
-      await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/toggle_timer`)
-      
-      // Получаем актуальное расписание
-      const response = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/show_schedule.json`)
-      schedule.value = response.data.timer.schedule || []
-
-      
-      // Обновляем состояние
-
-      isPaused.value = !(parseInt(response.data.timer.ticking) > 0)
-      presentTime.value = Math.floor(Date.now() / 1000)
-      
-      if (currentScheduleItem.value) {
-        remainingTime.value = Math.max(0, currentScheduleItem.value.unix_finish - presentTime.value)
-      }
-      
-      // Управление таймерами
-      if (!isPaused.value) {
-        startTimers()
-      } else if (isPaused.value) {
-        stopTimers()
-      }
-      
-      // Синхронизируем с другими вкладками
-      broadcastState()
-      checkIfOutOfRange()
-      
-    } catch (error) {
-      console.error('Ошибка при переключении таймера:', error)
-      // В случае ошибки возвращаем предыдущее состояние
-      isPaused.value = !isPaused.value
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  // Форматированное время
+  // Форматированное оставшееся время
   const formattedRemainingTime = computed(() => {
-    if (isPaused.value) return timeNotice.value
-    
+    if (isPaused.value || !currentScheduleItem.value) {
+      return timeNotice.value
+    }
+
     const pad = num => num.toString().padStart(2, '0')
     const hours = Math.floor(remainingTime.value / 3600)
     const minutes = Math.floor((remainingTime.value % 3600) / 60)
     const seconds = remainingTime.value % 60
-    
+
     return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
   })
+
+  // Переключение состояния таймера
+  const toggleTimer = async () => {
+    const now = Date.now()
+    if (now - lastToggleTime.value < 1000) return // Защита от спама
+    lastToggleTime.value = now
+
+    try {
+      isLoading.value = true
+      await axios.patch(
+        `${import.meta.env.VITE_PROXY}/game_parameters/toggle_timer`,
+        null,
+        { signal: controller.signal }
+      )
+
+      await fetchSchedule()
+    } catch (error) {
+      if (!axios.isCancel(error)) {
+        console.error('Ошибка при переключении таймера:', error)
+        isPaused.value = !isPaused.value
+      }
+    } finally {
+      isLoading.value = false
+    }
+  }
 
   // Загрузка расписания
   const fetchSchedule = async () => {
     try {
       isLoading.value = true
-      const response = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/show_schedule.json`)
+      const response = await axios.get(
+        `${import.meta.env.VITE_PROXY}/game_parameters/show_schedule.json`,
+        { signal: controller.signal }
+      )
+
+      if (!response.data?.timer) {
+        throw new Error('Неверный формат ответа сервера')
+      }
+
       schedule.value = response.data.timer.schedule || []
       isPaused.value = !(parseInt(response.data.timer.ticking) > 0)
       presentTime.value = Math.floor(Date.now() / 1000)
+      noScheduleInTheBase.value = schedule.value.length === 0
 
-      if (schedule.value.length == 0) {
-        noScheduleInTheBase.value = true
-      }else{
-        range.value["start"] = schedule.value[0]["unix_start"]
-        range.value["finish"] = schedule.value[schedule.value.length - 1]["unix_finish"]
+      if (schedule.value.length > 0) {
+        range.value = {
+          start: schedule.value[0].unix_start,
+          finish: schedule.value[schedule.value.length - 1].unix_finish
+        }
       }
 
-      checkIfOutOfRange()// костыльно(())
+      checkIfOutOfRange()
+
       if (currentScheduleItem.value) {
         remainingTime.value = Math.max(0, currentScheduleItem.value.unix_finish - presentTime.value)
       }
-      
-      if (!isPaused.value) {
-        startTimers()
-      }
-      
-      // Запрашиваем состояние у других вкладок
-      if (broadcastChannel.value) {
-        broadcastChannel.value.postMessage({ type: 'REQUEST_STATE' })
-      }
-      
+
+      isPaused.value ? stopTimers() : startTimers()
     } catch (error) {
-      console.error('Ошибка при получении расписания:', error)
+      if (!axios.isCancel(error)) {
+        console.error('Ошибка при получении расписания:', error)
+        noScheduleInTheBase.value = true
+      }
     } finally {
       isLoading.value = false
     }
   }
 
-
-
-  // Текущий элемент расписания
-  const currentScheduleItem = computed(() => {
-    return schedule.value.find(item => 
-      item.unix_start <= presentTime.value && 
-      presentTime.value <= item.unix_finish
-    ) || null
-  })
-
-  const currentScheduleItemName = computed(() => {
-    return currentScheduleItem.value?.identificator || timeNotice.value
-  })
-
   // Запуск таймеров
   const startTimers = () => {
     stopTimers()
-    
-    presentTime.value = Math.floor(Date.now() / 1000)
-    
+
+    const now = Math.floor(Date.now() / 1000)
+    presentTime.value = now
+
     if (!currentScheduleItem.value) {
       isPaused.value = true
-      broadcastState()
       return
     }
-    
-    remainingTime.value = Math.max(0, currentScheduleItem.value.unix_finish - presentTime.value)
-    
+
+    remainingTime.value = Math.max(0, currentScheduleItem.value.unix_finish - now)
+
     if (remainingTime.value <= 0) {
       isPaused.value = true
-      broadcastState()
       return
     }
-    
-    timerInterval.value = setInterval(() => {
-      presentTime.value = Math.floor(Date.now() / 1000)
-      remainingTime.value = Math.max(0, currentScheduleItem.value.unix_finish - presentTime.value)
-      
+
+    timerInterval.value = setInterval(async () => {
+      const now = Math.floor(Date.now() / 1000)
+      presentTime.value = now
+      remainingTime.value = Math.max(0, currentScheduleItem.value.unix_finish - now)
+
       if (remainingTime.value <= 0) {
-        toggleTimer().catch(console.error)
+        try {
+          await axios.patch(
+            `${import.meta.env.VITE_PROXY}/game_parameters/toggle_timer`,
+            null,
+            { signal: controller.signal }
+          )
+        } catch (error) {
+          if (!axios.isCancel(error)) {
+            console.error('Ошибка при остановке таймера:', error)
+          }
+        } finally {
+          isPaused.value = true
+          stopTimers()
+        }
       }
     }, 1000)
   }
@@ -228,42 +177,29 @@ export const useTimerStore = defineStore('timer', () => {
     }
   }
 
-  // Очистка
+  // Очистка при демонтировании
   onUnmounted(() => {
     stopTimers()
-    if (broadcastChannel.value) {
-      broadcastChannel.value.close()
-    }
+    controller.abort()
   })
 
-  const initStore = () => {
-    initBroadcastChannel()
-    fetchSchedule()
-  }
-
-
-  // // Инициализация
-  // initBroadcastChannel()
-  // fetchSchedule()
-
-  // Вызываем инициализацию
-  initStore()
-
-
+  // Инициализация
+  fetchSchedule()
 
   return {
     isLoading,
-    isPaused,
     schedule,
+    presentTime,
     remainingTime,
     formattedRemainingTime,
     currentScheduleItemName,
-    fetchSchedule,
-    toggleTimer,
+    isPaused,
     isOutOfRange,
     outOfRangeMessage,
     noScheduleInTheBase,
     noScheduleInTheBaseMessage,
-    createSchedule
+    fetchSchedule,
+    stopTimers,
+    toggleTimer
   }
 })
