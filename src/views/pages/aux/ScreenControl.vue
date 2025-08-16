@@ -1,9 +1,8 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import { useTimerStore } from '@/stores/timer'
 import axios from 'axios'
 
-import previewTimer from '@/assets/images/preview_timer.jpg'
 import previewPlaceholder from '@/assets/images/preview_placeholder.jpg'
 
 const timerMessage = ref('Проверьте расписание. Либо его нет, либо циклы еще не начались, либо уже закончились')
@@ -33,74 +32,69 @@ const changeScreen = async (screen) => {
 <template>
   <div class="preview-container">
     <div class="preview-selector">
-      <button 
+      <div 
         v-for="screen in [         
-          { id: 'placeholder', label: 'Заглушка', icon: previewPlaceholder },
-          { id: 'timer', label: 'Таймер', icon: previewTimer }
+          { id: 'placeholder', label: 'Заглушка' },
+          { id: 'timer', label: 'Таймер' }
         ]"
         :key="screen.id"
-        class="preview-item"
+        class="preview-card"
         :class="{ active: selectedScreen === screen.id }"
         @click="changeScreen(screen.id)"
-        :disabled="isTransitioning"
       >
-        <img :src="screen.icon" :alt="screen.label">
-        <p>{{ screen.label }}</p>
-      </button>
-    </div>
-
-    <!-- Кнопка под выбором экрана -->
-    <div v-if="selectedScreen === 'timer'">
-   <div class="preview-controls">
-  <div class="buttons-container">
-    <button 
-      @click="timerStore.toggleTimer"
-      :disabled="timerStore.isLoading"
-      class="timer-button"
-      :class="{ 
-        'active': !timerStore.isPaused,
-        'loading': timerStore.isLoading,
-        'paused': timerStore.isPaused && !timerStore.isLoading
-      }"
-    >
-      <span v-if="!timerStore.isLoading">
-        {{ timerStore.isPaused ? 'Запустить таймер' : 'Остановить таймер' }}
-      </span>
-      <span v-else class="loader">
-        <svg class="spinner" viewBox="0 0 50 50">
-          <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
-        </svg>
-        Загрузка...
-      </span>
-    </button>
-  </div>
-</div>
-    </div>
-
-
-    <transition name="fade" mode="out-in">
-      <div v-if="selectedScreen" class="preview-window" :key="selectedScreen">
-        <template v-if="selectedScreen === 'timer'">
-          <div class="preview-timer">
-            <div v-if="timerStore.isOutOfRange ">
-             <p class="preview-schedule-name"> {{timerMessage }} </p>              
+        <div class="preview-title">
+          <strong>{{ screen.label }}</strong>
+        </div>
+        
+        <div class="preview-content">
+          <div v-if="screen.id === 'placeholder'" class="screen-preview">
+            <img class="preview-image" :src="previewPlaceholder" alt="Заглушка">
+          </div>
+          
+          <div v-else-if="screen.id === 'timer'" class="timer-preview">
+            <div v-if="timerStore.isOutOfRange" class="preview-message">
+              {{ timerMessage }}
             </div>
             <div v-else>
-            <p class="preview-schedule-name">{{ timerStore.currentScheduleItemName }}</p>
-            <p class="preview-timer-value">{{ timerStore.formattedRemainingTime }}</p>
+              <p class="preview-schedule-name">{{ timerStore.currentScheduleItemName || 'Название цикла' }}</p>
+              <p class="preview-timer-value">{{ timerStore.formattedRemainingTime || '00:00:00' }}</p>
             </div>
           </div>
-        </template>
-
-        <template v-else-if="selectedScreen === 'placeholder'">
-          <img class="preview-image" :src="previewPlaceholder" alt="Заглушка">
-        </template>
+        </div>
+        
+        <div 
+          v-if="screen.id === 'timer'" 
+          class="preview-controls"
+          @click.stop
+        >
+          <button 
+            @click="timerStore.toggleTimer"
+            :disabled="timerStore.isLoading"
+            class="timer-button"
+            :class="{ 
+              'active': !timerStore.isPaused,
+              'loading': timerStore.isLoading,
+              'paused': timerStore.isPaused && !timerStore.isLoading
+            }"
+          >
+            <span v-if="!timerStore.isLoading">
+              {{ timerStore.isPaused ? 'Запустить таймер' : 'Остановить таймер' }}
+            </span>
+            <span v-else class="loader">
+              <svg class="spinner" viewBox="0 0 50 50">
+                <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
+              </svg>
+              Загрузка...
+            </span>
+          </button>
+        </div>
       </div>
-    </transition>
+    </div>
   </div>
 </template>
 
 <style scoped>
+/* Основные стили контейнера */
 .preview-container {
   display: flex;
   flex-direction: column;
@@ -110,102 +104,112 @@ const changeScreen = async (screen) => {
   margin: 0 auto;
 }
 
+/* Контейнер для карточек превью */
 .preview-selector {
   display: flex;
-  gap: 1.5rem;
+  gap: 2rem;
   justify-content: center;
-  flex-wrap: wrap;
-  margin-bottom: 2rem;
-}
-
-.buttons-container {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 20px;
-  width: 100%;
   flex-wrap: wrap;
 }
 
-.preview-item {
-  width: 200px;
-  height: 150px;
-  padding: 0;
-  border: 2px solid transparent;
-  border-radius: 8px;
-  background: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
+/* Карточка превью */
+.preview-card {
+  width: 280px;
+  border: 2px solid #e1e1e1;
+  border-radius: 12px;
+  background: white;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
+  transition: all 0.2s ease;
+  cursor: pointer;
 }
 
-.preview-item:hover {
+.preview-card.active {
+  border-color: #42b983;
+  box-shadow: 0 0 0 3px #42b983;
+}
+
+.preview-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.preview-item.active {
-  border-color: #42b983;
-  box-shadow: 0 0 0 2px #42b983;
-}
-
-.preview-item img {
-  width: 100%;
-  height: 120px;
-  object-fit: cover;
-  border-radius: 6px 6px 0 0;
-}
-
-.preview-item p {
-  margin: 0.5rem 0 0;
-  font-size: 1rem;
-  font-weight: 500;
+/* Заголовок превью */
+.preview-title {
+  padding: 1rem;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #e1e1e1;
   text-align: center;
 }
 
-.preview-window {
-  width: 100%;
-  min-height: 500px;
-  border: 2px solid #e1e1e1;
-  border-radius: 12px;
-  overflow: hidden;
+.preview-title strong {
+  font-size: 1.2rem;
+  color: #333;
+}
+
+/* Контент превью */
+.preview-content {
+  padding: 1.5rem;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Стили для превью заглушки */
+.screen-preview {
+  flex-grow: 1;
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #f8f9fa;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.preview-timer {
+.preview-image {
+  max-width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+/* Стили для превью таймера */
+.timer-preview {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   text-align: center;
-  padding: 2rem;
-  width: 100%;
+}
+
+.preview-message {
+  font-size: 0.9rem;
+  color: #666;
+  padding: 0.5rem;
 }
 
 .preview-schedule-name {
-  font-size: 1.8rem;
-  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
   color: #333;
   font-weight: 500;
 }
 
 .preview-timer-value {
-  font-size: 4rem;
+  font-size: 1.8rem;
   font-weight: bold;
   color: #2c3e50;
   font-family: 'Roboto Mono', monospace;
 }
 
-.preview-image {
-  max-width: 90%;
-  max-height: 90%;
-  object-fit: contain;
-  border-radius: 8px;
+/* Кнопки управления */
+.preview-controls {
+  padding: 0 1.5rem 1.5rem;
+  display: flex;
+  justify-content: center;
 }
 
+/* Стили для кнопки таймера */
 .timer-button {
-  padding: 12px 24px;
+  padding: 10px 20px;
   border-radius: 8px;
   border: none;
   font-weight: 500;
@@ -215,98 +219,7 @@ const changeScreen = async (screen) => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 160px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.timer-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.timer-button.active {
-  background-color: #4CAF50;
-  color: white;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-@media (max-width: 992px) {
-  .preview-window {
-    min-height: 400px;
-  }
-  
-  .preview-timer-value {
-    font-size: 3rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .preview-selector {
-    gap: 1rem;
-  }
-  
-  .preview-item {
-    width: 160px;
-    height: 120px;
-  }
-  
-  .preview-item img {
-    height: 90px;
-  }
-  
-  .preview-schedule-name {
-    font-size: 1.4rem;
-  }
-  
-  .preview-timer-value {
-    font-size: 2.5rem;
-  }
-}
-
-@media (max-width: 576px) {
-  .preview-container {
-    padding: 1rem;
-  }
-  
-  .preview-item {
-    width: 120px;
-    height: 100px;
-  }
-  
-  .preview-item img {
-    height: 70px;
-  }
-  
-  .preview-item p {
-    font-size: 0.9rem;
-  }
-  
-  .preview-window {
-    min-height: 300px;
-  }
-}
-
-.timer-button {
-  padding: 12px 24px;
-  border-radius: 8px;
-  border: none;
-  font-weight: 500;
-  font-size: 16px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 200px;
+  min-width: 180px;
   color: white;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   position: relative;
@@ -315,17 +228,17 @@ const changeScreen = async (screen) => {
 
 /* Состояние по умолчанию (пауза) */
 .timer-button.paused {
-  background-color: #FF5722; /* Оранжевый */
+  background-color: #FF5722;
 }
 
 /* Активное состояние (таймер работает) */
 .timer-button.active {
-  background-color: #4CAF50; /* Зеленый */
+  background-color: #4CAF50;
 }
 
 /* Состояние загрузки */
 .timer-button.loading {
-  background-color: #2196F3; /* Синий */
+  background-color: #2196F3;
   cursor: progress;
 }
 
