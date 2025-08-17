@@ -1,201 +1,181 @@
 import { defineStore } from 'pinia'
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import axios from 'axios'
 
 export const useTimerStore = defineStore('timer', () => {
-  // Состояния
   const isLoading = ref(false)
   const timerInterval = ref(null)
   const remainingTime = ref(0)
   const schedule = ref([])
-  const presentTime = ref(Math.floor(Date.now()/1000))
+  const presentTime = ref(Math.floor(Date.now() / 1000))
   const timeNotice = ref("Перерыв")
-  const isPaused = ref(true)
-  const broadcastChannel = ref(null)
-  const range = ref({})
+  const isPaused = ref(false)
+  const range = ref({ start: 0, finish: 0 })
+  const controller = new AbortController()
+  const pollTime = 5000
+  const pollInterval = ref(null)
+  const lastToggleTime = ref(0)
+  const activeItem = ref(null)
+
   const isOutOfRange = ref(false)
   const outOfRangeMessage = ref("Эпоха Перемен")
+  const noScheduleInTheBase = ref(false)
+  const noScheduleInTheBaseMessage = ref("В базе нет расписания")
 
-
-  const checkIfOutOfRange = async () => {
-    isOutOfRange.value = Math.floor(Date.now() / 1000) < range.value.start || Math.floor(Date.now() / 1000) > range.value.finish
-  }
-
-
-  // Инициализация Broadcast Channel
-  const initBroadcastChannel = () => {
-    broadcastChannel.value = new BroadcastChannel('timer_sync_channel')
-    
-    broadcastChannel.value.onmessage = async (event) => {
-      if (event.data.type === 'TIMER_UPDATE') {
-        // Обновляем состояние без триггера нового сообщения
-        isPaused.value = event.data.isPaused
-        remainingTime.value = event.data.remainingTime
-        presentTime.value = event.data.presentTime
-        
-        if (!isPaused.value && !timerInterval.value) {
-          startTimers()
-        } else if (isPaused.value) {
-          stopTimers()
-        }
-      }
-      
-      if (event.data.type === 'REQUEST_STATE') {
-        // Отвечаем текущим состоянием
-        broadcastChannel.value.postMessage({
-          type: 'TIMER_UPDATE',
-          isPaused: isPaused.value,
-          remainingTime: remainingTime.value,
-          presentTime: presentTime.value,
-          timestamp: Date.now()
-        })
-      }
+  // Проверка выхода за временные границы
+  const checkIfOutOfRange = () => {
+    if (noScheduleInTheBase.value) {
+      isOutOfRange.value = true
+      return
     }
+    const now = Math.floor(Date.now() / 1000)
+    isOutOfRange.value = now < range.value.start || now > range.value.finish
   }
 
-  // Отправка обновления состояния
-  const broadcastState = () => {
-    if (broadcastChannel.value) {
-      broadcastChannel.value.postMessage({
-        type: 'TIMER_UPDATE',
-        isPaused: isPaused.value,
-        remainingTime: remainingTime.value,
-        presentTime: presentTime.value,
-        timestamp: Date.now()
-      })
-    }
-  }
+  // Текущий активный элемент расписания
+  const currentScheduleItem = computed(() => {
+    if (!Array.isArray(schedule.value) || schedule.value.length === 0) return null
+    return schedule.value.find(item =>
+      item.unix_start <= presentTime.value &&
+      presentTime.value <= item.unix_finish
+    )
+  })
 
-  // Переключение таймера
-  const toggleTimer = async () => {
-    try {
-      isLoading.value = true
-      
-      
-      // Отправляем запрос на сервер
-      await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/toggle_timer`)
-      
-      // Получаем актуальное расписание
-      const response = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/show_schedule.json`)
-      schedule.value = response.data.timer.schedule || []
+  // Имя текущего элемента расписания
+  const currentScheduleItemName = computed(() => {
+    return activeItem.value?.identificator ?? timeNotice.value
+  })
 
-      
-      // Обновляем состояние
-
-      isPaused.value = !(parseInt(response.data.timer.ticking) > 0)
-      presentTime.value = Math.floor(Date.now() / 1000)
-      
-      if (currentScheduleItem.value) {
-        remainingTime.value = Math.max(0, currentScheduleItem.value.unix_finish - presentTime.value)
-      }
-      
-      // Управление таймерами
-      if (!isPaused.value) {
-        startTimers()
-      } else if (isPaused.value) {
-        stopTimers()
-      }
-      
-      // Синхронизируем с другими вкладками
-      broadcastState()
-      checkIfOutOfRange()
-      
-    } catch (error) {
-      console.error('Ошибка при переключении таймера:', error)
-      // В случае ошибки возвращаем предыдущее состояние
-      isPaused.value = !isPaused.value
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  // Форматированное время
+  // Форматированное оставшееся время
   const formattedRemainingTime = computed(() => {
-    if (isPaused.value) return timeNotice.value
-    
+    if (isPaused.value || !activeItem.value) {
+      return timeNotice.value
+    }
     const pad = num => num.toString().padStart(2, '0')
     const hours = Math.floor(remainingTime.value / 3600)
     const minutes = Math.floor((remainingTime.value % 3600) / 60)
     const seconds = remainingTime.value % 60
-    
     return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
   })
 
-  // Загрузка расписания
-  const fetchSchedule = async () => {
+  // Получаем актуальное состояние таймера с бэка
+  const checkIfTimerRunning = async () => {
     try {
-      isLoading.value = true
-      const response = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/show_schedule.json`)
+      const response = await axios.get(
+        `${import.meta.env.VITE_PROXY}/game_parameters/show_schedule.json`,
+        { signal: controller.signal }
+      )
+      if (!response.data?.timer) return
+
       schedule.value = response.data.timer.schedule || []
       isPaused.value = !(parseInt(response.data.timer.ticking) > 0)
       presentTime.value = Math.floor(Date.now() / 1000)
+      noScheduleInTheBase.value = schedule.value.length === 0
 
-      range.value["start"] = schedule.value[0]["unix_start"]
-      range.value["finish"] = schedule.value[schedule.value.length - 1]["unix_finish"]
-      checkIfOutOfRange()// костыльно(())
-      if (currentScheduleItem.value) {
-        remainingTime.value = Math.max(0, currentScheduleItem.value.unix_finish - presentTime.value)
+      if (schedule.value.length > 0) {
+        range.value = {
+          start: schedule.value[0].unix_start,
+          finish: schedule.value[schedule.value.length - 1].unix_finish
+        }
       }
-      
-      if (!isPaused.value) {
-        startTimers()
+
+      checkIfOutOfRange()
+      activeItem.value = currentScheduleItem.value
+      if (activeItem.value) {
+        remainingTime.value = Math.max(0, activeItem.value.unix_finish - presentTime.value)
       }
-      
-      // Запрашиваем состояние у других вкладок
-      if (broadcastChannel.value) {
-        broadcastChannel.value.postMessage({ type: 'REQUEST_STATE' })
-      }
-      
+
+      isPaused.value ? stopTimers() : startTimers()
     } catch (error) {
-      console.error('Ошибка при получении расписания:', error)
+      if (!axios.isCancel(error)) {
+        console.error("Ошибка при проверке состояния таймера:", error)
+      }
+    }
+  }
+
+  // Запуск фонового опроса
+  const startPolling = () => {
+    if (pollInterval.value) return
+    pollInterval.value = setInterval(checkIfTimerRunning, pollTime)
+  }
+
+  const stopPolling = () => {
+    if (pollInterval.value) {
+      clearInterval(pollInterval.value)
+      pollInterval.value = null
+    }
+  }
+
+  // Переключение таймера с кнопки
+  const toggleTimer = async () => {
+    const now = Date.now()
+    if (now - lastToggleTime.value < 1000) return
+    lastToggleTime.value = now
+
+    try {
+      isLoading.value = true
+      const requestData = isPaused.value ? 1 : 0
+      await axios.patch(
+        `${import.meta.env.VITE_PROXY}/game_parameters/toggle_timer`,
+        { request: requestData }
+      )
+      await checkIfTimerRunning()
+    } catch (error) {
+      if (!axios.isCancel(error)) {
+        console.error('Ошибка при переключении таймера:', error)
+        isPaused.value = !isPaused.value
+      }
     } finally {
       isLoading.value = false
     }
   }
 
+  // Функция остановки таймера и уведомления бэка
+  const stopAndNotifyBackend = async () => {
+    stopTimers()
+    isPaused.value = true
+    timeNotice.value = "Перерыв"
 
+    try {
+      await axios.patch(
+        `${import.meta.env.VITE_PROXY}/game_parameters/toggle_timer`,
+        { request: 0 }
+      )
+    } catch (error) {
+      if (!axios.isCancel(error)) {
+        console.error("Ошибка при уведомлении бэка о завершении таймера:", error)
+      }
+    }
+  }
 
-  // Текущий элемент расписания
-  const currentScheduleItem = computed(() => {
-    return schedule.value.find(item => 
-      item.unix_start <= presentTime.value && 
-      presentTime.value <= item.unix_finish
-    ) || null
-  })
-
-  const currentScheduleItemName = computed(() => {
-    return currentScheduleItem.value?.identificator || timeNotice.value
-  })
-
-  // Запуск таймеров
+  // Запуск локального тикающего таймера
   const startTimers = () => {
     stopTimers()
-    
     presentTime.value = Math.floor(Date.now() / 1000)
-    
-    if (!currentScheduleItem.value) {
-      isPaused.value = true
-      broadcastState()
+    activeItem.value = currentScheduleItem.value
+
+    if (!activeItem.value) {
+      stopAndNotifyBackend()
       return
     }
-    
-    remainingTime.value = Math.max(0, currentScheduleItem.value.unix_finish - presentTime.value)
-    
+
+    remainingTime.value = Math.max(0, activeItem.value.unix_finish - presentTime.value)
+
     if (remainingTime.value <= 0) {
-      isPaused.value = true
-      broadcastState()
+      stopAndNotifyBackend()
       return
     }
-    
-    timerInterval.value = setInterval(() => {
+
+    timerInterval.value = setInterval(async () => {
       presentTime.value = Math.floor(Date.now() / 1000)
-      remainingTime.value = Math.max(0, currentScheduleItem.value.unix_finish - presentTime.value)
-      
+      remainingTime.value = Math.max(0, activeItem.value.unix_finish - presentTime.value)
+
       if (remainingTime.value <= 0) {
-        toggleTimer().catch(console.error)
+        await stopAndNotifyBackend()
       }
     }, 1000)
   }
+
 
   // Остановка таймеров
   const stopTimers = () => {
@@ -208,36 +188,32 @@ export const useTimerStore = defineStore('timer', () => {
   // Очистка
   onUnmounted(() => {
     stopTimers()
-    if (broadcastChannel.value) {
-      broadcastChannel.value.close()
-    }
+    stopPolling()
+    controller.abort()
   })
 
-  const initStore = () => {
-    initBroadcastChannel()
-    fetchSchedule()
-  }
-
-
-  // // Инициализация
-  // initBroadcastChannel()
-  // fetchSchedule()
-
-  // Вызываем инициализацию
-  initStore()
-
-
+  // Инициализация
+  checkIfTimerRunning()
+  startPolling()
 
   return {
     isLoading,
-    isPaused,
     schedule,
+    presentTime,
     remainingTime,
     formattedRemainingTime,
     currentScheduleItemName,
-    fetchSchedule,
-    toggleTimer,
+    isPaused,
     isOutOfRange,
-    outOfRangeMessage
+    outOfRangeMessage,
+    noScheduleInTheBase,
+    noScheduleInTheBaseMessage,
+    fetchSchedule: checkIfTimerRunning,
+    stopTimers,
+    toggleTimer,
+    timeNotice
   }
 })
+
+
+
