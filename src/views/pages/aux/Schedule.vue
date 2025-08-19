@@ -1,13 +1,13 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { useTimerStore } from '@/stores/timer'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 
-const timerStore = useTimerStore()
 const showModal = ref(false)
+const showDeleteConfirm = ref(false)
 const error = ref(null)
 const isLoading = ref(false)
 const isDeleting = ref(false)
+const schedule = ref([]) // Локальное состояние для расписания
 const newItem = ref({
   identificator: '',
   finish: ''
@@ -15,29 +15,36 @@ const newItem = ref({
 
 // Вычисляем время окончания последнего цикла
 const lastCycleFinish = computed(() => {
-  if (timerStore.schedule.length === 0) return '00:00'
-  return timerStore.schedule[timerStore.schedule.length - 1].finish
+  if (schedule.value.length === 0) return '00:00'
+  return schedule.value[schedule.value.length - 1].finish
 })
 
 // Проверяем, можно ли удалять элементы
 const canDelete = computed(() => {
-  return timerStore.schedule.length > 0 && !isLoading.value && !isDeleting.value
+  return schedule.value.length > 0 && !isLoading.value && !isDeleting.value
 })
 
 // Функция для получения расписания с сервера
 const fetchSchedule = async () => {
   try {
     isLoading.value = true
+    error.value = null
     const response = await axios.get(
-      `${import.meta.env.VITE_PROXY}/game_parameters/get_schedule`
+      `${import.meta.env.VITE_PROXY}/game_parameters/show_schedule.json`
     )
-    timerStore.schedule = response.data.schedule || []
+    
+    // Правильный доступ к данным - response.data.timer.schedule
+    schedule.value = response.data.timer.schedule || []
   } catch (err) {
     console.error('Ошибка при получении расписания:', err)
     error.value = 'Не удалось загрузить расписание'
   } finally {
     isLoading.value = false
   }
+}
+// Подтверждение удаления
+const confirmDelete = () => {
+  showDeleteConfirm.value = true
 }
 
 // Функция удаления последнего пункта
@@ -46,24 +53,20 @@ const deleteLastItem = async () => {
   
   try {
     isDeleting.value = true
-    const lastItem = timerStore.schedule[timerStore.schedule.length - 1]
+    error.value = null
+    const lastItem = schedule.value[schedule.value.length - 1]
     
-    // Оптимистичное удаление
-    const deletedItem = timerStore.schedule.pop()
-    
-    // Отправляем запрос на удаление
     await axios.patch(
       `${import.meta.env.VITE_PROXY}/game_parameters/delete_schedule_item`,
       { item_id: lastItem.id }
     )
     
-    // Если нужно полное обновление данных после удаления
-    // await fetchSchedule()
+    // После успешного удаления обновляем расписание
+    await fetchSchedule()
+    showDeleteConfirm.value = false
   } catch (err) {
     console.error('Ошибка при удалении:', err)
     error.value = 'Не удалось удалить последний цикл'
-    // Возвращаем удалённый элемент обратно
-    timerStore.schedule.push(deletedItem)
   } finally {
     isDeleting.value = false
   }
@@ -82,20 +85,9 @@ const addNewItem = async () => {
   }
 
   isLoading.value = true
-  
-  // Оптимистичное обновление
-  const tempId = Date.now()
-  timerStore.schedule.push({
-    id: tempId,
-    identificator: newItem.value.identificator,
-    start: lastCycleFinish.value,
-    finish: newItem.value.finish,
-    unix_start: 0,
-    unix_finish: 0
-  })
 
   try {
-    const response = await axios.patch(
+    await axios.patch(
       `${import.meta.env.VITE_PROXY}/game_parameters/add_schedule_item`, 
       { 
         request: {
@@ -106,24 +98,13 @@ const addNewItem = async () => {
       }
     )
     
-    if (response.data?.schedule) {
-      timerStore.schedule = response.data.schedule
-    }
-    else if (response.data?.newItem) {
-      const index = timerStore.schedule.findIndex(item => item.id === tempId)
-      if (index !== -1) {
-        timerStore.schedule.splice(index, 1, response.data.newItem)
-      }
-    }
-    else {
-      await fetchSchedule()
-    }
+    // После успешного добавления обновляем расписание
+    await fetchSchedule()
     
     showModal.value = false
     resetForm()
   } catch (err) {
     console.error('Ошибка при добавлении:', err)
-    timerStore.schedule = timerStore.schedule.filter(item => item.id !== tempId)
     error.value = 'Не удалось добавить цикл. Попробуйте снова.'
   } finally {
     isLoading.value = false
@@ -139,7 +120,9 @@ const resetForm = () => {
 }
 
 // Получаем расписание при монтировании компонента
-fetchSchedule()
+onMounted(() => {
+  fetchSchedule()
+})
 </script>
 
 <template>
@@ -149,11 +132,10 @@ fetchSchedule()
       <div class="header-actions">
         <button 
           class="delete-button"
-          @click="deleteLastItem"
+          @click="confirmDelete"
           :disabled="!canDelete"
         >
-          <span v-if="!isDeleting">Удалить последний</span>
-          <span v-else>Удаление...</span>
+          Удалить последний
         </button>
         <button 
           class="add-button" 
@@ -176,19 +158,22 @@ fetchSchedule()
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in timerStore.schedule" :key="item.id">
+          <tr v-for="item in schedule" :key="item.id">
             <td>{{ item.identificator }}</td>
             <td>{{ item.start }}</td>
             <td>{{ item.finish }}</td>
           </tr>
         </tbody>
       </table>
-      <div v-if="isLoading && !timerStore.schedule.length" class="loading-message">
+      <div v-if="isLoading && schedule.length === 0" class="loading-message">
         Загрузка расписания...
+      </div>
+      <div v-if="!isLoading && schedule.length === 0" class="loading-message">
+        Расписание пустое
       </div>
     </div>
     
-    <!-- Модальное окно -->
+    <!-- Модальное окно добавления -->
     <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
       <div class="modal-content">
         <h3>Добавить новый цикл</h3>
@@ -238,6 +223,33 @@ fetchSchedule()
         </div>
       </div>
     </div>
+    
+    <!-- Модальное окно подтверждения удаления -->
+    <div v-if="showDeleteConfirm" class="modal-overlay" @click.self="showDeleteConfirm = false">
+      <div class="modal-content">
+        <h3>Подтверждение удаления</h3>
+        
+        <p>Вы действительно хотите удалить последний пункт расписания?</p>
+        
+        <div class="modal-actions">
+          <button 
+            class="cancel-button" 
+            @click="showDeleteConfirm = false"
+            :disabled="isDeleting"
+          >
+            Отмена
+          </button>
+          <button 
+            class="delete-confirm-button" 
+            @click="deleteLastItem"
+            :disabled="isDeleting"
+          >
+            <span v-if="!isDeleting">Удалить</span>
+            <span v-else>Удаление...</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -270,6 +282,7 @@ fetchSchedule()
 .header-actions {
   display: flex;
   gap: 10px;
+  align-items: center;
 }
 
 .add-button {
@@ -283,7 +296,7 @@ fetchSchedule()
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
 }
 
 .delete-button {
@@ -297,12 +310,13 @@ fetchSchedule()
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
 }
 
 .add-button:hover:not(:disabled),
 .delete-button:hover:not(:disabled) {
   opacity: 0.9;
+  transform: translateY(-1px);
 }
 
 .add-button:disabled,
@@ -439,13 +453,24 @@ fetchSchedule()
   cursor: pointer;
 }
 
+.delete-confirm-button {
+  padding: 8px 16px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
 .cancel-button:hover:not(:disabled),
-.confirm-button:hover:not(:disabled) {
+.confirm-button:hover:not(:disabled),
+.delete-confirm-button:hover:not(:disabled) {
   opacity: 0.9;
 }
 
 .cancel-button:disabled,
-.confirm-button:disabled {
+.confirm-button:disabled,
+.delete-confirm-button:disabled {
   opacity: 0.7;
   cursor: not-allowed;
 }
@@ -466,6 +491,14 @@ fetchSchedule()
     width: 100%;
     justify-content: flex-end;
     margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  
+  .delete-button,
+  .add-button {
+    flex: 1;
+    min-width: 120px;
+    margin-bottom: 8px;
   }
 }
 </style>
