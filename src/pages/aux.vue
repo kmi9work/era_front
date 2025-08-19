@@ -2,11 +2,11 @@
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Screen from '@/views/pages/aux/Screen.vue'
-
+import Schedule from '@/views/pages/aux/Schedule.vue'
 
 
 const route = useRoute()
-const activeTab = ref(route.params.tab || 'screen') // Значение по умолчанию
+const activeTab = ref(route.params.tab || 'schedule') // Значение по умолчанию
 
 // Определяем вкладки
 const tabs = [
@@ -14,6 +14,11 @@ const tabs = [
     title: 'Вывод на экран',
     icon: 'ri-fullscreen-line',
     tab: 'screen',
+  },
+  {
+    title: 'Расписание',
+    icon: 'ri-calendar-schedule-fill',
+    tab: 'schedule',
   },
 
 ]
@@ -60,9 +65,10 @@ watch(
         <Screen /> 
       </VWindowItem>
 
+      <VWindowItem value="schedule">
+        <Schedule /> 
+      </VWindowItem>
 
-      
-      <!-- Добавьте другие VWindowItem для дополнительных вкладок -->
     </VWindow>
   </div>
 </template>
