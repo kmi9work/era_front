@@ -4,12 +4,20 @@ import axios from 'axios'
 
 const showModal = ref(false)
 const showDeleteConfirm = ref(false)
+const showEditModal = ref(false)
 const error = ref(null)
 const isLoading = ref(false)
 const isDeleting = ref(false)
 const schedule = ref([]) // Локальное состояние для расписания
 const newItem = ref({
   identificator: '',
+  finish: ''
+})
+
+const editItem = ref({
+  id: null,
+  identificator: '',
+  start: '',
   finish: ''
 })
 
@@ -58,7 +66,7 @@ const deleteLastItem = async () => {
     
     await axios.patch(
       `${import.meta.env.VITE_PROXY}/game_parameters/delete_schedule_item`,
-      { item_id: lastItem.id }
+      { request: { id: lastItem.id } }
     )
     
     // После успешного удаления обновляем расписание
@@ -119,6 +127,65 @@ const resetForm = () => {
   error.value = null
 }
 
+// Открыть модал редактирования
+const openEdit = (item) => {
+  error.value = null
+  editItem.value = {
+    id: item.id,
+    identificator: item.identificator,
+    start: item.start,
+    finish: item.finish
+  }
+  showEditModal.value = true
+}
+
+// Сохранить изменения пункта расписания
+const saveEdit = async () => {
+  if (!editItem.value.id) return
+  error.value = null
+  isLoading.value = true
+  try {
+    await axios.patch(
+      `${import.meta.env.VITE_PROXY}/game_parameters/update_schedule_item`,
+      {
+        request: {
+          id: editItem.value.id,
+          identificator: editItem.value.identificator,
+          start: editItem.value.start,
+          finish: editItem.value.finish
+        }
+      }
+    )
+    await fetchSchedule()
+    showEditModal.value = false
+  } catch (err) {
+    console.error('Ошибка при сохранении изменений:', err)
+    error.value = 'Не удалось сохранить изменения. Попробуйте снова.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Удалить выбранный пункт расписания
+const deleteItem = async (id) => {
+  if (!id) return
+  isDeleting.value = true
+  error.value = null
+  try {
+    await axios.patch(
+      `${import.meta.env.VITE_PROXY}/game_parameters/delete_schedule_item`,
+      { request: { id } }
+    )
+    await fetchSchedule()
+    showEditModal.value = false
+  } catch (err) {
+    console.error('Ошибка при удалении пункта:', err)
+    error.value = 'Не удалось удалить пункт расписания'
+  } finally {
+    isDeleting.value = false
+  }
+}
+
 // Получаем расписание при монтировании компонента
 onMounted(() => {
   fetchSchedule()
@@ -155,6 +222,7 @@ onMounted(() => {
             <th>№ Цикла</th>
             <th>Начало</th>
             <th>Окончание</th>
+            <th>Действия</th>
           </tr>
         </thead>
         <tbody>
@@ -162,6 +230,11 @@ onMounted(() => {
             <td>{{ item.identificator }}</td>
             <td>{{ item.start }}</td>
             <td>{{ item.finish }}</td>
+            <td>
+              <button class="edit-button" @click="openEdit(item)" :disabled="isLoading || isDeleting">
+                Редактировать
+              </button>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -250,6 +323,76 @@ onMounted(() => {
         </div>
       </div>
     </div>
+    
+    <!-- Модальное окно редактирования -->
+    <div v-if="showEditModal" class="modal-overlay" @click.self="showEditModal = false">
+      <div class="modal-content">
+        <h3>Редактировать пункт расписания</h3>
+
+        <div v-if="error" class="error-message">
+          {{ error }}
+        </div>
+
+        <div class="form-group">
+          <label for="edit-cycle-name">Название цикла:</label>
+          <input
+            id="edit-cycle-name"
+            v-model="editItem.identificator"
+            type="text"
+            placeholder="Например: Цикл 31"
+            :disabled="isLoading || isDeleting"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="edit-cycle-start">Время начала:</label>
+          <input
+            id="edit-cycle-start"
+            v-model="editItem.start"
+            type="time"
+            placeholder="HH:MM"
+            :disabled="isLoading || isDeleting"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="edit-cycle-finish">Время окончания:</label>
+          <input
+            id="edit-cycle-finish"
+            v-model="editItem.finish"
+            type="time"
+            placeholder="HH:MM"
+            :disabled="isLoading || isDeleting"
+          >
+        </div>
+
+        <div class="modal-actions">
+          <button
+            class="cancel-button"
+            @click="showEditModal = false"
+            :disabled="isLoading || isDeleting"
+          >
+            Отмена
+          </button>
+          <button
+            class="delete-confirm-button"
+            @click="deleteItem(editItem.id)"
+            :disabled="isDeleting || isLoading"
+          >
+            <span v-if="!isDeleting">Удалить</span>
+            <span v-else>Удаление...</span>
+          </button>
+          <button
+            class="confirm-button"
+            @click="saveEdit"
+            :disabled="isLoading || isDeleting"
+          >
+            <span v-if="!isLoading">Сохранить</span>
+            <span v-else>Сохранение...</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -310,6 +453,20 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  transition: all 0.2s;
+}
+
+.edit-button {
+  background-color: #ff9800;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   transition: all 0.2s;
 }
 
