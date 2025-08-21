@@ -1,9 +1,8 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 
 const showModal = ref(false)
-const showDeleteConfirm = ref(false)
 const showEditModal = ref(false)
 const error = ref(null)
 const isLoading = ref(false)
@@ -11,8 +10,43 @@ const isDeleting = ref(false)
 const schedule = ref([]) // Локальное состояние для расписания
 const newItem = ref({
   identificator: '',
+  start: '',
   finish: ''
 })
+const newItemDuration = computed(() => {
+  const dur = getItemDuration({ start: newItem.value.start, finish: newItem.value.finish })
+  if (!dur || dur === '—') return '—'
+  const parts = String(dur).split(':')
+  const hh = parts[0] ?? '00'
+  const mm = parts[1] ?? '00'
+  return `${hh}:${mm}`
+})
+
+// Текущее время в секундах от начала суток и подсветка активного пункта
+const nowSeconds = ref(0)
+const nowTicker = ref(null)
+const updateNowSeconds = () => {
+  const now = new Date()
+  nowSeconds.value = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()
+}
+
+const isItemActive = (item) => {
+  if (!item || !item.start || !item.finish) return false
+  const toSeconds = (timeStr) => {
+    const [h, m, s = 0] = String(timeStr).split(':').map(v => parseInt(v, 10))
+    if ([h, m, s].some(v => Number.isNaN(v))) return null
+    return h * 3600 + m * 60 + s
+  }
+  const start = toSeconds(item.start)
+  const finish = toSeconds(item.finish)
+  if (start === null || finish === null) return false
+
+  if (finish >= start) {
+    return start <= nowSeconds.value && nowSeconds.value < finish
+  }
+  // Интервал через полночь
+  return nowSeconds.value >= start || nowSeconds.value < finish
+}
 
 const editItem = ref({
   id: null,
@@ -27,10 +61,7 @@ const lastCycleFinish = computed(() => {
   return schedule.value[schedule.value.length - 1].finish
 })
 
-// Проверяем, можно ли удалять элементы
-const canDelete = computed(() => {
-  return schedule.value.length > 0 && !isLoading.value && !isDeleting.value
-})
+// 
 
 // Функция для получения расписания с сервера
 const fetchSchedule = async () => {
@@ -50,41 +81,17 @@ const fetchSchedule = async () => {
     isLoading.value = false
   }
 }
-// Подтверждение удаления
-const confirmDelete = () => {
-  showDeleteConfirm.value = true
-}
-
-// Функция удаления последнего пункта
-const deleteLastItem = async () => {
-  if (!canDelete.value) return
-  
-  try {
-    isDeleting.value = true
-    error.value = null
-    const lastItem = schedule.value[schedule.value.length - 1]
-    
-    await axios.patch(
-      `${import.meta.env.VITE_PROXY}/game_parameters/delete_schedule_item`,
-      { request: { id: lastItem.id } }
-    )
-    
-    // После успешного удаления обновляем расписание
-    await fetchSchedule()
-    showDeleteConfirm.value = false
-  } catch (err) {
-    console.error('Ошибка при удалении:', err)
-    error.value = 'Не удалось удалить последний цикл'
-  } finally {
-    isDeleting.value = false
-  }
-}
+// 
 
 const addNewItem = async () => {
   // Валидация
   error.value = null
   if (!newItem.value.identificator.trim()) {
     error.value = 'Введите название цикла'
+    return
+  }
+  if (!newItem.value.start) {
+    error.value = 'Укажите время начала'
     return
   }
   if (!newItem.value.finish) {
@@ -100,7 +107,7 @@ const addNewItem = async () => {
       { 
         request: {
           identificator: newItem.value.identificator,
-          start: lastCycleFinish.value,
+          start: newItem.value.start,
           finish: newItem.value.finish
         }
       }
@@ -122,6 +129,7 @@ const addNewItem = async () => {
 const resetForm = () => {
   newItem.value = {
     identificator: '',
+    start: '',
     finish: ''
   }
   error.value = null
@@ -137,6 +145,28 @@ const openEdit = (item) => {
     finish: item.finish
   }
   showEditModal.value = true
+}
+
+// Вычисление длительности цикла в формате HH:MM:SS
+const getItemDuration = (item) => {
+  if (!item || !item.start || !item.finish) return '—'
+  const toSeconds = (timeStr) => {
+    const parts = String(timeStr).split(':').map(p => parseInt(p, 10))
+    if (parts.length < 2 || parts.some(n => Number.isNaN(n))) return null
+    const [h, m, s = 0] = parts
+    return h * 3600 + m * 60 + s
+  }
+
+  let startSeconds = toSeconds(item.start)
+  let finishSeconds = toSeconds(item.finish)
+  if (startSeconds === null || finishSeconds === null) return '—'
+
+  if (finishSeconds < startSeconds) finishSeconds += 24 * 3600
+  const diff = Math.max(0, finishSeconds - startSeconds)
+  const hh = String(Math.floor(diff / 3600)).padStart(2, '0')
+  const mm = String(Math.floor((diff % 3600) / 60)).padStart(2, '0')
+  const ss = String(diff % 60).padStart(2, '0')
+  return `${hh}:${mm}:${ss}`
 }
 
 // Сохранить изменения пункта расписания
@@ -189,6 +219,11 @@ const deleteItem = async (id) => {
 // Получаем расписание при монтировании компонента
 onMounted(() => {
   fetchSchedule()
+  updateNowSeconds()
+  nowTicker.value = setInterval(updateNowSeconds, 1000)
+})
+onUnmounted(() => {
+  if (nowTicker.value) clearInterval(nowTicker.value)
 })
 </script>
 
@@ -197,13 +232,6 @@ onMounted(() => {
     <div class="card-header-wrapper">
       <h3 class="card-header">Расписание циклов</h3>
       <div class="header-actions">
-        <button 
-          class="delete-button"
-          @click="confirmDelete"
-          :disabled="!canDelete"
-        >
-          Удалить последний
-        </button>
         <button 
           class="add-button" 
           @click="showModal = true"
@@ -217,20 +245,29 @@ onMounted(() => {
     
     <div class="table-container">
       <table class="schedule-table">
+        <colgroup>
+          <col style="width: 40%;">
+          <col style="width: 15%;">
+          <col style="width: 15%;">
+          <col style="width: 15%;">
+          <col style="width: 15%;">
+        </colgroup>
         <thead>
           <tr>
-            <th>№ Цикла</th>
-            <th>Начало</th>
-            <th>Окончание</th>
-            <th>Действия</th>
+            <th class="ident-cell">№ Цикла</th>
+            <th class="time-cell">Начало</th>
+            <th class="time-cell">Окончание</th>
+            <th class="duration-cell">Длительность</th>
+            <th class="actions-col">Действия</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in schedule" :key="item.id">
-            <td>{{ item.identificator }}</td>
-            <td>{{ item.start }}</td>
-            <td>{{ item.finish }}</td>
-            <td>
+          <tr v-for="item in schedule" :key="item.id" :class="{ 'active-row': isItemActive(item) }">
+            <td class="ident-cell">{{ item.identificator }}</td>
+            <td class="time-cell">{{ item.start }}</td>
+            <td class="time-cell">{{ item.finish }}</td>
+            <td class="duration-cell"><span class="duration-badge" :class="{ 'duration-badge--active': isItemActive(item) }">{{ getItemDuration(item) }}</span></td>
+            <td class="actions-cell">
               <button class="edit-button" @click="openEdit(item)" :disabled="isLoading || isDeleting">
                 Редактировать
               </button>
@@ -267,7 +304,24 @@ onMounted(() => {
         </div>
         
         <div class="form-group">
-          <label for="cycle-time">Время окончания (текущее начало: {{ lastCycleFinish }}):</label>
+          <label>Начало нового цикла:</label>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <button class="secondary-button" type="button" @click="newItem.start = lastCycleFinish" :disabled="isLoading">
+              Подставить конец предыдущего ({{ lastCycleFinish }})
+            </button>
+            <input 
+              id="cycle-start" 
+              v-model="newItem.start" 
+              type="time" 
+              placeholder="HH:MM"
+              :disabled="isLoading"
+              style="min-width:160px;"
+            >
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="cycle-time">Время окончания:</label>
           <input 
             id="cycle-time" 
             v-model="newItem.finish" 
@@ -275,6 +329,11 @@ onMounted(() => {
             placeholder="HH:MM"
             :disabled="isLoading"
           >
+        </div>
+
+        <div class="form-group">
+          <label>Длительность:</label>
+          <div>{{ newItemDuration }}</div>
         </div>
         
         <div class="modal-actions">
@@ -297,32 +356,7 @@ onMounted(() => {
       </div>
     </div>
     
-    <!-- Модальное окно подтверждения удаления -->
-    <div v-if="showDeleteConfirm" class="modal-overlay" @click.self="showDeleteConfirm = false">
-      <div class="modal-content">
-        <h3>Подтверждение удаления</h3>
-        
-        <p>Вы действительно хотите удалить последний пункт расписания?</p>
-        
-        <div class="modal-actions">
-          <button 
-            class="cancel-button" 
-            @click="showDeleteConfirm = false"
-            :disabled="isDeleting"
-          >
-            Отмена
-          </button>
-          <button 
-            class="delete-confirm-button" 
-            @click="deleteLastItem"
-            :disabled="isDeleting"
-          >
-            <span v-if="!isDeleting">Удалить</span>
-            <span v-else>Удаление...</span>
-          </button>
-        </div>
-      </div>
-    </div>
+    
     
     <!-- Модальное окно редактирования -->
     <div v-if="showEditModal" class="modal-overlay" @click.self="showEditModal = false">
@@ -442,42 +476,28 @@ onMounted(() => {
   transition: all 0.2s;
 }
 
-.delete-button {
-  background-color: #f44336;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 8px 16px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.2s;
-}
+/* */
 
 .edit-button {
   background-color: #ff9800;
   color: white;
   border: none;
-  border-radius: 4px;
-  padding: 6px 12px;
+  border-radius: 6px;
+  padding: 8px 14px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   transition: all 0.2s;
 }
 
-.add-button:hover:not(:disabled),
-.delete-button:hover:not(:disabled) {
+.add-button:hover:not(:disabled) {
   opacity: 0.9;
   transform: translateY(-1px);
 }
 
-.add-button:disabled,
-.delete-button:disabled {
+.add-button:disabled {
   background-color: #cccccc;
   cursor: not-allowed;
   opacity: 0.7;
@@ -502,20 +522,28 @@ onMounted(() => {
   margin-top: 16px;
 }
 
-.schedule-table th {
+.schedule-table thead th {
   background-color: #f5f5f5;
-  padding: 12px 16px;
+  padding: 14px 18px;
   text-align: left;
-  font-weight: 500;
-  color: #424242;
+  font-weight: 700;
+  color: #1f2937;
   border-bottom: 2px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .schedule-table td {
-  padding: 12px 16px;
+  padding: 14px 18px;
   border-bottom: 1px solid #e0e0e0;
-  color: #616161;
+  color: #374151;
+  vertical-align: middle;
+  font-size: 0.975rem;
 }
+
+.schedule-table tbody tr:nth-child(odd) td { background-color: #fafafa; }
+.schedule-table tbody tr:nth-child(even) td { background-color: #ffffff; }
 
 .schedule-table tr:last-child td {
   border-bottom: none;
@@ -523,6 +551,33 @@ onMounted(() => {
 
 .schedule-table tr:hover td {
   background-color: #f5f5f5;
+}
+
+.schedule-table tr.active-row td {
+  background-color: #e3f2fd;
+  font-weight: 600;
+}
+
+.schedule-table .time-cell { text-align: center; font-feature-settings: "tnum" 1; font-variant-numeric: tabular-nums; font-size: 1rem; }
+.schedule-table .duration-cell { text-align: center; }
+.schedule-table .ident-cell { font-weight: 600; color: #111827; }
+.schedule-table .actions-col { text-align: right; }
+.schedule-table .actions-cell { text-align: right; }
+
+.duration-badge {
+  display: inline-block;
+  padding: 6px 10px;
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+  border-radius: 9999px;
+  font-size: 0.9rem;
+}
+
+.duration-badge.duration-badge--active {
+  background-color: #ffebee;
+  color: #b71c1c;
+  border-color: #ffcdd2;
 }
 
 .modal-overlay {
@@ -619,6 +674,15 @@ onMounted(() => {
   cursor: pointer;
 }
 
+.secondary-button {
+  padding: 8px 12px;
+  background-color: #eeeeee;
+  color: #333;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
 .cancel-button:hover:not(:disabled),
 .confirm-button:hover:not(:disabled),
 .delete-confirm-button:hover:not(:disabled) {
@@ -651,7 +715,6 @@ onMounted(() => {
     flex-wrap: wrap;
   }
   
-  .delete-button,
   .add-button {
     flex: 1;
     min-width: 120px;

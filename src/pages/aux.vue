@@ -4,7 +4,6 @@ import { useRoute } from 'vue-router'
 import Screen from '@/views/pages/aux/Screen.vue'
 import Schedule from '@/views/pages/aux/Schedule.vue'
 
-
 const route = useRoute()
 const activeTab = ref(route.params.tab || 'schedule') // Значение по умолчанию
 
@@ -15,6 +14,7 @@ const tabs = [
     icon: 'ri-fullscreen-line',
     tab: 'screen',
   },
+
   {
     title: 'Расписание',
     icon: 'ri-calendar-schedule-fill',
@@ -68,6 +68,7 @@ watch(
       <VWindowItem value="schedule">
         <Schedule /> 
       </VWindowItem>
+
 
     </VWindow>
   </div>
