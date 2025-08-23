@@ -6,6 +6,9 @@ import { useMerchantResultsStore } from '@/stores/merchant_results'
 
 
 import previewPlaceholder from '@/assets/images/preview_placeholder.jpg'
+import previewMerchResults from '@/assets/images/preview_merch_results.jpg'
+
+
 
 // Состояния
 const isFullscreen = ref(false)
@@ -16,26 +19,6 @@ const { showResultsLevel, isLoading: merchantsLoading, errorMessage: merchantsEr
 const isTransitioning = ref(false)
 const timerMessage = ref('Проверьте расписание. Либо его нет, либо циклы еще не начались, либо уже закончились')
 const pollInterval = ref(null)
-
-// Примеры использования:
-const setLevel0 = async () => {
-  try {
-    await merchantStore.chooseMerchScreen(0) // Все результаты
-    console.log('Установлен уровень 0')
-  } catch (error) {
-    console.error('Ошибка:', error)
-  }
-}
-
-const setLevel1 = async () => {
-  try {
-    await merchantStore.chooseMerchScreen(1) // Только третье место
-  } catch (error) {
-    console.error('Ошибка:', error)
-  }
-}
-
-
 
 
 // Функции для работы с полноэкранным режимом
@@ -166,13 +149,53 @@ onUnmounted(() => {
 
             <div v-else-if="screen.id === 'merchant_results'" class="results-preview">
               <div class="preview-message">
-                 {{merchantStore.getFilteredResults}}
-              </div>
+                 <img class="preview-image" :src="previewMerchResults" alt="Результаты купцов">
+            </div>
 
-    <button @click="() => merchantStore.chooseMerchScreen(0)">Показать все</button>
-    <button @click="() => merchantStore.chooseMerchScreen(1)">Только 3 место</button>
-    <button @click="() => merchantStore.chooseMerchScreen(2)">2 и 3 места</button>
-    <button @click="() => merchantStore.chooseMerchScreen(3)">Топ 3</button>
+
+
+
+  <div class="merchant-controls-compact">
+    <button 
+      @click="() => merchantStore.chooseMerchScreen(0)"
+      :class="{ active: merchantStore.showResultsLevel === 0 }"
+      class="compact-button all-btn"
+      :disabled="merchantStore.isLoading"
+      title="Показать все результаты"
+    >
+      Все
+    </button>
+    
+    <button 
+      @click="() => merchantStore.chooseMerchScreen(1)"
+      :class="{ active: merchantStore.showResultsLevel === 1 }"
+      class="compact-button third-btn"
+      :disabled="merchantStore.isLoading"
+      title="Только третье место"
+    >
+      3
+    </button>
+    
+    <button 
+      @click="() => merchantStore.chooseMerchScreen(2)"
+      :class="{ active: merchantStore.showResultsLevel === 2 }"
+      class="compact-button second-third-btn"
+      :disabled="merchantStore.isLoading"
+      title="Второе и третье места"
+    >
+      2
+    </button>
+    
+    <button 
+      @click="() => merchantStore.chooseMerchScreen(3)"
+      :class="{ active: merchantStore.showResultsLevel === 3 }"
+      class="compact-button top-three-btn"
+      :disabled="merchantStore.isLoading"
+      title="Топ 3 места"
+    >
+      1
+    </button>
+  </div>
             
             </div>
           </div>
@@ -249,25 +272,27 @@ onUnmounted(() => {
           </Transition>
         </template>
 
-       <!--  <template v-else-if="selectedScreen === 'merchant_results'">
-          <div class="screen-content" style="padding: 4vh 6vw; width: 100%; height: 100%;">
-            <div style="width:100%; max-width: 1400px; margin: 0 auto; color: #fff;">
-              <h1 style="text-align:center; margin: 0 0 2rem; font-size: 3rem;">Результаты купцов</h1>
-              <div style="display:grid; grid-template-columns: 1fr 2fr 2fr 1fr; gap: 12px; font-size: 1.5rem;">
-                <div style="font-weight:700;">Место</div>
-                <div style="font-weight:700;">Игрок</div>
-                <div style="font-weight:700;">Капитал</div>
-                <div style="font-weight:700;">Игроков</div>
-                <template v-for="(p, idx) in merchantsList" :key="p.player_id || idx">
-                  <div>{{ p.place ?? idx + 1 }}</div>
-                  <div>{{ p.player }}</div>
-                  <div>{{ p.capital }}</div>
-                  <div>{{ p.number_of_players }}</div>
-                </template>
-              </div>
-            </div>
-          </div>
-        </template> -->
+<template v-else-if="selectedScreen === 'merchant_results'">
+  <div class="results-screen">
+    <h1 class="results-title">Результаты купцов</h1>
+
+    <transition-group name="fade" tag="div" class="results-grid">
+      <div 
+        v-for="(p, idx) in merchantStore.getFilteredResults" 
+        :key="p.player_id || idx" 
+        class="result-card"
+        :class="{ 'place-1': p.place === 1, 'place-2': p.place === 2, 'place-3': p.place === 3 }"
+      >
+        <div class="place">🏆 {{ p.place }}</div>
+        <div class="player">{{ p.player }}</div>
+        <div class="capital">{{ p.capital }} 💰</div>
+        <div class="players-count">👥 {{ p.number_of_players }}</div>
+      </div>
+    </transition-group>
+  </div>
+</template>
+
+
       </div>
     </Transition>
   </div>
@@ -625,4 +650,315 @@ onUnmounted(() => {
     padding: 8px 16px;
   }
 }
+
+
+
+.merchant-controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  margin: 16px 0;
+}
+
+.control-button {
+  position: relative;
+  padding: 16px 24px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.control-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.control-button:hover::before {
+  left: 100%;
+}
+
+.control-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.control-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.control-button.active {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.8), 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.button-text {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.button-badge {
+  font-size: 11px;
+  opacity: 0.8;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Стили для конкретных кнопок */
+.all-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.all-button.active {
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+.third-button {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+}
+
+.third-button.active {
+  background: linear-gradient(135deg, #ed64a6 0%, #e53e3e 100%);
+}
+
+.second-third-button {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  color: white;
+}
+
+.second-third-button.active {
+  background: linear-gradient(135deg, #3182ce 0%, #00b5d8 100%);
+}
+
+.top-three-button {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  color: white;
+}
+
+.top-three-button.active {
+  background: linear-gradient(135deg, #38a169 0%, #319795 100%);
+}
+
+/* Анимация загрузки */
+.control-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.control-button:disabled::before {
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Адаптивность */
+.merchant-controls-compact {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 8px;
+}
+
+.compact-button {
+  padding: 6px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: white;
+  color: #4a5568;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 40px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.compact-button:hover {
+  border-color: #cbd5e0;
+  background: #f7fafc;
+  transform: translateY(-1px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.compact-button.active {
+  font-weight: 600;
+  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2);
+}
+
+.compact-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Цвета активных состояний */
+.all-btn.active {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.third-btn.active {
+  background: #ed64a6;
+  color: white;
+  border-color: #ed64a6;
+}
+
+.second-third-btn.active {
+  background: #4c51bf;
+  color: white;
+  border-color: #4c51bf;
+}
+
+.top-three-btn.active {
+  background: #48bb78;
+  color: white;
+  border-color: #48bb78;
+}
+
+/* Минимальная анимация при активации */
+.compact-button.active {
+  animation: mini-pulse 0.3s ease;
+}
+
+@keyframes mini-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* Для очень маленьких экранов */
+@media (max-width: 480px) {
+  .merchant-controls-compact {
+    gap: 6px;
+  }
+  
+  .compact-button {
+    padding: 4px 8px;
+    font-size: 11px;
+    min-width: 36px;
+    height: 24px;
+  }
+}
+
+.results-screen {
+  width: 100%;
+  height: 100%;
+  padding: 5vh 8vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #fff;
+}
+
+.results-title {
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  text-align: center;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 1400px;
+}
+
+.result-card {
+  background: rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 1.5rem;
+  text-align: center;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.result-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+}
+
+.result-card .place {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+}
+
+.result-card .player {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
+.result-card .capital {
+  font-size: 1.2rem;
+  margin-bottom: 0.2rem;
+}
+
+.result-card .players-count {
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+/* Красивые цвета для топ-3 */
+.result-card.place-1 {
+  background: linear-gradient(135deg, #ffd700, #ffb300);
+  color: #222;
+}
+
+.result-card.place-2 {
+  background: linear-gradient(135deg, #c0c0c0, #a9a9a9);
+  color: #222;
+}
+
+.result-card.place-3 {
+  background: linear-gradient(135deg, #cd7f32, #a0522d);
+  color: #fff;
+}
+
+/* Анимация появления */
+.fade-enter-active, .fade-leave-active {
+  transition: all 0.4s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+
 </style>

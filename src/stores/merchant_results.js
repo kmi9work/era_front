@@ -212,9 +212,6 @@ export const useMerchantResultsStore = defineStore('merchant_results', () => {
     
     // actions
     chooseMerchScreen,
-    setShowThirdPlaceOnly,
-    setShowSecondAndThird,
-    setShowTopThree,
     fetchMerchantResults,
     fetchCurrentScreen,
     startPolling,
