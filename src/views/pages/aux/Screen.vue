@@ -11,6 +11,7 @@ const timerStore = useTimerStore()
 const isTransitioning = ref(false)
 const timerMessage = ref('Проверьте расписание. Либо его нет, либо циклы еще не начались, либо уже закончились')
 const pollInterval = ref(null)
+const merchantsList = ref([])
 
 // Функции для работы с полноэкранным режимом
 const toggleFullscreen = () => {
@@ -96,6 +97,16 @@ onBeforeUnmount(() => {
   }
 })
 
+// Загрузка результатов купцов
+const loadMerchants = async () => {
+  try {
+    const merchResponse = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/show_sorted_results`)
+    merchantsList.value = merchResponse.data || []
+  } catch (error) {
+    console.error('Ошибка загрузки результатов купцов:', error)
+  }
+}
+
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('fullscreenchange', () => {})
@@ -110,7 +121,8 @@ onUnmounted(() => {
         <div 
           v-for="screen in [         
             { id: 'placeholder', label: 'Заглушка' },
-            { id: 'timer', label: 'Таймер' }
+            { id: 'timer', label: 'Таймер' },
+            { id: 'merchant_results', label: 'Результаты купцов' }
           ]"
           :key="screen.id"
           class="preview-card"
@@ -134,6 +146,17 @@ onUnmounted(() => {
                 <p class="preview-schedule-name">{{ timerStore.currentScheduleItemName }}</p>
                 <p class="preview-timer-value">{{ timerStore.formattedRemainingTime }}</p>
               </div>
+            </div>
+
+            <div v-else-if="screen.id === 'merchant_results'" class="results-preview">
+              <div v-if="merchantsList.length === 0" class="preview-message">
+                Нет данных
+              </div>
+              <ul v-else class="results-list">
+                <li v-for="(p, idx) in merchantsList.slice(0, 5)" :key="p.player_id || idx">
+                  {{ idx + 1 }}. {{ p.player }} — {{ p.capital }}
+                </li>
+              </ul>
             </div>
           </div>
           
@@ -168,9 +191,8 @@ onUnmounted(() => {
     </div>
 
     <div class="fullscreen-control">
-      <button class="fullscreen-button" @click="toggleFullscreen">
-        <span>Вывести на экран</span>
-      </button>
+      <button class="fullscreen-button" @click="toggleFullscreen"><span>Вывести на экран</span></button>
+      <button class="fullscreen-button" style="margin-left: 12px; background-color: #1976D2;" @click="openMerchantsFullscreen"><span>Результаты купцов (на экран)</span></button>
     </div>
   </div>
 
@@ -204,6 +226,26 @@ onUnmounted(() => {
               </div>
             </div>
           </Transition>
+        </template>
+
+        <template v-else-if="selectedScreen === 'merchant_results'">
+          <div class="screen-content" style="padding: 4vh 6vw; width: 100%; height: 100%;">
+            <div style="width:100%; max-width: 1400px; margin: 0 auto; color: #fff;">
+              <h1 style="text-align:center; margin: 0 0 2rem; font-size: 3rem;">Результаты купцов</h1>
+              <div style="display:grid; grid-template-columns: 1fr 2fr 2fr 1fr; gap: 12px; font-size: 1.5rem;">
+                <div style="font-weight:700;">Место</div>
+                <div style="font-weight:700;">Игрок</div>
+                <div style="font-weight:700;">Капитал</div>
+                <div style="font-weight:700;">Игроков</div>
+                <template v-for="(p, idx) in merchantsList" :key="p.player_id || idx">
+                  <div>{{ p.place ?? idx + 1 }}</div>
+                  <div>{{ p.player }}</div>
+                  <div>{{ p.capital }}</div>
+                  <div>{{ p.number_of_players }}</div>
+                </template>
+              </div>
+            </div>
+          </div>
         </template>
       </div>
     </Transition>

@@ -29,4 +29,14 @@ export const routes = [
 
     ],
   },
+  {
+    path: '/',
+    component: () => import('@/layouts/blank.vue'),
+    children: [
+      {
+        path: 'merchant-results',
+        component: () => import('@/pages/merchant-results.vue'),
+      },
+    ],
+  },
 ]

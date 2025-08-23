@@ -1,6 +1,7 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
+import { useMerchantResultsStore } from '@/stores/merchant_results'
 
 // Состояния формы
 const formData = ref({
@@ -140,6 +141,7 @@ const formatNumber = (val) => {
 </script>
 
 <template>
+
   <div class="players-container">
     <!-- Основная карточка -->
     <div class="card main-card">
@@ -176,7 +178,7 @@ const formatNumber = (val) => {
               :disabled="isLoading"
             >
           </div>
-          
+         
           <div class="form-group">
             <label for="capital">Капитал:</label>
             <input
@@ -225,6 +227,7 @@ const formatNumber = (val) => {
           </button>
         </form>
       </div>
+
       
       <!-- Список игроков -->
       <div class="players-list">
@@ -232,6 +235,7 @@ const formatNumber = (val) => {
         
         <div v-if="merchantsList.length === 0" class="empty-list">
           Нет данных об игроках
+          
         </div>
 
         <div v-else class="player-items">
@@ -257,7 +261,7 @@ const formatNumber = (val) => {
                 Изменить
               </button>
             </div>
-           
+              <div>{{useMerchantResultsStore.merchantsList}}</div>
             <!-- Форма редактирования -->
             <div v-if="editingMerchant && editingMerchant.player_id === player.player_id" class="edit-form">
               <div class="form-group">
@@ -293,6 +297,8 @@ const formatNumber = (val) => {
       </div>
     </div>
   </div>
+
+
 </template>
 
 
@@ -394,6 +400,14 @@ const formatNumber = (val) => {
   color: #666;
   background-color: #f5f5f5;
   border-radius: 6px;
+}
+
+.debug-box {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px dashed #aaa;
+  border-radius: 8px;
+  background: #fcfcfc;
 }
 
 .player-items {

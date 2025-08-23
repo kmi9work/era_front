@@ -4,9 +4,12 @@ import { useRoute } from 'vue-router'
 import Screen from '@/views/pages/aux/Screen.vue'
 import Schedule from '@/views/pages/aux/Schedule.vue'
 import MerchantResults from '@/views/pages/aux/MerchantResults.vue'
+import Test from '@/views/pages/aux/test.vue'
+
+
 
 const route = useRoute()
-const activeTab = ref(route.params.tab || 'merchant_results') // Значение по умолчанию
+const activeTab = ref(route.params.tab || 'test') // Значение по умолчанию
 
 // Определяем вкладки
 const tabs = [
@@ -27,6 +30,14 @@ const tabs = [
     icon: 'ri-money-dollar-box-line',
     tab: 'merchant_results',
   },
+
+  {
+    title: 'test',
+    icon: 'ri-money-dollar-box-line',
+    tab: 'test',
+  },
+
+
 
 ]
 
@@ -80,6 +91,11 @@ watch(
       <VWindowItem value="merchant_results">
         <MerchantResults /> 
       </VWindowItem>
+
+      <VWindowItem value="test">
+        <test /> 
+      </VWindowItem>
+
 
 
     </VWindow>
