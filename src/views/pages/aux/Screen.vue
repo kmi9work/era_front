@@ -2,16 +2,41 @@
 import { ref, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
 import axios from 'axios'
 import { useTimerStore } from '@/stores/timer'
+import { useMerchantResultsStore } from '@/stores/merchant_results'
+
+
 import previewPlaceholder from '@/assets/images/preview_placeholder.jpg'
 
 // Состояния
 const isFullscreen = ref(false)
 const selectedScreen = ref('placeholder')
 const timerStore = useTimerStore()
+const merchantStore = useMerchantResultsStore()
+const { showResultsLevel, isLoading: merchantsLoading, errorMessage: merchantsError } = storeToRefs(merchantStore)
 const isTransitioning = ref(false)
 const timerMessage = ref('Проверьте расписание. Либо его нет, либо циклы еще не начались, либо уже закончились')
 const pollInterval = ref(null)
-const merchantsList = ref([])
+
+// Примеры использования:
+const setLevel0 = async () => {
+  try {
+    await merchantStore.chooseMerchScreen(0) // Все результаты
+    console.log('Установлен уровень 0')
+  } catch (error) {
+    console.error('Ошибка:', error)
+  }
+}
+
+const setLevel1 = async () => {
+  try {
+    await merchantStore.chooseMerchScreen(1) // Только третье место
+  } catch (error) {
+    console.error('Ошибка:', error)
+  }
+}
+
+
+
 
 // Функции для работы с полноэкранным режимом
 const toggleFullscreen = () => {
@@ -97,15 +122,6 @@ onBeforeUnmount(() => {
   }
 })
 
-// Загрузка результатов купцов
-const loadMerchants = async () => {
-  try {
-    const merchResponse = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/show_sorted_results`)
-    merchantsList.value = merchResponse.data || []
-  } catch (error) {
-    console.error('Ошибка загрузки результатов купцов:', error)
-  }
-}
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeyDown)
@@ -149,15 +165,21 @@ onUnmounted(() => {
             </div>
 
             <div v-else-if="screen.id === 'merchant_results'" class="results-preview">
-              <div v-if="merchantsList.length === 0" class="preview-message">
-                Нет данных
+              <div class="preview-message">
+                 {{merchantStore.getFilteredResults}}
               </div>
-              <ul v-else class="results-list">
-                <li v-for="(p, idx) in merchantsList.slice(0, 5)" :key="p.player_id || idx">
-                  {{ idx + 1 }}. {{ p.player }} — {{ p.capital }}
-                </li>
-              </ul>
+
+    <button @click="() => merchantStore.chooseMerchScreen(0)">Показать все</button>
+    <button @click="() => merchantStore.chooseMerchScreen(1)">Только 3 место</button>
+    <button @click="() => merchantStore.chooseMerchScreen(2)">2 и 3 места</button>
+    <button @click="() => merchantStore.chooseMerchScreen(3)">Топ 3</button>
+            
             </div>
+          </div>
+
+          <div>
+           
+
           </div>
           
           <div 
@@ -192,7 +214,6 @@ onUnmounted(() => {
 
     <div class="fullscreen-control">
       <button class="fullscreen-button" @click="toggleFullscreen"><span>Вывести на экран</span></button>
-      <button class="fullscreen-button" style="margin-left: 12px; background-color: #1976D2;" @click="openMerchantsFullscreen"><span>Результаты купцов (на экран)</span></button>
     </div>
   </div>
 
@@ -228,7 +249,7 @@ onUnmounted(() => {
           </Transition>
         </template>
 
-        <template v-else-if="selectedScreen === 'merchant_results'">
+       <!--  <template v-else-if="selectedScreen === 'merchant_results'">
           <div class="screen-content" style="padding: 4vh 6vw; width: 100%; height: 100%;">
             <div style="width:100%; max-width: 1400px; margin: 0 auto; color: #fff;">
               <h1 style="text-align:center; margin: 0 0 2rem; font-size: 3rem;">Результаты купцов</h1>
@@ -246,7 +267,7 @@ onUnmounted(() => {
               </div>
             </div>
           </div>
-        </template>
+        </template> -->
       </div>
     </Transition>
   </div>

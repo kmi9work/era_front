@@ -22,27 +22,27 @@ onMounted(() => {
 })
 
 // Watch для отслеживания изменения showResultsLevel
-watch(showResultsLevel, (newLevel, oldLevel) => {
-  console.log(`showResultsLevel changed from ${oldLevel} to ${newLevel}`)
+// watch(showResultsLevel, (newLevel, oldLevel) => {
+//   console.log(`showResultsLevel changed from ${oldLevel} to ${newLevel}`)
   
-  // Обновляем отфильтрованный список при изменении уровня
-  currentFilteredList.value = merchantStore.getFilteredResults
-  lastUpdateTime.value = new Date().toLocaleTimeString()
+//   // Обновляем отфильтрованный список при изменении уровня
+//   currentFilteredList.value = merchantStore.getFilteredResults
+//   lastUpdateTime.value = new Date().toLocaleTimeString()
   
-  console.log('Filtered list updated:', currentFilteredList.value.length, 'items')
-})
+//   console.log('Filtered list updated:', currentFilteredList.value.length, 'items')
+// })
 
-// Также отслеживаем изменения в основном списке merchants
-watch(() => merchantStore.merchantsList, (newList) => {
-  console.log('Merchants list updated:', newList.length, 'items')
+// // Также отслеживаем изменения в основном списке merchants
+// watch(() => merchantStore.merchantsList, (newList) => {
+//   console.log('Merchants list updated:', newList.length, 'items')
   
-  // Обновляем отфильтрованный список при изменении основного списка
-  currentFilteredList.value = merchantStore.getFilteredResults
-  lastUpdateTime.value = new Date().toLocaleTimeString()
-})
+//   // Обновляем отфильтрованный список при изменении основного списка
+//   currentFilteredList.value = merchantStore.getFilteredResults
+//   lastUpdateTime.value = new Date().toLocaleTimeString()
+// })
 
-// Для отладки
-console.log('Initial merchants:', merchantsList.value)
+// // Для отладки
+// console.log('Initial merchants:', merchantsList.value)
 </script>
 
 <template>

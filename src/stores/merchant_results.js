@@ -12,7 +12,8 @@ export const useMerchantResultsStore = defineStore('merchant_results', () => {
 
   const showResultsLevel = ref(0) // 0 - все, 1 - только третье, 2 - третье и второе, 3 - все три призовых
 
-  const fetchCurrentScreen = async () => {
+  // Функция для выбора уровня показа результатов
+  const chooseMerchScreen = async (level) => {
     if (abortController) {
       abortController.abort()
     }
@@ -20,6 +21,46 @@ export const useMerchantResultsStore = defineStore('merchant_results', () => {
     abortController = new AbortController()
     isLoading.value = true
     
+    try {
+      // Преобразуем уровень в число для безопасности
+      const numericLevel = parseInt(level, 10)
+      const validLevel = isNaN(numericLevel) ? 0 : Math.max(0, Math.min(3, numericLevel))
+      
+      const response = await axios.patch(
+        `${import.meta.env.VITE_PROXY}/game_parameters/choose_current_result`,
+        { request: validLevel },
+        { signal: abortController.signal }
+      )
+      
+      console.log('Screen level set to:', validLevel, 'Response:', response.data)
+      
+      // Обновляем локальное значение после успешной отправки
+      showResultsLevel.value = validLevel
+      
+      return response.data
+      
+    } catch (error) {
+      if (axios.isCancel(error)) {
+        console.log('Запрос отменен')
+        return
+      }
+      console.error('Ошибка установки уровня экрана:', error)
+      errorMessage.value = 'Ошибка установки уровня показа результатов'
+      throw error
+    } finally {
+      isLoading.value = false
+      abortController = null
+    }
+  }
+
+  const fetchCurrentScreen = async () => {
+    if (abortController) {
+      abortController.abort()
+    }
+    
+    abortController = new AbortController()
+    isLoading.value = true
+
     try {
       const response = await axios.get(
         `${import.meta.env.VITE_PROXY}/game_parameters/get_current_result`,
@@ -50,7 +91,7 @@ export const useMerchantResultsStore = defineStore('merchant_results', () => {
     if (abortController) {
       abortController.abort()
     }
-    fetchCurrentScreen()
+    
     abortController = new AbortController()
     isLoading.value = true
     errorMessage.value = null
@@ -61,7 +102,7 @@ export const useMerchantResultsStore = defineStore('merchant_results', () => {
         { signal: abortController.signal }
       )
       
-      console.log('API response:', merchResponse.data) // для отладки
+      console.log('API response:', merchResponse.data)
       
       // Обработка разных форматов ответа
       merchantsList.value = merchResponse.data?.merchants || 
@@ -129,12 +170,7 @@ export const useMerchantResultsStore = defineStore('merchant_results', () => {
     }
   })
 
-  // Призовые места
-  const firstPlace = computed(() => getSortedMerchants.value[0] || null)
-  const secondPlace = computed(() => getSortedMerchants.value[1] || null)
-  const thirdPlace = computed(() => getSortedMerchants.value[2] || null)
-
-  // Запуск polling (если нужно)
+  // Запуск polling
   const startPolling = () => {
     if (pollInterval.value) return
     pollInterval.value = setInterval(() => {
@@ -173,11 +209,12 @@ export const useMerchantResultsStore = defineStore('merchant_results', () => {
     // computed
     getFilteredResults,
     getSortedMerchants,
-    firstPlace,
-    secondPlace,
-    thirdPlace,
     
     // actions
+    chooseMerchScreen,
+    setShowThirdPlaceOnly,
+    setShowSecondAndThird,
+    setShowTopThree,
     fetchMerchantResults,
     fetchCurrentScreen,
     startPolling,
