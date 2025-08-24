@@ -142,7 +142,7 @@ export const useMerchantResultsStore = defineStore('merchant_results', () => {
     return [...merchantsList.value].sort((a, b) => getScore(b) - getScore(a))
   })
 
-  // Функция для получения отфильтрованных результатов
+  // Функция для получения отфильтрованных результатов по месту (place)
   const getFilteredResults = computed(() => {
     console.log('Filtering with level:', showResultsLevel.value)
     
@@ -150,25 +150,51 @@ export const useMerchantResultsStore = defineStore('merchant_results', () => {
       return merchantsList.value // Все результаты
     }
     
-    const sorted = getSortedMerchants.value
-    
     switch (showResultsLevel.value) {
-      case 1: // Только третье место
-        return sorted.length >= 3 ? [sorted[2]] : []
+      case 1: // Только третье место (place = 3)
+        return merchantsList.value.filter(merchant => {
+          const place = parseInt(merchant?.place, 10)
+          return !isNaN(place) && place === 3
+        })
       
-      case 2: // Третье и второе места
-        return sorted.length >= 3 ? [sorted[2], sorted[1]] : 
-               sorted.length >= 2 ? [sorted[1]] : []
+      case 2: // Только второе место (place = 2)
+        return merchantsList.value.filter(merchant => {
+          const place = parseInt(merchant?.place, 10)
+          return !isNaN(place) && place === 2
+        })
       
-      case 3: // Все три призовых места
-        return sorted.length >= 3 ? [sorted[2], sorted[1], sorted[0]] :
-               sorted.length >= 2 ? [sorted[1], sorted[0]] :
-               sorted.length >= 1 ? [sorted[0]] : []
+      case 3: // Только первое место (place = 1)
+        return merchantsList.value.filter(merchant => {
+          const place = parseInt(merchant?.place, 10)
+          return !isNaN(place) && place === 1
+        })
       
       default:
         return merchantsList.value
     }
   })
+
+  // Функция для получения текстового названия места
+  const getPlaceTitle = (place) => {
+    switch (place) {
+      case 1: return 'Первое место'
+      case 2: return 'Второе место'
+      case 3: return 'Третье место'
+      case 4: return 'Четвертое место'
+      case 5: return 'Пятое место'
+      default: return `${place}-е место`
+    }
+  }
+
+  // Функция для получения иконки места
+  const getPlaceIcon = (place) => {
+    switch (place) {
+      case 1: return '🥇'
+      case 2: return '🥈'
+      case 3: return '🥉'
+      default: return '🏆'
+    }
+  }
 
   // Запуск polling
   const startPolling = () => {
@@ -217,6 +243,8 @@ export const useMerchantResultsStore = defineStore('merchant_results', () => {
     startPolling,
     stopPolling,
     cleanup,
+    getPlaceTitle,
+    getPlaceIcon,
     
     // polling
     pollTime,
