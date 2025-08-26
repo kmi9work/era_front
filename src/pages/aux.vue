@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import Screen from '@/views/pages/aux/Screen.vue'
 import Schedule from '@/views/pages/aux/Schedule.vue'
 import MerchantResults from '@/views/pages/aux/MerchantResults.vue'
-import Test from '@/views/pages/aux/test.vue'
+
 
 
 
@@ -31,11 +31,6 @@ const tabs = [
     tab: 'merchant_results',
   },
 
-  {
-    title: 'test',
-    icon: 'ri-money-dollar-box-line',
-    tab: 'test',
-  },
 
 
 
@@ -92,9 +87,6 @@ watch(
         <MerchantResults /> 
       </VWindowItem>
 
-      <VWindowItem value="test">
-        <test /> 
-      </VWindowItem>
 
 
 

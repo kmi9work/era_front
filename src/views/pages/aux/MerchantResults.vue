@@ -16,8 +16,21 @@ const isLoading = ref(false);
 const isFormVisible = ref(false);
 const errorMessage = ref(null);
 const successMessage = ref(null);
-const merchantsList = ref([]);
 const editingMerchant = ref(null);
+const merchantStore = useMerchantResultsStore()
+
+const merchants = computed(() => {
+  return merchantStore.merchantsList
+})
+
+// Функция для обновления данных
+const refreshData = async () => {
+  try {
+    await merchantStore.fetchMerchantResults()
+  } catch (error) {
+    errorMessage.value = 'Ошибка обновления данных'
+  }
+}
 
 const editPlayer = (player) => {
   editingMerchant.value = { ...player };
@@ -46,33 +59,20 @@ const updatePlayer = async () => {
       boyar_favor: Number.isFinite(Number(editingMerchant.value.boyar_favor)) ? Number(editingMerchant.value.boyar_favor) : 0,
     };
 
-    const response = await axios.patch(
+    await axios.patch(
       `${import.meta.env.VITE_PROXY}/game_parameters/update_results`, 
       { request: requestData }
     );
-    await loadPMerchantsAndNobles();
     
     successMessage.value = 'Данные игрока обновлены!';
     editingMerchant.value = null;
+    await refreshData(); // Обновляем данные после успеха
   } catch (error) {
     errorMessage.value = error.response?.data?.message || 'Ошибка при обновлении данных';
   } finally {
     isLoading.value = false;
   }
 };
-
-// Загрузка списка игроков
-const loadPMerchantsAndNobles = async () => {
-  try {
-    const merchResponse = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/show_sorted_results`);
-    merchantsList.value = merchResponse.data || [];
-  } catch (error) {
-    console.error('Ошибка загрузки игроков:', error);
-    errorMessage.value = 'Ошибка загрузки списка игроков';
-  }
-};
-
-
 
 const deleteResult = async (player) => {
   if (!confirm(`Удалить игрока ${player.player}?`)) return;
@@ -88,7 +88,7 @@ const deleteResult = async (player) => {
     await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/delete_result`, { request: requestData });
     
     successMessage.value = 'Игрок удален!';
-    await loadPMerchantsAndNobles();
+    await refreshData(); // Обновляем данные после удаления
   } catch (error) {
     errorMessage.value = error.response?.data?.message || 'Ошибка при удалении игрока';
   } finally {
@@ -108,6 +108,7 @@ const addResult = async () => {
       number_of_players: formData.value.number_of_players,
       boyar_favor: Number.isFinite(Number(formData.value.boyar_favor)) ? Number(formData.value.boyar_favor) : 0,
     };
+    
     await axios.patch(
       `${import.meta.env.VITE_PROXY}/game_parameters/save_sorted_results`, 
       { request: requestData }
@@ -116,7 +117,8 @@ const addResult = async () => {
     successMessage.value = 'Данные успешно сохранены!';
     formData.value = { player: '', capital: 0, number_of_players: 1, boyar_favor: 0 };
     isFormVisible.value = false;
-    await loadPMerchantsAndNobles();
+    await refreshData(); // Обновляем данные после добавления
+    
   } catch (error) {
     errorMessage.value = error.response?.data?.message || 'Произошла ошибка при отправке данных';
   } finally {
@@ -126,7 +128,8 @@ const addResult = async () => {
 
 // Загружаем игроков при монтировании
 onMounted(() => {
-  loadPMerchantsAndNobles();
+  refreshData();
+  merchantStore.startPolling(); // Запускаем polling если нужно
 });
 
 // Helpers
@@ -140,8 +143,8 @@ const formatNumber = (val) => {
 };
 </script>
 
-<template>
 
+<template>
   <div class="players-container">
     <!-- Основная карточка -->
     <div class="card main-card">
@@ -233,13 +236,12 @@ const formatNumber = (val) => {
       <div class="players-list">
         <h4>Список игроков</h4>
         
-        <div v-if="merchantsList.length === 0" class="empty-list">
+        <div v-if="merchants.length === 0" class="empty-list">
           Нет данных об игроках
-          
         </div>
 
         <div v-else class="player-items">
-          <div v-for="(player, index) in merchantsList" :key="player.player_id || index" class="player-item">
+          <div v-for="(player, index) in merchants" :key="player.player_id || index" class="player-item">
             <div class="player-info">
               <span class="place-badge" :class="{ 'place-1': player.place === 1, 'place-2': player.place === 2, 'place-3': player.place === 3 }">
                 {{ player.place || '—' }}
@@ -261,7 +263,7 @@ const formatNumber = (val) => {
                 Изменить
               </button>
             </div>
-              <div>{{useMerchantResultsStore.merchantsList}}</div>
+
             <!-- Форма редактирования -->
             <div v-if="editingMerchant && editingMerchant.player_id === player.player_id" class="edit-form">
               <div class="form-group">
@@ -297,8 +299,6 @@ const formatNumber = (val) => {
       </div>
     </div>
   </div>
-
-
 </template>
 
 

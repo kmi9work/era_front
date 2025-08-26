@@ -145,7 +145,7 @@ onUnmounted(() => {
 
             <div v-else-if="screen.id === 'merchant_results'" class="results-preview">
               <div class="preview-message">
-                {{ merchantStore.getFilteredResults.length }} результатов
+     
               </div>
 
               <div class="merchant-controls-compact">
