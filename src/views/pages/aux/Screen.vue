@@ -129,9 +129,6 @@ onUnmounted(() => {
 
 <template>
 
-{{currentMerchPlace}}
-
-
   <!-- Режим управления (не полноэкранный) -->
   <div v-if="!isFullscreen" class="management-mode">
     <div class="preview-container">
@@ -287,7 +284,7 @@ onUnmounted(() => {
             <!-- Все места -->
             <div v-if="currentMerchPlace === 0" class="all-results-container">
               <div class="fullscreen-text-container">
-                <h1 class="fullscreen-schedule-name">Результаты купцов</h1>
+                <h1 class="fullscreen-results">Результаты купцов</h1>
                 <div class="results-list">
                   <div 
                     v-for="(team, index) in results" 
@@ -299,6 +296,7 @@ onUnmounted(() => {
                     <span class="team-name">{{ team.player }}</span>
                     <span class="team-capital">{{ team.capital.toLocaleString() }}💰</span>
                     <span class="team-players">{{ team.number_of_players }}👥</span>
+                    <span class="team-capital"> {{ (team.cap_per_pl || 0).toLocaleString() }}💰</span>
                     <span class="team-favor">{{ team.boyar_favor || 0 }}⚜️</span>
                   </div>
                 </div>
@@ -320,8 +318,10 @@ onUnmounted(() => {
                       <span class="winner-name">{{ team.player }}</span>
                       <span class="winner-stats">
                         {{ team.capital.toLocaleString() }}💰 • 
+                        {{ (team.cap_per_pl || 0).toLocaleString() }} •
                         {{ team.number_of_players }}👥 • 
                         {{ team.boyar_favor || 0 }}⚜️
+
                       </span>
                     </div>
                   </div>
@@ -340,6 +340,7 @@ onUnmounted(() => {
                       <span class="winner-stats">
                         {{ team.capital.toLocaleString() }}💰 • 
                         {{ team.number_of_players }}👥 • 
+                        {{ (team.cap_per_pl || 0).toLocaleString() }} •
                         {{ team.boyar_favor || 0 }}⚜️
                       </span>
                     </div>
@@ -360,6 +361,7 @@ onUnmounted(() => {
                       <span class="winner-stats">
                         {{ team.capital.toLocaleString() }}💰 • 
                         {{ team.number_of_players }}👥 • 
+                        {{ (team.cap_per_pl || 0).toLocaleString() }} •
                         {{ team.boyar_favor || 0 }}⚜️
                       </span>
                     </div>
@@ -375,7 +377,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* Стили текстовых результатов как в таймере */
 .fullscreen-text-container {
   display: flex;
   flex-direction: column;
@@ -385,6 +386,17 @@ onUnmounted(() => {
   width: 100vw;
   text-align: center;
 }
+
+.fullscreen-results {
+  font-family: 'Beryozki', sans-serif;
+  font-size: 12rem;
+  font-weight: bold;
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
+  margin-bottom: 2rem;
+  line-height: 1;
+  color: white;
+}
+
 
 .fullscreen-schedule-name {
   font-family: 'Beryozki', sans-serif;
