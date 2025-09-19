@@ -42,6 +42,22 @@ const toggleFullscreen = () => {
   }
 }
 
+const merchants = computed(() => {
+  return merchantStore.merchantsList
+})
+
+const results = ref([])
+const currentMerchPlace = ref(0)
+
+const filterMerchResults = (pl) => {
+  currentMerchPlace.value = pl
+  if (pl === 0) {
+    results.value  =  merchants.value
+  }else{
+    results.value  =  merchants.value.filter(merchant => merchant.place === pl)
+  }
+}
+
 // Обработчик клавиш
 const handleKeyDown = (e) => {
   if (e.key === 'Escape' && isFullscreen.value) {
@@ -93,6 +109,8 @@ onMounted(() => {
     isFullscreen.value = !!document.fullscreenElement
   })
   startPolling()
+  merchantStore.fetchMerchantResults() // ← добавьте загрузку merchants
+
 })
 
 onBeforeUnmount(() => {
@@ -100,6 +118,7 @@ onBeforeUnmount(() => {
     clearInterval(pollInterval.value)
     pollInterval.value = null
   }
+  filterMerchResults(0)
 })
 
 onUnmounted(() => {
@@ -109,6 +128,10 @@ onUnmounted(() => {
 </script>
 
 <template>
+
+{{currentMerchPlace}}
+
+
   <!-- Режим управления (не полноэкранный) -->
   <div v-if="!isFullscreen" class="management-mode">
     <div class="preview-container">
@@ -150,8 +173,8 @@ onUnmounted(() => {
 
               <div class="merchant-controls-compact">
                 <button 
-                  @click="() => merchantStore.chooseMerchScreen(0)"
-                  :class="{ active: merchantStore.showResultsLevel === 0 }"
+                  @click="() => filterMerchResults(0)"
+                  :class="{ active: currentMerchPlace === 0 }"
                   class="compact-button all-btn"
                   :disabled="merchantStore.isLoading"
                   title="Показать все результаты"
@@ -160,8 +183,8 @@ onUnmounted(() => {
                 </button>
                 
                 <button 
-                  @click="() => merchantStore.chooseMerchScreen(1)"
-                  :class="{ active: merchantStore.showResultsLevel === 1 }"
+                  @click="() => filterMerchResults(3)"
+                  :class="{ active: currentMerchPlace === 3 }"
                   class="compact-button third-btn"
                   :disabled="merchantStore.isLoading"
                   title="Только третье место"
@@ -170,8 +193,8 @@ onUnmounted(() => {
                 </button>
                 
                 <button 
-                  @click="() => merchantStore.chooseMerchScreen(2)"
-                  :class="{ active: merchantStore.showResultsLevel === 2 }"
+                  @click="() => filterMerchResults(2)"
+                  :class="{ active: currentMerchPlace === 2 }"
                   class="compact-button second-third-btn"
                   :disabled="merchantStore.isLoading"
                   title="Второе и третье места"
@@ -180,8 +203,8 @@ onUnmounted(() => {
                 </button>
                 
                 <button 
-                  @click="() => merchantStore.chooseMerchScreen(3)"
-                  :class="{ active: merchantStore.showResultsLevel === 3 }"
+                  @click="() => filterMerchResults(1)"
+                  :class="{ active: currentMerchPlace === 1 }"
                   class="compact-button top-three-btn"
                   :disabled="merchantStore.isLoading"
                   title="Топ 3 места"
@@ -262,12 +285,12 @@ onUnmounted(() => {
         <template v-else-if="selectedScreen === 'merchant_results'">
           <div class="results-screen">
             <!-- Все места -->
-            <div v-if="merchantStore.showResultsLevel === 0" class="all-results-container">
+            <div v-if="currentMerchPlace === 0" class="all-results-container">
               <div class="fullscreen-text-container">
                 <h1 class="fullscreen-schedule-name">Результаты купцов</h1>
                 <div class="results-list">
                   <div 
-                    v-for="(team, index) in merchantStore.getFilteredResults" 
+                    v-for="(team, index) in results" 
                     :key="team.player_id || index" 
                     class="result-line"
                     :class="'place-' + team.place"
@@ -286,11 +309,11 @@ onUnmounted(() => {
             <div v-else class="single-place-fullscreen">
               <div class="fullscreen-text-container">
                 <!-- Третье место -->
-                <div v-if="merchantStore.showResultsLevel === 1" class="place-section bronze">
+                <div v-if="currentMerchPlace === 3" class="place-section bronze">
                   <div class="fullscreen-place-title"> Третье место</div>
                   <div class="winner-list">
                     <div 
-                      v-for="(team, index) in merchantStore.getFilteredResults" 
+                      v-for="(team, index) in results" 
                       :key="team.player_id || index" 
                       class="winner-line"
                     >
@@ -305,11 +328,11 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Второе место -->
-                <div v-else-if="merchantStore.showResultsLevel === 2" class="place-section silver">
+                <div v-else-if="currentMerchPlace === 2" class="place-section silver">
                   <div class="fullscreen-place-title"> Второе место</div>
                   <div class="winner-list">
                     <div 
-                      v-for="(team, index) in merchantStore.getFilteredResults" 
+                      v-for="(team, index) in results" 
                       :key="team.player_id || index" 
                       class="winner-line"
                     >
@@ -324,12 +347,12 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Первое место -->
-                <div v-else-if="merchantStore.showResultsLevel === 3" class="place-section gold">
+                <div v-else-if="currentMerchPlace === 1" class="place-section gold">
                   <div class="fullscreen-place-title"> Первое место</div>
 
                   <div class="winner-list">
                     <div 
-                      v-for="(team, index) in merchantStore.getFilteredResults" 
+                      v-for="(team, index) in results" 
                       :key="team.player_id || index" 
                       class="winner-line"
                     >

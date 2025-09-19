@@ -5,9 +5,6 @@ import Screen from '@/views/pages/aux/Screen.vue'
 import Schedule from '@/views/pages/aux/Schedule.vue'
 import MerchantResults from '@/views/pages/aux/MerchantResults.vue'
 
-
-
-
 const route = useRoute()
 const activeTab = ref(route.params.tab || 'test') // Значение по умолчанию
 
