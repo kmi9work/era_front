@@ -114,11 +114,6 @@
       })
   };
 
-<<<<<<< Updated upstream
-  function showBuilderChoice(action, id) {
-    current_building_action.value = { type: action, id: id };
-    builder_choice_dialog.value = true;
-=======
   // Функция для проверки, нужно ли показывать диалог выбора строителя
   function shouldShowBuilderDialog(action, id, building_type_id = null) {
     // Для добавления здания: показываем только для церкви (id=1)
@@ -150,7 +145,6 @@
         upgradeBuilding(id, 'master');
       }
     }
->>>>>>> Stashed changes
   }
 
   async function payChurch(building_id) {
@@ -162,13 +156,7 @@
 </script>
 
 <template>
-  <VCard width="350">
-    <v-card-title>
-      <span>
-        {{name}}<br>
-        <small><i>({{main_settle?.settlement_type?.name}})</i></small>
-      </span>
-    </v-card-title>
+  <VCard :title="name" width="350">
     <VCardText v-if="main_settle.player">
       {{main_settle.player?.name}} | {{main_settle.player?.jobs.map((j) => j.name)?.join(", ")}}
       <IconBtn
@@ -270,10 +258,7 @@
               @click="current_building_action.type === 'add' 
                 ? addBuilding(current_building_action.id, 'metropolitan') 
                 : upgradeBuilding(current_building_action.id, 'metropolitan')"
-<<<<<<< Updated upstream
-=======
               v-if="current_building_action.building_type_id == 1"
->>>>>>> Stashed changes
             >
               Митрополит
             </VBtn>
