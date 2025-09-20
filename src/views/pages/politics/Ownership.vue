@@ -33,8 +33,7 @@
   const change_owner_dialog = ref(false);
 
   const builder_choice_dialog = ref(false);
-  const current_building_action = ref({ type: '', id: null }); // Хранит текущее действие (add/upgrade) и ID
-
+  const current_building_action = ref({ type: '', id: null, building_type_id: null }); // Добавим building_type_id
 
   const filteredBuildingTypes = computed(() => {
       return props.building_types.filter(bt => 
@@ -115,9 +114,43 @@
       })
   };
 
+<<<<<<< Updated upstream
   function showBuilderChoice(action, id) {
     current_building_action.value = { type: action, id: id };
     builder_choice_dialog.value = true;
+=======
+  // Функция для проверки, нужно ли показывать диалог выбора строителя
+  function shouldShowBuilderDialog(action, id, building_type_id = null) {
+    // Для добавления здания: показываем только для церкви (id=1)
+    if (action === 'add') {
+      return building_type_id === 1;
+    }
+    
+    // Для улучшения здания: получаем текущий уровень и проверяем, будет ли следующий уровень 3
+    if (action === 'upgrade') {
+      const building = main_settle.value.buildings.find(b => b.id === id);
+      if (building && building.building_level && building.building_level.level === 2) {
+        return true; // Улучшение до 3 уровня
+      }
+    }
+    
+    return false;
+  }
+
+  function showBuilderChoice(action, id, building_type_id = null) {
+    // Проверяем, нужно ли показывать диалог
+    if (shouldShowBuilderDialog(action, id, building_type_id)) {
+      current_building_action.value = { type: action, id, building_type_id };
+      builder_choice_dialog.value = true;
+    } else {
+      // Если диалог не нужен, сразу выполняем действие с параметром 'master'
+      if (action === 'add') {
+        addBuilding(id, 'master');
+      } else if (action === 'upgrade') {
+        upgradeBuilding(id, 'master');
+      }
+    }
+>>>>>>> Stashed changes
   }
 
   async function payChurch(building_id) {
@@ -126,8 +159,6 @@
         updateOwnership();
       })
   };
-
-
 </script>
 
 <template>
@@ -201,7 +232,7 @@
                 :value="item.id"
                 color="primary"
                 rounded="xl"
-                @click="showBuilderChoice('add', item.id)"
+                @click="showBuilderChoice('add', item.id, item.id)"
               >
                 <template v-slot:prepend>
                   <VIcon :icon="item.icon"></VIcon>
@@ -230,7 +261,7 @@
           title="Кто строит?"
         >
           <VCardText>
-            Выберите, кто выполняет строительство:
+            Выберите, кому бонус за строительство:
           </VCardText>
           
           <VCardActions>
@@ -239,12 +270,17 @@
               @click="current_building_action.type === 'add' 
                 ? addBuilding(current_building_action.id, 'metropolitan') 
                 : upgradeBuilding(current_building_action.id, 'metropolitan')"
+<<<<<<< Updated upstream
+=======
+              v-if="current_building_action.building_type_id == 1"
+>>>>>>> Stashed changes
             >
               Митрополит
             </VBtn>
             
             <VBtn
               color="primary"
+              v-if="current_building_action.type != 'add'"
               @click="current_building_action.type === 'add' 
                 ? addBuilding(current_building_action.id, 'zodchiy') 
                 : upgradeBuilding(current_building_action.id, 'zodchiy')"
@@ -258,7 +294,7 @@
                 ? addBuilding(current_building_action.id, 'master') 
                 : upgradeBuilding(current_building_action.id, 'master')"
             >
-              Мастер
+              Никому (Мастер строит)
             </VBtn>
             
             <VBtn
@@ -315,4 +351,3 @@
     </VCardActions>
   </VCard>
 </template>
-
