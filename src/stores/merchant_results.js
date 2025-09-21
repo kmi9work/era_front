@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import axios from 'axios'
 
 export const useMerchantResultsStore = defineStore('merchant_results', () => {
@@ -8,8 +8,11 @@ export const useMerchantResultsStore = defineStore('merchant_results', () => {
   const merchantsList = ref([])
   const pollTime = 5000
   const pollInterval = ref(null)
+  const screenPollInterval = ref(null) // ← отдельный интервал для экрана
   const showResultsLevel = ref(0)
   const abortController = ref(null)
+  const screenAbortController = ref(null) // ← отдельный контроллер для экрана
+  const currentMerchantsResultsScreen = ref(0)
 
   const fetchMerchantResults = async () => {
     if (abortController.value) {
@@ -30,8 +33,7 @@ export const useMerchantResultsStore = defineStore('merchant_results', () => {
       
     } catch (error) {
       if (axios.isCancel(error)) {
-        console.log('Запрос отменен')
-        abortController.value = null
+        console.log('Запрос merchants отменен')
         return
       }
       console.error('Ошибка загрузки игроков:', error)
@@ -42,20 +44,86 @@ export const useMerchantResultsStore = defineStore('merchant_results', () => {
     }
   }
 
+  const fetchCurrMerchResScreen = async () => {
+  
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_PROXY}/game_parameters/show_curr_merch_res_screen`,       
+      )
+      
+      currentMerchantsResultsScreen.value = response.data || 0
+      return response.data
+
+    } catch (error) {
+      if (axios.isCancel(error)) {
+        console.log('Запрос экрана отменен')
+        return
+      }
+      
+      errorMessage.value = error.message || 'Произошла ошибка загрузки экрана'
+      console.error('Ошибка при загрузке данных экрана:', error)
+      throw error
+    } finally {
+      screenAbortController.value = null
+    }
+  }
+
   const startPolling = () => {
-    if (pollInterval.value) return
-    fetchMerchantResults() // начать сразу
-    pollInterval.value = setInterval(fetchMerchantResults, pollTime)
+    stopPolling() // Останавливаем предыдущий polling
+    
+    // Запускаем сразу оба запроса
+    fetchMerchantResults().catch(error => {
+      if (!axios.isCancel(error)) {
+        console.error('Ошибка начальной загрузки merchants:', error)
+      }
+    })
+    
+    fetchCurrMerchResScreen().catch(error => {
+      if (!axios.isCancel(error)) {
+        console.error('Ошибка начальной загрузки экрана:', error)
+      }
+    })
+    
+    // Polling для merchants
+    pollInterval.value = setInterval(() => {
+      fetchMerchantResults().catch(error => {
+        if (!axios.isCancel(error)) {
+          console.error('Ошибка polling merchants:', error)
+        }
+      })
+    }, pollTime)
+    
+    // Polling для экрана (можно с другим интервалом)
+    screenPollInterval.value = setInterval(() => {
+      fetchCurrMerchResScreen().catch(error => {
+        if (!axios.isCancel(error)) {
+          console.error('Ошибка polling экрана:', error)
+        }
+      })
+    }, pollTime)
   }
 
   const stopPolling = () => {
+    // Останавливаем интервалы
     if (pollInterval.value) {
       clearInterval(pollInterval.value)
       pollInterval.value = null
     }
+    
+    if (screenPollInterval.value) {
+      clearInterval(screenPollInterval.value)
+      screenPollInterval.value = null
+    }
+    
+    // Отменяем запросы
     if (abortController.value) {
       abortController.value.abort()
       abortController.value = null
+    }
+    
+    if (screenAbortController.value) {
+      screenAbortController.value.abort()
+      screenAbortController.value = null
     }
   }
 
@@ -68,11 +136,13 @@ export const useMerchantResultsStore = defineStore('merchant_results', () => {
     errorMessage,
     merchantsList,
     showResultsLevel,
+    currentMerchantsResultsScreen,
     fetchMerchantResults,
+    fetchCurrMerchResScreen,
     startPolling,
     stopPolling,
     cleanup,
     pollTime,
-    pollInterval,
+    pollInterval
   }
 })

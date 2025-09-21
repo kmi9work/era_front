@@ -18,6 +18,7 @@ const isTransitioning = ref(false)
 const timerMessage = ref('Проверьте расписание. Либо его нет, либо циклы еще не начались, либо уже закончились')
 const pollInterval = ref(null)
 
+
 // Функции для работы с полноэкранным режимом
 const toggleFullscreen = () => {
   const element = document.getElementById('fullscreen-content')
@@ -46,17 +47,43 @@ const merchants = computed(() => {
   return merchantStore.merchantsList
 })
 
-const results = ref([])
+
 const currentMerchPlace = ref(0)
 
-const filterMerchResults = (pl) => {
-  currentMerchPlace.value = pl
-  if (pl === 0) {
-    results.value  =  merchants.value
-  }else{
-    results.value  =  merchants.value.filter(merchant => merchant.place === pl)
+// Синхронизация с store
+watch(() => merchantStore.currentMerchantsResultsScreen, (newScreen) => {
+  currentMerchPlace.value = newScreen
+})
+
+const results = computed(() => {
+  if (currentMerchPlace.value === 0) {
+    return merchantStore.merchantsList
+  } else {
+    return merchantStore.merchantsList.filter(
+      (merchant) => merchant.place === currentMerchPlace.value
+    )
   }
+})
+
+const filterMerchResults = async (pl) => {
+  currentMerchPlace.value = pl
+  await changeMerchResScreen(pl) // Ждем завершения запроса
 }
+
+
+
+
+// const results = ref([])
+// const currentMerchPlace = ref(0)
+
+// const filterMerchResults = (pl) => {
+//   currentMerchPlace.value = pl
+//   if (pl === 0) {
+//     results.value  =  merchantStore.merchantsList
+//   }else{
+//     results.value  =  merchantStore.merchantsList.filter(merchant => merchant.place === pl)
+//   }
+// }
 
 // Обработчик клавиш
 const handleKeyDown = (e) => {
@@ -102,6 +129,22 @@ const changeScreen = async (screen) => {
   }
 }
 
+const changeMerchResScreen = async (merch_screen) => {
+  try {
+    await axios.patch(
+      `${import.meta.env.VITE_PROXY}/game_parameters/change_curr_merch_res_screen`,
+      { request: merch_screen }
+    )
+    isTransitioning.value = true
+    setTimeout(() => {
+      isTransitioning.value = false
+    }, 300)
+  } catch (error) {
+    console.error("Ошибка при смене экрана:", error)
+  }
+}
+
+
 // Хуки жизненного цикла
 onMounted(() => {
   document.addEventListener('keydown', handleKeyDown)
@@ -109,8 +152,15 @@ onMounted(() => {
     isFullscreen.value = !!document.fullscreenElement
   })
   startPolling()
-  merchantStore.fetchMerchantResults() // ← добавьте загрузку merchants
-
+  
+  // Запускаем polling store и ждем загрузки
+  merchantStore.startPolling()
+  filterMerchResults(0)
+  
+  // Если нужно сразу загрузить данные
+  merchantStore.fetchMerchantResults().catch(error => {
+    console.error('Ошибка загрузки merchants:', error)
+  })
 })
 
 onBeforeUnmount(() => {
@@ -118,7 +168,8 @@ onBeforeUnmount(() => {
     clearInterval(pollInterval.value)
     pollInterval.value = null
   }
-  filterMerchResults(0)
+  
+  merchantStore.stopPolling()
 })
 
 onUnmounted(() => {
@@ -128,6 +179,8 @@ onUnmounted(() => {
 </script>
 
 <template>
+
+{{results}}
 
   <!-- Режим управления (не полноэкранный) -->
   <div v-if="!isFullscreen" class="management-mode">
@@ -170,7 +223,7 @@ onUnmounted(() => {
 
               <div class="merchant-controls-compact">
                 <button 
-                  @click="() => filterMerchResults(0)"
+                  @click="() => { filterMerchResults(0); changeMerchResScreen(0); }"
                   :class="{ active: currentMerchPlace === 0 }"
                   class="compact-button all-btn"
                   :disabled="merchantStore.isLoading"
@@ -180,7 +233,7 @@ onUnmounted(() => {
                 </button>
                 
                 <button 
-                  @click="() => filterMerchResults(3)"
+                  @click="() => { filterMerchResults(3); changeMerchResScreen(3); }"
                   :class="{ active: currentMerchPlace === 3 }"
                   class="compact-button third-btn"
                   :disabled="merchantStore.isLoading"
@@ -190,7 +243,7 @@ onUnmounted(() => {
                 </button>
                 
                 <button 
-                  @click="() => filterMerchResults(2)"
+                  @click="() => { filterMerchResults(2); changeMerchResScreen(2); }"
                   :class="{ active: currentMerchPlace === 2 }"
                   class="compact-button second-third-btn"
                   :disabled="merchantStore.isLoading"
@@ -200,7 +253,7 @@ onUnmounted(() => {
                 </button>
                 
                 <button 
-                  @click="() => filterMerchResults(1)"
+                  @click="() => { filterMerchResults(1); changeMerchResScreen(1); }"
                   :class="{ active: currentMerchPlace === 1 }"
                   class="compact-button top-three-btn"
                   :disabled="merchantStore.isLoading"
@@ -282,7 +335,7 @@ onUnmounted(() => {
         <template v-else-if="selectedScreen === 'merchant_results'">
           <div class="results-screen">
             <!-- Все места -->
-            <div v-if="currentMerchPlace === 0" class="all-results-container">
+            <div v-if="merchantStore.currentMerchantsResultsScreen === 0" class="all-results-container">
               <div class="fullscreen-text-container">
                 <h1 class="fullscreen-results">Результаты купцов</h1>
                 <div class="results-list">
@@ -307,7 +360,7 @@ onUnmounted(() => {
             <div v-else class="single-place-fullscreen">
               <div class="fullscreen-text-container">
                 <!-- Третье место -->
-                <div v-if="currentMerchPlace === 3" class="place-section bronze">
+                <div v-if="merchantStore.currentMerchantsResultsScreen === 3" class="place-section bronze">
                   <div class="fullscreen-place-title"> Третье место</div>
                   <div class="winner-list">
                     <div 
@@ -328,7 +381,7 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Второе место -->
-                <div v-else-if="currentMerchPlace === 2" class="place-section silver">
+                <div v-else-if="merchantStore.currentMerchantsResultsScreen === 2" class="place-section silver">
                   <div class="fullscreen-place-title"> Второе место</div>
                   <div class="winner-list">
                     <div 
@@ -348,7 +401,7 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Первое место -->
-                <div v-else-if="currentMerchPlace === 1" class="place-section gold">
+                <div v-else-if="merchantStore.currentMerchantsResultsScreen === 1" class="place-section gold">
                   <div class="fullscreen-place-title"> Первое место</div>
 
                   <div class="winner-list">
