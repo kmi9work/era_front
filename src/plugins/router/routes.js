@@ -23,6 +23,10 @@ export const routes = [
       {
         path: 'aux',
         component: () => import('@/pages/aux.vue'),
+      },
+      {
+        path: 'general',
+        component: () => import('@/pages/general.vue'),
       }
 
 
