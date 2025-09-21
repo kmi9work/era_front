@@ -179,9 +179,6 @@ onUnmounted(() => {
 </script>
 
 <template>
-
-{{results}}
-
   <!-- Режим управления (не полноэкранный) -->
   <div v-if="!isFullscreen" class="management-mode">
     <div class="preview-container">
