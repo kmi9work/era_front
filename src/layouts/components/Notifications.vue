@@ -6,6 +6,7 @@
   const not_read = ref([2])
   const expandedItems = ref(new Set())
   const expandedGroups = ref(new Set())
+  const viewedAudits = ref(new Set())
 
   const groupedAudits = computed(() => {
     const groups = {}
@@ -17,32 +18,47 @@
       if (!groups[categoryKey]) {
         groups[categoryKey] = {
           category: category,
-          items: []
+          items: [],
+          unviewedItems: []
         }
       }
       
       groups[categoryKey].items.push(audit)
+      
+      // Добавляем в непросмотренные, если событие не просмотрено
+      if (!audit.is_viewed) {
+        groups[categoryKey].unviewedItems.push(audit)
+      }
     })
     
-    // Сортируем группы по количеству элементов (больше сначала)
-    return Object.values(groups).sort((a, b) => b.items.length - a.items.length)
+    // Сортируем группы по количеству непросмотренных элементов (больше сначала)
+    return Object.values(groups).sort((a, b) => b.unviewedItems.length - a.unviewedItems.length)
+  })
+
+  // Подсчитываем общее количество непросмотренных событий
+  const totalUnviewedCount = computed(() => {
+    return audits.value.filter(audit => !audit.is_viewed).length
   })
 
   async function updateNotifications(){
     await axios.get(`${import.meta.env.VITE_PROXY}/audits.json`)
       .then(async (response) => {
         audits.value = response.data;
-        // По умолчанию все группы скрыты
-        expandedGroups.value = new Set()
+        // Не сбрасываем состояние групп при обновлении данных
       })
   }
 
   function toggleExpanded(itemId, event) {
+    // Останавливаем всплытие события
     event.stopPropagation()
+    event.preventDefault()
+    
     if (expandedItems.value.has(itemId)) {
       expandedItems.value.delete(itemId)
     } else {
       expandedItems.value.add(itemId)
+      // Отмечаем событие как просмотренное при клике на него
+      markAuditAsViewed(itemId)
     }
   }
 
@@ -52,6 +68,12 @@
 
   function toggleGroupExpanded(categoryName, event) {
     event.stopPropagation()
+    
+    // Проверяем, что клик был именно на заголовке группы, а не на элементе события
+    if (event.target.closest('.notification-item')) {
+      return
+    }
+    
     if (expandedGroups.value.has(categoryName)) {
       expandedGroups.value.delete(categoryName)
     } else {
@@ -61,6 +83,57 @@
 
   function isGroupExpanded(categoryName) {
     return expandedGroups.value.has(categoryName)
+  }
+
+  async function markAuditAsViewed(auditId) {
+    // Проверяем, не просмотрено ли уже событие
+    const audit = audits.value.find(a => a.id === auditId)
+    if (audit && audit.is_viewed) {
+      console.log(`Событие ${auditId} уже просмотрено, запрос не отправляется`)
+      return // Событие уже просмотрено, не отправляем запрос
+    }
+    
+    try {
+      await axios.post(`${import.meta.env.VITE_PROXY}/audits/mark_as_viewed`, {
+        audit_id: auditId
+      })
+      
+      // Обновляем локальное состояние для конкретного события
+      if (audit) {
+        audit.is_viewed = true
+        // Принудительно обновляем реактивность
+        audits.value = [...audits.value]
+      }
+    } catch (error) {
+      console.error('Ошибка при отметке события как просмотренное:', error)
+    }
+  }
+
+  async function markAllAsViewed() {
+    // Находим все непросмотренные события
+    const unviewedAudits = audits.value.filter(audit => !audit.is_viewed)
+    
+    if (unviewedAudits.length === 0) {
+      console.log('Все события уже просмотрены')
+      return
+    }
+    
+    try {
+      // Отправляем запрос на новый endpoint для отметки всех событий
+      const response = await axios.post(`${import.meta.env.VITE_PROXY}/audits/mark_all_as_viewed`)
+      
+      // Обновляем локальное состояние для всех непросмотренных событий
+      unviewedAudits.forEach(audit => {
+        audit.is_viewed = true
+      })
+      
+      // Принудительно обновляем реактивность
+      audits.value = [...audits.value]
+      
+      console.log(`Отмечено как просмотренные: ${response.data.marked_count} событий`)
+    } catch (error) {
+      console.error('Ошибка при отметке всех событий как просмотренных:', error)
+    }
   }
 
   function getPoliticalActionDescription(audit) {
@@ -432,6 +505,12 @@
   onBeforeMount(async () => {
     updateNotifications()
   })
+
+  // Экспортируем totalUnviewedCount и updateNotifications для использования в родительском компоненте
+  defineExpose({
+    totalUnviewedCount,
+    updateNotifications
+  })
 </script>
 
 <template>
@@ -443,30 +522,46 @@
       offset="14px"
     >
 
-      <v-card class="mx-auto" max-width="500">
-        <v-toolbar color="pink">
-          <v-btn icon="mdi-menu"></v-btn>
-
-          <v-toolbar-title>Новые действия</v-toolbar-title>
+      <v-card class="mx-auto notifications-card" max-width="600">
+        <v-toolbar color="pink" class="notifications-toolbar">
+          <v-toolbar-title class="notifications-title">Новые действия</v-toolbar-title>
 
           <v-spacer></v-spacer>
 
-          <v-btn icon="mdi-magnify"></v-btn>
-
-          <v-btn icon="mdi-checkbox-marked-circle"></v-btn>
+          <v-btn 
+            icon="mdi-check-all" 
+            @click="markAllAsViewed"
+            :disabled="totalUnviewedCount === 0"
+            title="Прочитать все события"
+            size="small"
+          ></v-btn>
         </v-toolbar>
 
         <div class="notifications-list">
+          <!-- Кнопка "Прочитать все" -->
+          <div v-if="totalUnviewedCount > 0" class="mark-all-container">
+            <v-btn 
+              color="primary" 
+              variant="outlined" 
+              size="small"
+              @click="markAllAsViewed"
+              prepend-icon="mdi-check-all"
+              class="mark-all-btn"
+            >
+              Прочитать все ({{ totalUnviewedCount }})
+            </v-btn>
+          </div>
+          
           <div
             v-for="group in groupedAudits"
             :key="group.category.category"
             class="category-group"
           >
-            <div class="category-header" @click="toggleGroupExpanded(group.category.category, $event)">
+            <div class="category-header" @click.stop="toggleGroupExpanded(group.category.category, $event)">
               <div class="category-title">
                 <v-icon :icon="group.category.icon" size="small" class="category-header-icon" :style="{ color: group.category.color }"></v-icon>
                 <span>{{ group.category.category }}</span>
-                <span class="category-count">({{ group.items.length }})</span>
+                <span v-if="group.unviewedItems.length > 0" class="category-count">({{ group.unviewedItems.length }})</span>
               </div>
               <v-icon 
                 :class="['group-expand-icon', { 'expanded': isGroupExpanded(group.category.category) }]"
@@ -481,8 +576,11 @@
                 v-for="audit in group.items"
                 :key="audit.id"
                 class="notification-item"
-                :class="{ 'expanded': isExpanded(audit.id) }"
-                @click="toggleExpanded(audit.id, $event)"
+                :class="{ 
+                  'expanded': isExpanded(audit.id),
+                  'unviewed': !audit.is_viewed
+                }"
+                @click.stop="toggleExpanded(audit.id, $event)"
               >
                 <div class="notification-content">
                   <div class="notification-header">
@@ -493,7 +591,8 @@
                     </div>
                     <button 
                       class="expand-btn"
-                      @click="toggleExpanded(audit.id, $event)"
+                      :class="{ 'viewed': audit.is_viewed }"
+                      @click.stop="toggleExpanded(audit.id, $event)"
                     >
                       <v-icon 
                         :class="['expand-icon', { 'expanded': isExpanded(audit.id) }]"
@@ -658,6 +757,16 @@
   background-color: #f8f9fa;
 }
 
+.notification-item.unviewed {
+  background-color: #fff3cd;
+  border-left: 4px solid #ffc107;
+  font-weight: 500;
+}
+
+.notification-item.unviewed:hover {
+  background-color: #ffeaa7;
+}
+
 .notification-content {
   padding: 16px;
 }
@@ -737,6 +846,14 @@
   background-color: #e0e0e0;
 }
 
+.expand-btn.viewed {
+  opacity: 0.6;
+}
+
+.expand-btn.viewed:hover {
+  background-color: #f0f0f0;
+}
+
 .expand-icon {
   transition: transform 0.3s ease;
   color: #666;
@@ -807,5 +924,42 @@
 
 .notifications-list::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+/* Стили для кнопки "Прочитать все" */
+.mark-all-container {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #f8f9fa;
+  text-align: center;
+}
+
+.mark-all-btn {
+  width: 100%;
+  font-weight: 500;
+}
+
+/* Стили для карточки уведомлений */
+.notifications-card {
+  min-width: 400px;
+  max-width: 600px;
+}
+
+/* Стили для заголовка уведомлений */
+.notifications-toolbar {
+  min-height: 48px !important;
+  padding: 0 16px !important;
+}
+
+.notifications-title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: black !important;
+  flex: 1 !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  max-width: none !important;
+  margin-right: 16px !important;
 }
 </style>

@@ -1,4 +1,5 @@
 <script setup>
+  import { ref, onBeforeMount } from 'vue'
   import axios from 'axios'
   import NavItems from '@/layouts/components/NavItems.vue'
   import logo from '@images/logo.svg?raw'
@@ -9,10 +10,12 @@
   import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
   import UserProfile from '@/layouts/components/UserProfile.vue'
   import Notifications from '@/layouts/components/Notifications.vue'
+  import { setNotificationsRef, setupNotificationInterceptor } from '@/composables/useNotifications'
 
   const se_paid = ref(false);
   const game_parameters = ref([]);
   const current_year = ref(0);
+  const notificationsRef = ref(null);
   
   async function payStateExpenses(){
     let fl = confirm("Уверен? Это необратимо.");
@@ -20,6 +23,7 @@
       await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/pay_state_expenses.json`)
         .then(async (response) => {
           se_paid.value = true
+          // Уведомления обновятся автоматически через перехватчик
         })
     }
   }
@@ -30,6 +34,7 @@
       await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/unpay_state_expenses.json`)
         .then(async (response) => {
           se_paid.value = false
+          // Уведомления обновятся автоматически через перехватчик
         })
     }
   }
@@ -40,12 +45,18 @@
       await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/increase_year.json?kaznachei_bonus=1`)
         .then(async (response) => {
           se_paid.value = false
+          // Уведомления обновятся автоматически через перехватчик
           window.location.reload()
         })
     }
   }
 
   onBeforeMount(async () => {
+    // Настраиваем перехватчик для автоматического обновления уведомлений
+    setupNotificationInterceptor()
+    
+    // Уведомления обновляются автоматически через перехватчик axios
+    
     await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters.json`) 
       .then(response => {
         game_parameters.value = response.data;
@@ -54,9 +65,13 @@
       })
   })
 
+  // Устанавливаем ссылку на компонент уведомлений
+  function onNotificationsMounted() {
+    setNotificationsRef(notificationsRef.value)
+  }
+
   // Таймер
   import { useTimerStore } from '@/stores/timer'
-  import { onMounted } from 'vue'
 
   const timerStore = useTimerStore()
 
@@ -109,7 +124,15 @@
           Сменить
         </VBtn>
 
-        <Notifications />
+        <div class="notifications-container">
+          <Notifications ref="notificationsRef" @vue:mounted="onNotificationsMounted" />
+          <span 
+            v-if="notificationsRef?.totalUnviewedCount > 0" 
+            class="notification-badge"
+          >
+            {{ notificationsRef.totalUnviewedCount }}
+          </span>
+        </div>
 
         <NavbarThemeSwitcher class="me-2" />
 
@@ -209,6 +232,43 @@
 .timer-display:hover {
   background: rgba(var(--v-theme-primary), 0.2);
   transform: translateY(-1px);
+}
+
+/* Стили для счетчика уведомлений */
+.notifications-container {
+  position: relative;
+  display: inline-block;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #ff4444;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  min-width: 20px;
+  z-index: 1;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* Адаптивность */
