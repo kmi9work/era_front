@@ -47,7 +47,7 @@ import VerticalNavLink from '@layouts/components/VerticalNavLink.vue'
 
   <VerticalNavLink
     :item="{
-      title: 'Общее',
+      title: 'Статистика',
       icon: 'ri-dashboard-line',
       to: '/general',
     }"

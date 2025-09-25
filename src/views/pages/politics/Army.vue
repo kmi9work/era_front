@@ -383,7 +383,17 @@
       editArmyDialog.value = false
     } catch (error) {
       console.error('Ошибка при обновлении армии:', error)
-      alert('Не удалось обновить армию')
+      
+      // Получаем сообщения об ошибках из ответа сервера
+      let errorMessage = 'Не удалось обновить армию'
+      if (error.response?.data?.errors) {
+        const errors = error.response.data.errors
+        if (Array.isArray(errors) && errors.length > 0) {
+          errorMessage = errors.join(', ')
+        }
+      }
+      
+      alert(errorMessage)
     }
   }
 

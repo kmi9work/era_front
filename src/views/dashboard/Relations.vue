@@ -37,7 +37,7 @@
   }
 
   async function setEmbargo(country_id){
-    axios.patch(`${import.meta.env.VITE_PROXY}/countries/${country_id}/set_embargo.json`) 
+    axios.patch(`${import.meta.env.VITE_PROXY}/countries/${country_id}/set_embargo`) 
       .then(response => {
         emit('reload-dashboard');
       })

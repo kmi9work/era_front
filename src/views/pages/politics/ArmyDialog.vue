@@ -109,6 +109,11 @@ const submit = () => {
 watch(dialog, (val) => {
   if (val) initForm()
 })
+
+// Также следим за изменениями army
+watch(() => props.army, () => {
+  if (dialog.value) initForm()
+}, { deep: true })
 </script>
 
 <template>

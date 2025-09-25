@@ -37,7 +37,7 @@ async function loginUser(user_id) {
     location="bottom right"
     offset-x="3"
     offset-y="3"
-    :color="current_user.id ? 'success' : 'error'"
+    :color="current_user.name === 'Аноним' ? 'error' : 'success'"
     bordered
   >
     <VAvatar

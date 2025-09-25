@@ -3,6 +3,7 @@ import { ref, onBeforeMount } from 'vue'
 import axios from 'axios'
 import RegionsTable from '@/views/pages/general/RegionsTable.vue'
 import PlayersTable from '@/views/pages/general/PlayersTable.vue'
+import DetailedYearlyStats from '@/views/pages/general/DetailedYearlyStats.vue'
 
 const regions = ref([])
 const players = ref([])
@@ -50,6 +51,12 @@ onBeforeMount(() => {
 <template>
   <div>
     <VRow class="match-height">
+      <VCol cols="12">
+        <DetailedYearlyStats />
+      </VCol>
+    </VRow>
+
+    <VRow class="match-height mt-4">
       <VCol cols="12">
         <RegionsTable 
           :regions="regions" 

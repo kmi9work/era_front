@@ -31,8 +31,8 @@
       }
     })
     
-    // Сортируем группы по количеству непросмотренных элементов (больше сначала)
-    return Object.values(groups).sort((a, b) => b.unviewedItems.length - a.unviewedItems.length)
+    // Сортируем группы по алфавиту названий категорий
+    return Object.values(groups).sort((a, b) => a.category.category.localeCompare(b.category.category))
   })
 
   // Подсчитываем общее количество непросмотренных событий
@@ -238,6 +238,155 @@
     return `ОП в ${regionName} ${changeText} (${comment}) (${actionYear})`
   }
 
+  function getTechnologyDescription(audit) {
+    const { auditable, action, audited_changes, auditable_type, year, technology_name } = audit
+    
+    if (auditable_type !== 'TechnologyItem') return null
+    
+    // Получаем данные из audited_changes
+    const value = audited_changes?.value || auditable?.value
+    const comment = audited_changes?.comment || auditable?.comment || ''
+    
+    // Получаем год из бэкенда
+    const actionYear = year || audited_changes?.year || auditable?.year || 'неизвестный год'
+    
+    // Получаем название технологии из бэкенда
+    const technologyName = technology_name || auditable?.technology?.name || 'Неизвестная технология'
+    
+    // Определяем действие
+    if (action === 'create') {
+      const status = value === 1 ? 'открыта' : 'закрыта'
+      return `${technologyName} - ${status} (${actionYear})`
+    } else if (action === 'update') {
+      const oldValue = audited_changes?.value?.[0]
+      const newValue = audited_changes?.value?.[1]
+      
+      if (oldValue === 0 && newValue === 1) {
+        return `${technologyName} - открыта (${actionYear})`
+      } else if (oldValue === 1 && newValue === 0) {
+        return `${technologyName} - закрыта (${actionYear})`
+      } else {
+        return `${technologyName} - изменена (${actionYear})`
+      }
+    } else if (action === 'destroy') {
+      return `${technologyName} - удалена (${actionYear})`
+    }
+    
+    return `${technologyName} - изменена (${actionYear})`
+  }
+
+  function getBattleDescription(audit) {
+    const { auditable, action, audited_changes, auditable_type, year, attacker_name, defender_name, winner_name, loser_name, damage, attacker_owner_name, defender_owner_name, winner_owner_name, attacker_army_name, defender_army_name, winner_army_name } = audit
+    
+    if (auditable_type !== 'Battle') return null
+    
+    // Получаем год из бэкенда
+    const actionYear = year || audited_changes?.year || auditable?.year || 'неизвестный год'
+    
+    // Получаем данные о сражении, приоритет сохранённым названиям армий
+    const attacker = attacker_army_name || attacker_owner_name || attacker_name || auditable?.attacker_army_name || auditable?.attacker_owner_name || auditable?.attacker_name || 'Неизвестный'
+    const defender = defender_army_name || defender_owner_name || defender_name || auditable?.defender_army_name || auditable?.defender_owner_name || auditable?.defender_name || 'Неизвестный'
+    const winner = winner_army_name || winner_owner_name || winner_name || auditable?.winner_army_name || auditable?.winner_owner_name || auditable?.winner_name || 'Неизвестный'
+    const loser = loser_name || auditable?.loser_name || 'Неизвестный'
+    const battleDamage = damage || auditable?.damage || 0
+    
+    // Определяем действие
+    if (action === 'create') {
+      return `${attacker} победил ${defender} (урон: ${battleDamage}) (${actionYear})`
+    } else if (action === 'update') {
+      return `${attacker} vs ${defender} - изменено (${actionYear})`
+    } else if (action === 'destroy') {
+      return `Сражение ${attacker} vs ${defender} - удалено (${actionYear})`
+    }
+    
+    return `${attacker} vs ${defender} - сражение (${actionYear})`
+  }
+
+  function getArmyDescription(audit) {
+    const { auditable, action, audited_changes, auditable_type, year, troop_type_name, army_name, army_owner_name, settlement_name, debug_audited_changes } = audit
+    
+    if (auditable_type !== 'Army' && auditable_type !== 'Troop') return null
+    
+    // Получаем год из бэкенда
+    const actionYear = year || audited_changes?.year || auditable?.year || 'неизвестный год'
+    
+    // Обработка отрядов
+    if (auditable_type === 'Troop') {
+      const troopType = troop_type_name || auditable?.troop_type?.name || 'Неизвестный тип'
+      const armyName = army_name || auditable?.army?.name || 'Неизвестная армия'
+      const armyOwner = army_owner_name || auditable?.army?.owner?.name || 'Неизвестный владелец'
+      
+      if (action === 'create') {
+        return `Добавлен отряд ${troopType} в армию ${armyName} (${armyOwner}) (${actionYear})`
+      } else if (action === 'update') {
+        // Проверяем, изменился ли параметр paid
+        if (audited_changes?.params && Array.isArray(audited_changes.params) && audited_changes.params.length === 2) {
+          const oldParams = audited_changes.params[0] || {}
+          const newParams = audited_changes.params[1] || {}
+          const oldPaid = oldParams.paid || []
+          const newPaid = newParams.paid || []
+          const currentYear = parseInt(actionYear)
+          
+          if (oldPaid.includes(currentYear) && !newPaid.includes(currentYear)) {
+            return `Отряд ${troopType} в армии ${armyName} - неоплачен (${actionYear})`
+          } else if (!oldPaid.includes(currentYear) && newPaid.includes(currentYear)) {
+            return `Отряд ${troopType} в армии ${armyName} - оплачен (${actionYear})`
+          }
+        }
+        return `Отряд ${troopType} в армии ${armyName} - изменено (${actionYear})`
+      } else if (action === 'destroy') {
+        return `Отряд ${troopType} в армии ${armyName} - удален (${actionYear})`
+      }
+      
+      return `Отряд ${troopType} в армии ${armyName} (${actionYear})`
+    }
+    
+    // Обработка армий
+    if (auditable_type === 'Army') {
+      const armyName = army_name || auditable?.name || 'Неизвестная армия'
+      const armyOwner = army_owner_name || auditable?.owner?.name || 'Неизвестный владелец'
+      const settlementName = settlement_name || auditable?.settlement?.name || 'неизвестное поселение'
+      
+      if (action === 'create') {
+        return `Создана армия ${armyName} (${armyOwner}) (${actionYear})`
+      } else if (action === 'update') {
+        // Проверяем, что именно изменилось
+        if (audited_changes?.name) {
+          const oldName = audited_changes.name[0] || 'Без названия'
+          const newName = audited_changes.name[1] || 'Без названия'
+          return `Армия переименована с "${oldName}" на "${newName}" (${armyOwner}) (${actionYear})`
+        } else if (audited_changes?.hidden !== undefined) {
+          const wasHidden = audited_changes.hidden[0]
+          const isHidden = audited_changes.hidden[1]
+          if (wasHidden && !isHidden) {
+            return `Армия ${armyName} разведана (${armyOwner}) (${actionYear})`
+          } else if (!wasHidden && isHidden) {
+            return `Армия ${armyName} скрыта (${armyOwner}) (${actionYear})`
+          }
+        } else if (audited_changes?.settlement_id) {
+          const oldSettlementId = audited_changes.settlement_id[0]
+          const newSettlementId = audited_changes.settlement_id[1]
+          if (oldSettlementId && newSettlementId) {
+            return `Армия ${armyName} перемещена в ${settlementName} (${armyOwner}) (${actionYear})`
+          } else if (newSettlementId) {
+            return `Армия ${armyName} прибыла в ${settlementName} (${armyOwner}) (${actionYear})`
+          } else if (oldSettlementId) {
+            return `Армия ${armyName} покинула поселение (${armyOwner}) (${actionYear})`
+          }
+        } else if (audited_changes?.owner_id || audited_changes?.owner_type) {
+          return `Армия ${armyName} передана другому владельцу (${actionYear})`
+        }
+        return `Армия ${armyName} - изменено (${armyOwner}) (${actionYear})`
+      } else if (action === 'destroy') {
+        return `Армия ${armyName} (${armyOwner}) - уничтожена (${actionYear})`
+      }
+      
+      return `Армия ${armyName} (${armyOwner}) (${actionYear})`
+    }
+    
+    return null
+  }
+
   function getRegionDescription(audit) {
     const { auditable, action, audited_changes, auditable_type, old_country_name, new_country_name, year } = audit
     
@@ -397,6 +546,115 @@
     return `${settlementName}: ${buildingType} (ур.${level}) - ${actionText} (${year})`
   }
 
+  function getGameParameterDescription(audit) {
+    const { auditable, action, audited_changes, auditable_type, year, comment } = audit
+    
+    if (auditable_type !== 'GameParameter') return null
+    
+    // Если есть комментарий из audit_comment, используем его
+    if (comment) {
+      return comment
+    }
+    
+    // Получаем год из бэкенда
+    const actionYear = year || audited_changes?.year || auditable?.year || 'неизвестный год'
+    
+    // Проверяем, что изменилось
+    if (audited_changes?.value) {
+      // Изменение года
+      const [oldYear, newYear] = audited_changes.value
+      return `Год изменен с ${oldYear} на ${newYear}`
+    } else if (audited_changes?.params) {
+      // Изменение параметров (оплата госрасходов)
+      const [oldParams, newParams] = audited_changes.params
+      
+      if (oldParams && newParams) {
+        const oldPaid = oldParams.state_expenses
+        const newPaid = newParams.state_expenses
+        
+        if (oldPaid === false && newPaid === true) {
+          return `Оплачены госрасходы за ${actionYear} год`
+        } else if (oldPaid === true && newPaid === false) {
+          return `Отменена оплата госрасходов за ${actionYear} год`
+        }
+      }
+    }
+    
+    return `Параметр игры изменен (${actionYear})`
+  }
+
+  function getJobDescription(audit) {
+    const { auditable, action, audited_changes, auditable_type, year, comment } = audit
+    
+    if (auditable_type !== 'Job') return null
+    
+    // Если есть комментарий, используем его
+    if (comment) {
+      return comment
+    }
+    
+    // Получаем год из бэкенда
+    const actionYear = year || audited_changes?.year || auditable?.year || 'неизвестный год'
+    
+    // Получаем название должности
+    const jobName = auditable?.name || 'Неизвестная должность'
+    
+    return `${jobName} изменен (${actionYear})`
+  }
+
+  function getRelationItemDescription(audit) {
+    const { auditable, action, audited_changes, auditable_type, country_name, relation_value, relation_comment, relation_year } = audit
+    
+    if (auditable_type !== 'RelationItem') return null
+    
+    // Получаем данные из бэкенда или auditable
+    const countryName = country_name || auditable?.country?.name || 'Неизвестная страна'
+    const value = relation_value || auditable?.value || 0
+    const comment = relation_comment || auditable?.comment || ''
+    const actionYear = relation_year || auditable?.year || 'неизвестный год'
+    
+    // Определяем направление изменения
+    let direction = ''
+    if (value > 0) {
+      direction = `улучшились на +${value}`
+    } else if (value < 0) {
+      direction = `ухудшились на ${value}`
+    } else {
+      direction = 'не изменились'
+    }
+    
+    // Формируем описание
+    let description = `Отношения с ${countryName} ${direction}`
+    if (comment) {
+      description += ` (${comment})`
+    }
+    description += ` (${actionYear})`
+    
+    return description
+  }
+
+  function getCountryDescription(audit) {
+    const { auditable, action, audited_changes, auditable_type, country_name, embargo_changed, old_embargo, new_embargo } = audit
+    
+    if (auditable_type !== 'Country') return null
+    
+    const countryName = country_name || auditable?.name || 'Неизвестная страна'
+    
+    // Проверяем изменения эмбарго
+    if (embargo_changed) {
+      if (old_embargo === 0 && new_embargo === 1) {
+        return `${countryName} - введено эмбарго против Руси`
+      } else if (old_embargo === 1 && new_embargo === 0) {
+        return `${countryName} - снято эмбарго против Руси`
+      } else {
+        return `${countryName} - изменено эмбарго`
+      }
+    }
+    
+    // Если нет изменений эмбарго, показываем общее изменение
+    return `${countryName} - изменена`
+  }
+
   function getActionCategory(audit) {
     const { auditable_type, action, auditable } = audit
     
@@ -448,7 +706,7 @@
     
     if (auditable_type === 'Army') {
       return {
-        category: 'Армия',
+        category: 'Армии',
         icon: 'mdi-shield-account',
         color: '#E91E63'
       }
@@ -491,6 +749,66 @@
         category: 'Общественный порядок',
         icon: 'mdi-scale-balance',
         color: '#9C27B0'
+      }
+    }
+    
+    if (auditable_type === 'TechnologyItem') {
+      return {
+        category: 'Технологии',
+        icon: 'mdi-cog',
+        color: '#607D8B'
+      }
+    }
+    
+    if (auditable_type === 'Battle') {
+      return {
+        category: 'Сражения',
+        icon: 'mdi-sword-cross',
+        color: '#D32F2F'
+      }
+    }
+    
+    if (auditable_type === 'Troop') {
+      return {
+        category: 'Армии',
+        icon: 'mdi-shield-account',
+        color: '#E91E63'
+      }
+    }
+    
+    // Параметры игры
+    if (auditable_type === 'GameParameter') {
+      return {
+        category: 'Игра',
+        icon: 'mdi-cog',
+        color: '#607D8B'
+      }
+    }
+    
+    // Должности
+    if (auditable_type === 'Job') {
+      return {
+        category: 'Должности',
+        icon: 'mdi-account-tie',
+        color: '#9C27B0'
+      }
+    }
+    
+    // Отношения между странами
+    if (auditable_type === 'RelationItem') {
+      return {
+        category: 'Дипломатия',
+        icon: 'mdi-handshake',
+        color: '#2196F3'
+      }
+    }
+    
+    // Изменения стран (эмбарго)
+    if (auditable_type === 'Country') {
+      return {
+        category: 'Дипломатия',
+        icon: 'mdi-flag',
+        color: '#2196F3'
       }
     }
     
@@ -626,6 +944,27 @@
                       <template v-else-if="getPublicOrderDescription(audit)">
                         {{ getPublicOrderDescription(audit) }}
                       </template>
+                      <template v-else-if="getTechnologyDescription(audit)">
+                        {{ getTechnologyDescription(audit) }}
+                      </template>
+                      <template v-else-if="getBattleDescription(audit)">
+                        {{ getBattleDescription(audit) }}
+                      </template>
+                      <template v-else-if="getArmyDescription(audit)">
+                        {{ getArmyDescription(audit) }}
+                      </template>
+                      <template v-else-if="getGameParameterDescription(audit)">
+                        {{ getGameParameterDescription(audit) }}
+                      </template>
+                      <template v-else-if="getJobDescription(audit)">
+                        {{ getJobDescription(audit) }}
+                      </template>
+                      <template v-else-if="getRelationItemDescription(audit)">
+                        {{ getRelationItemDescription(audit) }}
+                      </template>
+                      <template v-else-if="getCountryDescription(audit)">
+                        {{ getCountryDescription(audit) }}
+                      </template>
                       <template v-else>
                         <strong>{{ audit.action }}:</strong> {{audit.audited_changes}}
                       </template>
@@ -636,6 +975,10 @@
                     <span class="user-name">
                       {{ audit.user?.name }}
                       <span v-if="audit.user?.job" class="user-job">({{ audit.user.job }})</span>
+                    </span>
+                    <span v-if="audit.player && audit.auditable_type !== 'Army'" class="player-name">
+                      Игрок: {{ audit.player.name }}
+                      <span v-if="audit.player.jobs" class="player-jobs">({{ audit.player.jobs }})</span>
                     </span>
                     <span class="timestamp">{{ new Date(audit.created_at).toLocaleString() }}</span>
                   </div>
@@ -899,6 +1242,21 @@
 .user-job {
   font-weight: 400;
   color: #999;
+  font-style: italic;
+  margin-left: 4px;
+}
+
+.player-name {
+  display: block;
+  color: #2196F3;
+  font-size: 0.9em;
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+.player-jobs {
+  color: #1976D2;
+  font-size: 0.85em;
   font-style: italic;
   margin-left: 4px;
 }

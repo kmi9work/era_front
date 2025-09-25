@@ -18,14 +18,11 @@
   const notificationsRef = ref(null);
   
   async function payStateExpenses(){
-    let fl = confirm("Уверен? Это необратимо.");
-    if (fl){
-      await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/pay_state_expenses.json`)
-        .then(async (response) => {
-          se_paid.value = true
-          // Уведомления обновятся автоматически через перехватчик
-        })
-    }
+    await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/pay_state_expenses.json`)
+      .then(async (response) => {
+        se_paid.value = true
+        // Уведомления обновятся автоматически через перехватчик
+      })
   }
 
   async function unpayStateExpenses(){
@@ -40,7 +37,7 @@
   }
 
   async function changeYear(){
-    let fl = confirm("Уверен?");
+    let fl = confirm("Уверен? Это необратимо.");
     if (fl){
       await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/increase_year.json?kaznachei_bonus=1`)
         .then(async (response) => {
