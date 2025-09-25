@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
-import { useMerchantResultsStore } from '@/stores/merchant_results'
+import { useEndGameResultsStore } from '@/stores/end_game_results'
 
 // Состояния формы
 const formData = ref({
@@ -17,16 +17,16 @@ const isFormVisible = ref(false);
 const errorMessage = ref(null);
 const successMessage = ref(null);
 const editingMerchant = ref(null);
-const merchantStore = useMerchantResultsStore()
+const endGameResultsStore = useEndGameResultsStore()
 
 const merchants = computed(() => {
-  return merchantStore.merchantsList
+  return endGameResultsStore.merchantsList
 })
 
 // Функция для обновления данных
 const refreshData = async () => {
   try {
-    await merchantStore.fetchMerchantResults()
+    await endGameResultsStore.fetchMerchantResults()
   } catch (error) {
     errorMessage.value = 'Ошибка обновления данных'
   }
@@ -129,7 +129,7 @@ const addResult = async () => {
 // Загружаем игроков при монтировании
 onMounted(() => {
   refreshData();
-  merchantStore.startPolling(); // Запускаем polling если нужно
+  endGameResultsStore.startPolling(); // Запускаем polling если нужно
 });
 
 // Helpers
