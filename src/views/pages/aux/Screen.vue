@@ -7,6 +7,7 @@ import { storeToRefs } from 'pinia'
 
 import previewPlaceholder from '@/assets/images/preview_placeholder.jpg'
 import previewMerchResults from '@/assets/images/preview_merch_results.jpg'
+import merchPlaceholderImg from '@/assets/images/merchPlaceholder.jpg'
 
 // Состояния
 const isFullscreen = ref(false)
@@ -72,19 +73,6 @@ const filterMerchResults = async (pl) => {
 
 
 
-
-// const results = ref([])
-// const currentMerchPlace = ref(0)
-
-// const filterMerchResults = (pl) => {
-//   currentMerchPlace.value = pl
-//   if (pl === 0) {
-//     results.value  =  merchantStore.merchantsList
-//   }else{
-//     results.value  =  merchantStore.merchantsList.filter(merchant => merchant.place === pl)
-//   }
-// }
-
 // Обработчик клавиш
 const handleKeyDown = (e) => {
   if (e.key === 'Escape' && isFullscreen.value) {
@@ -129,8 +117,13 @@ const changeScreen = async (screen) => {
   }
 }
 
+
+const screenVar = ref("'merchPlaceholder'")
+
+
 const changeMerchResScreen = async (merch_screen) => {
   try {
+    screenVar.value = merch_screen
     await axios.patch(
       `${import.meta.env.VITE_PROXY}/game_parameters/change_curr_merch_res_screen`,
       { request: merch_screen }
@@ -179,6 +172,7 @@ onUnmounted(() => {
 </script>
 
 <template>
+  {{merchantStore.currentMerchantsResultsScreen}}
   <!-- Режим управления (не полноэкранный) -->
   <div v-if="!isFullscreen" class="management-mode">
     <div class="preview-container">
@@ -220,28 +214,53 @@ onUnmounted(() => {
 
               <div class="merchant-controls-compact">
                 <button 
-                  @click="() => { filterMerchResults(0); changeMerchResScreen(0); }"
-                  :class="{ active: currentMerchPlace === 0 }"
+                  @click="() => {changeMerchResScreen('merchPlaceholder'); }"
+                  :class="{ active: screenVar === 'merchPlaceholder'}"
                   class="compact-button all-btn"
                   :disabled="merchantStore.isLoading"
                   title="Показать все результаты"
                 >
-                  Все
+                  Заглушка
                 </button>
+
+                <button 
+                  @click="() => {changeMerchResScreen('thirdMerch'); }"
+                  :class="{ active: screenVar === 'thirdMerch' }"
+                  class="compact-button third-btn"
+                  :disabled="merchantStore.isLoading"
+                  title="Только третье место"
+                >
+                  '3.1'
+                </button>
+
+
                 
                 <button 
                   @click="() => { filterMerchResults(3); changeMerchResScreen(3); }"
-                  :class="{ active: currentMerchPlace === 3 }"
+                  :class="{  active: screenVar === 3 }"
                   class="compact-button third-btn"
                   :disabled="merchantStore.isLoading"
                   title="Только третье место"
                 >
                   3
                 </button>
+
+
+                <button 
+                  @click="() => {changeMerchResScreen('secondMerch'); }"
+                  :class="{ active: screenVar === 'secondMerch' }"
+                  class="compact-button third-btn"
+                  :disabled="merchantStore.isLoading"
+                  title="Только третье место"
+                >
+                  '2.1'
+                </button>
+
+
                 
                 <button 
                   @click="() => { filterMerchResults(2); changeMerchResScreen(2); }"
-                  :class="{ active: currentMerchPlace === 2 }"
+                  :class="{  active: screenVar  === 2 }"
                   class="compact-button second-third-btn"
                   :disabled="merchantStore.isLoading"
                   title="Второе и третье места"
@@ -249,15 +268,42 @@ onUnmounted(() => {
                   2
                 </button>
                 
+
+                <button 
+                  @click="() => {changeMerchResScreen('firstMerch'); }"
+                  :class="{ active: screenVar === 'firstMerch' }"
+                  class="compact-button third-btn"
+                  :disabled="merchantStore.isLoading"
+                  title="Только третье место"
+                >
+                  '1.1'
+                </button>
+
+
+
                 <button 
                   @click="() => { filterMerchResults(1); changeMerchResScreen(1); }"
-                  :class="{ active: currentMerchPlace === 1 }"
+                  :class="{ active: screenVar  === 1 }"
                   class="compact-button top-three-btn"
                   :disabled="merchantStore.isLoading"
                   title="Топ 3 места"
                 >
                   1
                 </button>
+
+
+
+                <button 
+                  @click="() => {filterMerchResults(0); changeMerchResScreen('allMerch'); }"
+                  :class="{ active: screenVar === 'allMerch' }"
+                  class="compact-button third-btn"
+                  :disabled="merchantStore.isLoading"
+                  title="Только третье место"
+                >
+                  Все купцы
+                </button>
+
+
               </div>
             </div>
           </div>
@@ -330,9 +376,95 @@ onUnmounted(() => {
         </template>
 
         <template v-else-if="selectedScreen === 'merchant_results'">
+
           <div class="results-screen">
             <!-- Все места -->
-            <div v-if="merchantStore.currentMerchantsResultsScreen === 0" class="all-results-container">
+            <div v-if="merchantStore.currentMerchantsResultsScreen === 'merchPlaceholder'" class="all-results-container">
+              <div class="fullscreen-text-container">
+                <img 
+                  :src="merchPlaceholderImg" 
+                  alt="Результаты купцов" 
+                  class="merch-placeholder-image"
+                />
+              </div>
+            </div>
+
+            <div v-if="merchantStore.currentMerchantsResultsScreen === 'thirdMerch'" class="place-section bronze">
+              <div class="fullscreen-text-container">
+                <div class="fullscreen-place-title"> Третье место</div> 
+              </div>
+            </div>
+
+              <div v-else class="single-place-fullscreen">
+              <div class="fullscreen-text-container">
+                <!-- Третье место -->
+                <div v-if="merchantStore.currentMerchantsResultsScreen === 3" class="place-section bronze">
+                  
+                  <div class="winner-list">
+                    <div 
+                      v-for="(team, index) in results" 
+                      :key="team.player_id || index" 
+                      class="winner-line"
+                    >
+                      <span class="winner-name">{{ team.player }}</span>
+                      <span class="winner-stats">
+                        {{ team.capital.toLocaleString() }}💰 • 
+                        {{ team.number_of_players }}👥 • 
+                      <span class="highlight-gold">{{ (team.cap_per_pl || 0).toLocaleString() }}</span> •
+                      <span class="highlight-gold">{{ team.boyar_favor || 0 }}⚜️</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+            <div v-if="merchantStore.currentMerchantsResultsScreen === 'secondMerch'" class="place-section silver">
+              <div class="fullscreen-text-container">
+                <div class="fullscreen-place-title"> Второе место</div> 
+              </div>
+            </div>
+               <!-- Второе место -->
+                <div v-else-if="merchantStore.currentMerchantsResultsScreen === 2" class="place-section silver">
+                  <div class="winner-list">
+                    <div 
+                      v-for="(team, index) in results" 
+                      :key="team.player_id || index" 
+                      class="winner-line"
+                    >
+                      <span class="winner-name">{{ team.player }}</span>
+                      <span class="winner-stats">
+                        {{ team.capital.toLocaleString() }}💰 • 
+                        {{ team.number_of_players }}👥 • 
+                      <span class="highlight-gold">{{ (team.cap_per_pl || 0).toLocaleString() }}</span> •
+                      <span class="highlight-gold">{{ team.boyar_favor || 0 }}⚜️</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+            <div v-if="merchantStore.currentMerchantsResultsScreen === 'firstMerch'" class="place-section gold">
+              <div class="fullscreen-text-container">
+                <div class="fullscreen-place-title"> Первое место</div> 
+              </div>
+            </div>
+               <!-- Первое место -->
+                <div v-else-if="merchantStore.currentMerchantsResultsScreen === 1" class="place-section gold">
+
+                  <div class="winner-list">
+                    <div 
+                      v-for="(team, index) in results" 
+                      :key="team.player_id || index" 
+                      class="winner-line"
+                    >
+                      <span class="winner-name">{{ team.player }}</span>
+                      <span class="winner-stats">
+                        {{ team.capital.toLocaleString() }}💰 • 
+                        {{ team.number_of_players }}👥 • 
+                      <span class="highlight-gold">{{ (team.cap_per_pl || 0).toLocaleString() }}</span> •
+                      <span class="highlight-gold">{{ team.boyar_favor || 0 }}⚜️</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+             <div v-if="merchantStore.currentMerchantsResultsScreen === 'allMerch'" class="all-results-container">
               <div class="fullscreen-text-container">
                 <h1 class="fullscreen-results">Результаты купцов</h1>
                 <div class="results-list">
@@ -352,72 +484,6 @@ onUnmounted(() => {
                 </div>
               </div>
             </div>
-
-            <!-- Отдельные места -->
-            <div v-else class="single-place-fullscreen">
-              <div class="fullscreen-text-container">
-                <!-- Третье место -->
-                <div v-if="merchantStore.currentMerchantsResultsScreen === 3" class="place-section bronze">
-                  <div class="fullscreen-place-title"> Третье место</div>
-                  <div class="winner-list">
-                    <div 
-                      v-for="(team, index) in results" 
-                      :key="team.player_id || index" 
-                      class="winner-line"
-                    >
-                      <span class="winner-name">{{ team.player }}</span>
-                      <span class="winner-stats">
-                        {{ team.capital.toLocaleString() }}💰 • 
-                        {{ (team.cap_per_pl || 0).toLocaleString() }} •
-                        {{ team.number_of_players }}👥 • 
-                        {{ team.boyar_favor || 0 }}⚜️
-
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Второе место -->
-                <div v-else-if="merchantStore.currentMerchantsResultsScreen === 2" class="place-section silver">
-                  <div class="fullscreen-place-title"> Второе место</div>
-                  <div class="winner-list">
-                    <div 
-                      v-for="(team, index) in results" 
-                      :key="team.player_id || index" 
-                      class="winner-line"
-                    >
-                      <span class="winner-name">{{ team.player }}</span>
-                      <span class="winner-stats">
-                        {{ team.capital.toLocaleString() }}💰 • 
-                        {{ team.number_of_players }}👥 • 
-                        {{ (team.cap_per_pl || 0).toLocaleString() }} •
-                        {{ team.boyar_favor || 0 }}⚜️
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Первое место -->
-                <div v-else-if="merchantStore.currentMerchantsResultsScreen === 1" class="place-section gold">
-                  <div class="fullscreen-place-title"> Первое место</div>
-
-                  <div class="winner-list">
-                    <div 
-                      v-for="(team, index) in results" 
-                      :key="team.player_id || index" 
-                      class="winner-line"
-                    >
-                      <span class="winner-name">{{ team.player }}</span>
-                      <span class="winner-stats">
-                        {{ team.capital.toLocaleString() }}💰 • 
-                        {{ team.number_of_players }}👥 • 
-                        {{ (team.cap_per_pl || 0).toLocaleString() }} •
-                        {{ team.boyar_favor || 0 }}⚜️
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </template>
@@ -442,7 +508,6 @@ onUnmounted(() => {
   font-size: 12rem;
   font-weight: bold;
   text-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
-  margin-bottom: 2rem;
   line-height: 1;
   color: white;
 }
@@ -459,7 +524,7 @@ onUnmounted(() => {
 
 .fullscreen-place-title {
   font-family: 'Beryozki', sans-serif;
-  font-size: 8rem;
+  font-size: 20rem;
   font-weight: bold;
   text-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
   margin-bottom: 1rem;
@@ -672,6 +737,30 @@ onUnmounted(() => {
   padding: 1rem;
 }
 
+
+.merch-placeholder-image {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .merch-placeholder-image {
+    max-width: 95vw;
+    max-height: 95vh;
+  }
+}
+
+@media (max-width: 480px) {
+  .merch-placeholder-image {
+    max-width: 98vw;
+    max-height: 98vh;
+  }
+}
+
 .preview-container {
   display: flex;
   flex-direction: column;
@@ -683,6 +772,18 @@ onUnmounted(() => {
   gap: 2rem;
   justify-content: center;
   flex-wrap: wrap;
+}
+
+.highlight-gold {
+  color: #FFD700;
+  font-weight: bold;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  animation: gold-pulse 2s ease-in-out infinite;
+}
+
+@keyframes gold-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; text-shadow: 0 0 15px rgba(255, 215, 0, 0.8); }
 }
 
 .preview-card {
@@ -1031,6 +1132,8 @@ onUnmounted(() => {
   .merchant-controls-compact {
     gap: 6px;
   }
+
+
   
   .compact-button {
     padding: 4px 8px;
