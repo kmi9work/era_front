@@ -43,6 +43,16 @@
       )
   })
 
+  const sortedBuildings = computed(() => {
+    if (!main_settle.value.buildings) return []
+    
+    return main_settle.value.buildings.sort((a, b) => {
+      const typeA = a.building_level?.building_type?.name || ''
+      const typeB = b.building_level?.building_type?.name || ''
+      return typeA.localeCompare(typeB)
+    })
+  })
+
   async function updateOwnership(){
     await axios.get(`${import.meta.env.VITE_PROXY}/${props.type}s/${props.id}.json`) 
       .then(response => {
@@ -116,9 +126,9 @@
 
   // Функция для проверки, нужно ли показывать диалог выбора строителя
   function shouldShowBuilderDialog(action, id, building_type_id = null) {
-    // Для добавления здания: показываем только для церкви (id=1)
+    // Для добавления здания: не показываем диалог для церкви (id=1) - сразу применяем бонус мастера
     if (action === 'add') {
-      return building_type_id === 1;
+      return false; // Убираем диалог для всех зданий при создании
     }
     
     // Для улучшения здания: получаем текущий уровень и проверяем, будет ли следующий уровень 3
@@ -169,7 +179,7 @@
     <VCardText>
       <v-table>
         <tbody>
-          <tr v-for="building in main_settle.buildings">
+          <tr v-for="building in sortedBuildings">
             <td>
               <span :style="building.fined ? 'color: red' : ''">
                 {{building.building_level?.building_type?.name}} - {{building.building_level?.level}} 

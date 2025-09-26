@@ -155,7 +155,7 @@
     }
     
     // Получаем год
-    const actionYear = year || auditable?.year || 'неизвестный год'
+    const actionYear = year || 'неизвестный год'
     
     // Получаем название действия из новых полей
     const actionName = action_name || auditable?.action_name || auditable?.political_action_type?.name || action || 'Неизвестное действие'
@@ -168,23 +168,31 @@
     
     if (auditable_type !== 'InfluenceItem') return null
     
-    // Получаем имя игрока
-    const playerName = player_name || auditable?.player_name || auditable?.player?.name || 'Неизвестный игрок'
+    // Получаем имя игрока (бэкенд уже предоставляет player_name)
+    const playerName = player_name || 'Неизвестный игрок'
     
-    // Получаем значение влияния
-    const influenceValue = value !== undefined ? value : auditable?.value
+    // Получаем значение влияния (бэкенд уже предоставляет value)
+    const influenceValue = value
     if (influenceValue === undefined) return null
     
     // Формируем сжатое описание изменения влияния
     const changeText = influenceValue > 0 ? `+${influenceValue}` : `${influenceValue}`
     
-    // Получаем комментарий
-    const actionComment = comment || auditable?.comment || 'Без комментария'
+    // Получаем комментарий (бэкенд уже предоставляет comment)
+    const actionComment = comment || 'Без комментария'
     
     // Получаем год
-    const actionYear = year || auditable?.year || 'неизвестный год'
+    const actionYear = year || 'неизвестный год'
     
-    return `${playerName}: влияние ${changeText} - "${actionComment}" (${actionYear})`
+    // Определяем действие
+    let actionText = 'изменено'
+    if (action === 'create') {
+      actionText = 'добавлено'
+    } else if (action === 'destroy') {
+      actionText = 'удалено'
+    }
+    
+    return `${playerName}: влияние ${changeText} - "${actionComment}" (${actionText}) (${actionYear})`
   }
 
   function getSettlementDescription(audit) {
@@ -196,7 +204,7 @@
     const settlementName = auditable?.name || 'Неизвестное поселение'
     
     // Получаем год из бэкенда
-    const actionYear = year || audited_changes?.year || auditable?.year || 'неизвестный год'
+    const actionYear = year || 'неизвестный год'
     
     // Определяем действие
     if (action === 'create') {
@@ -230,7 +238,7 @@
     const regionName = region_name || 'неизвестном регионе'
     
     // Получаем год из бэкенда
-    const actionYear = year || audited_changes?.year || auditable?.year || 'неизвестный год'
+    const actionYear = year || 'неизвестный год'
     
     // Формируем описание изменения
     const changeText = value > 0 ? `+${value}` : `${value}`
@@ -248,7 +256,7 @@
     const comment = audited_changes?.comment || auditable?.comment || ''
     
     // Получаем год из бэкенда
-    const actionYear = year || audited_changes?.year || auditable?.year || 'неизвестный год'
+    const actionYear = year || 'неизвестный год'
     
     // Получаем название технологии из бэкенда
     const technologyName = technology_name || auditable?.technology?.name || 'Неизвестная технология'
@@ -281,7 +289,7 @@
     if (auditable_type !== 'Battle') return null
     
     // Получаем год из бэкенда
-    const actionYear = year || audited_changes?.year || auditable?.year || 'неизвестный год'
+    const actionYear = year || 'неизвестный год'
     
     // Получаем данные о сражении, приоритет сохранённым названиям армий
     const attacker = attacker_army_name || attacker_owner_name || attacker_name || auditable?.attacker_army_name || auditable?.attacker_owner_name || auditable?.attacker_name || 'Неизвестный'
@@ -308,7 +316,7 @@
     if (auditable_type !== 'Army' && auditable_type !== 'Troop') return null
     
     // Получаем год из бэкенда
-    const actionYear = year || audited_changes?.year || auditable?.year || 'неизвестный год'
+    const actionYear = year || 'неизвестный год'
     
     // Обработка отрядов
     if (auditable_type === 'Troop') {
@@ -396,7 +404,7 @@
     const regionName = auditable?.name || 'Неизвестный регион'
     
     // Получаем год из бэкенда
-    const actionYear = year || audited_changes?.year || auditable?.year || 'неизвестный год'
+    const actionYear = year || 'неизвестный год'
     
     // Определяем действие
     if (action === 'create') {
@@ -530,8 +538,8 @@
       level = building_level_level
     }
     
-    // Получаем год
-    const year = audited_changes?.year || auditable?.year || 'неизвестный год'
+    // Получаем год из аудита
+    const year = audit.year || 'неизвестный год'
     
     // Определяем действие
     let actionText = 'изменено'
@@ -557,7 +565,7 @@
     }
     
     // Получаем год из бэкенда
-    const actionYear = year || audited_changes?.year || auditable?.year || 'неизвестный год'
+    const actionYear = year || 'неизвестный год'
     
     // Проверяем, что изменилось
     if (audited_changes?.value) {
@@ -594,7 +602,7 @@
     }
     
     // Получаем год из бэкенда
-    const actionYear = year || audited_changes?.year || auditable?.year || 'неизвестный год'
+    const actionYear = year || 'неизвестный год'
     
     // Получаем название должности
     const jobName = auditable?.name || 'Неизвестная должность'
@@ -611,7 +619,7 @@
     const countryName = country_name || auditable?.country?.name || 'Неизвестная страна'
     const value = relation_value || auditable?.value || 0
     const comment = relation_comment || auditable?.comment || ''
-    const actionYear = relation_year || auditable?.year || 'неизвестный год'
+    const actionYear = relation_year || 'неизвестный год'
     
     // Определяем направление изменения
     let direction = ''
