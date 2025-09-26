@@ -505,7 +505,7 @@ onUnmounted(() => {
 
 .table-container {
   overflow-x: auto;
-  padding: 0 16px 16px;
+  padding: 0;
   min-height: 100px;
   position: relative;
 }
