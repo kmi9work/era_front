@@ -7,7 +7,6 @@ import { storeToRefs } from 'pinia'
 
 import previewPlaceholder from '@/assets/images/preview_placeholder.jpg'
 import previewMerchResults from '@/assets/images/preview_merch_results.jpg'
-import merchPlaceholderImg from '@/assets/images/merchPlaceholder.jpg'
 
 // Состояния
 const isFullscreen = ref(false)
