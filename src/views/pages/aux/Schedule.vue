@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 
 const showModal = ref(false)
+const createScheduleModal = ref(false)
 const showEditModal = ref(false)
 const error = ref(null)
 const isLoading = ref(false)
@@ -61,7 +62,23 @@ const lastCycleFinish = computed(() => {
   return schedule.value[schedule.value.length - 1].finish
 })
 
-// 
+const createStandardSchedule = async ()  => {
+  try {
+    isLoading.value = true
+    const response = await axios.patch(
+      `${import.meta.env.VITE_PROXY}/game_parameters/create_schedule`
+    )
+    await fetchSchedule()
+    createScheduleModal.value = false
+  } catch (err) {
+    console.error('Ошибка при создании расписания:', err)
+    error.value = 'Не удалось создать расписание'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const emptySchedule = ref(false)
 
 // Функция для получения расписания с сервера
 const fetchSchedule = async () => {
@@ -81,7 +98,6 @@ const fetchSchedule = async () => {
     isLoading.value = false
   }
 }
-// 
 
 const addNewItem = async () => {
   // Валидация
@@ -240,6 +256,14 @@ onUnmounted(() => {
           <span v-if="!isLoading">+ Добавить</span>
           <span v-else>Загрузка...</span>
         </button>
+        <button 
+          class="create_schedule_button" 
+          @click="createScheduleModal = true"
+          :disabled="isLoading || schedule.length > 0"
+        >
+          <span v-if="!isLoading">+ Создать расписание</span>
+          <span v-else>Загрузка...</span>
+        </button>
       </div>
     </div>
     
@@ -356,7 +380,37 @@ onUnmounted(() => {
       </div>
     </div>
     
-    
+    <!-- Модальное окно создания стандартного расписания -->
+    <div v-if="createScheduleModal" class="modal-overlay" @click.self="createScheduleModal = false">
+      <div class="modal-content">
+        <h3>Создать стандартное расписание</h3>
+        
+        <div v-if="error" class="error-message">
+          {{ error }}
+        </div>
+        
+        <div class="simple-message">
+          <p>Вы уверены, что хотите создать стандартное расписание?</p>
+        </div>
+        
+        <div class="modal-actions">
+          <button 
+            class="btn-cancel" 
+            @click="createScheduleModal = false"
+            :disabled="isLoading"
+          >
+            Отменить
+          </button>
+          <button 
+            class="btn-confirm" 
+            @click="createStandardSchedule"
+            :disabled="isLoading"
+          >
+            {{ isLoading ? 'Создание...' : 'Выполнить' }}
+          </button>
+        </div>
+      </div>
+    </div>
     
     <!-- Модальное окно редактирования -->
     <div v-if="showEditModal" class="modal-overlay" @click.self="showEditModal = false">
@@ -476,7 +530,32 @@ onUnmounted(() => {
   transition: all 0.2s;
 }
 
-/* */
+.create_schedule_button {
+  background-color: #9c27b0;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.add-button:hover:not(:disabled),
+.create_schedule_button:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.add-button:disabled,
+.create_schedule_button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
 
 .edit-button {
   background-color: #ff9800;
@@ -492,15 +571,63 @@ onUnmounted(() => {
   transition: all 0.2s;
 }
 
-.add-button:hover:not(:disabled) {
+.edit-button:hover:not(:disabled) {
   opacity: 0.9;
-  transform: translateY(-1px);
 }
 
-.add-button:disabled {
+.edit-button:disabled {
   background-color: #cccccc;
   cursor: not-allowed;
   opacity: 0.7;
+}
+
+.simple-message {
+  text-align: center;
+  margin: 2rem 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.btn-cancel, .btn-confirm {
+  padding: 0.75rem 2rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 120px;
+}
+
+.btn-cancel {
+  background: #f5f5f5;
+  color: #666;
+  border: 1px solid #ddd;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: #e0e0e0;
+}
+
+.btn-confirm {
+  background: #42b983;
+  color: white;
+}
+
+.btn-confirm:hover:not(:disabled) {
+  background: #3aa876;
+}
+
+.btn-cancel:disabled, .btn-confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .table-container {
@@ -685,13 +812,15 @@ onUnmounted(() => {
 
 .cancel-button:hover:not(:disabled),
 .confirm-button:hover:not(:disabled),
-.delete-confirm-button:hover:not(:disabled) {
+.delete-confirm-button:hover:not(:disabled),
+.secondary-button:hover:not(:disabled) {
   opacity: 0.9;
 }
 
 .cancel-button:disabled,
 .confirm-button:disabled,
-.delete-confirm-button:disabled {
+.delete-confirm-button:disabled,
+.secondary-button:disabled {
   opacity: 0.7;
   cursor: not-allowed;
 }
@@ -715,7 +844,8 @@ onUnmounted(() => {
     flex-wrap: wrap;
   }
   
-  .add-button {
+  .add-button,
+  .create_schedule_button {
     flex: 1;
     min-width: 120px;
     margin-bottom: 8px;
