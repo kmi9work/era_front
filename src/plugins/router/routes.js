@@ -27,6 +27,10 @@ export const routes = [
       {
         path: 'general',
         component: () => import('@/pages/general.vue'),
+      },
+      {
+        path: 'players',
+        component: () => import('@/pages/players.vue'),
       }
 
 

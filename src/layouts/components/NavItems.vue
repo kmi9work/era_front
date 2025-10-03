@@ -53,5 +53,13 @@ import VerticalNavLink from '@layouts/components/VerticalNavLink.vue'
     }"
   />
 
+  <VerticalNavLink
+    :item="{
+      title: 'Игроки',
+      icon: 'ri-user-line',
+      to: '/players',
+    }"
+  />
+
 
 </template>
