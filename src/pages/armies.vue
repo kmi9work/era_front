@@ -1,6 +1,7 @@
 <script setup>
 import { useRoute } from 'vue-router'
 import Armies from '@/views/pages/politics/Armies.vue'
+import Map from '@/views/pages/armies/StratigicMap.vue'
 
 const route = useRoute()
 const activeTab = ref(route.params.tab)
@@ -12,6 +13,15 @@ const tabs = [
     icon: 'ri-sword-line',
     tab: 'armies',
   },
+
+    {
+    title: 'MAP',
+    icon: 'ri-sword-line',
+    tab: 'str_map',
+  },
+
+
+
 ]
 </script>
 
@@ -44,6 +54,15 @@ const tabs = [
       <VWindowItem value="armies">
         <Armies />
       </VWindowItem>
+
+      <VWindowItem value="str_map">
+        <Map />
+      </VWindowItem>
+
+
     </VWindow>
+
+
+
   </div>
 </template>
