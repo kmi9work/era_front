@@ -38,83 +38,221 @@
     const app = createApp({
       template: `
         <v-app>
-          <!-- ЭКРАН 1: Выбор страны -->
-          <v-container fluid class="pa-0" v-if="!selectedCountry">
-            <!-- Хедер выбора страны -->
-            <v-card class="mb-0 rounded-0">
-              <v-card-text class="pa-4 text-center">
-                <v-icon icon="mdi-map-marker" size="48" class="mb-2" color="primary"></v-icon>
-                <div class="text-h4 font-weight-bold mb-2">Куда караван?</div>
-                <div class="text-body-2 text-medium-emphasis">Выберите страну назначения</div>
-              </v-card-text>
-            </v-card>
+          <!-- Диалог с клавиатурой для ввода количества -->
+          <v-dialog 
+            v-model="showKeyboard" 
+            fullscreen 
+            transition="dialog-bottom-transition"
+          >
+            <v-card v-if="keyboardResource">
+              <v-toolbar color="primary">
+                <v-btn icon @click="cancelKeyboard">
+                  <v-icon>mdi-arrow-left</v-icon>
+                </v-btn>
+                <v-toolbar-title>Выбор количества</v-toolbar-title>
+                <v-spacer></v-spacer>
+              </v-toolbar>
 
-            <!-- Список стран -->
-            <v-container class="pa-3">
-              <div v-if="isLoading" class="d-flex flex-column align-center justify-center" style="min-height: 50vh;">
-                <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
-                <div class="mt-4">Загрузка стран...</div>
-              </div>
-              
-              <div v-else class="country-selection-grid">
-                <v-card
-                  v-for="country in countries"
-                  :key="country.id"
-                  @click="selectCountry(country.id)"
-                  :class="{ 'country-card-embargo': hasEmbargo(country) }"
-                  class="country-card"
-                  hover
-                >
-                  <v-card-text class="pa-4 text-center">
-                    <v-img
-                      :src="'/images/countries/' + country.name + '.png'"
-                      width="80"
-                      height="60"
-                      class="mx-auto mb-3"
-                    ></v-img>
-                    <div class="text-h6 font-weight-bold mb-1">{{ country.name }}</div>
-                    <div v-if="hasEmbargo(country)" class="text-caption text-error">
-                      <v-icon icon="mdi-alert" size="16"></v-icon>
-                      Эмбарго
+              <v-card-text class="pa-4">
+                <!-- Информация о ресурсе -->
+                <v-card class="mb-4" elevation="2">
+                  <v-card-text class="pa-4">
+                    <div class="d-flex align-center justify-space-between">
+                      <div class="d-flex align-center">
+                        <v-img
+                          :src="'/images/resources/' + keyboardResource.identificator + '.png'"
+                          width="48"
+                          height="48"
+                          class="mr-3"
+                        ></v-img>
+                        <div>
+                          <div class="text-h6">{{ keyboardResource.name }}</div>
+                          <div class="text-caption text-grey">
+                            {{ keyboardResource.type === 'sell' ? 'Продажа' : 'Покупка' }}
+                          </div>
+                        </div>
+                      </div>
+                      <v-chip color="primary" size="large">
+                        {{ keyboardResource.price }}
+                      </v-chip>
                     </div>
                   </v-card-text>
                 </v-card>
-              </div>
-            </v-container>
-          </v-container>
 
-          <!-- ЭКРАН 2: Калькулятор ресурсов -->
-          <v-container fluid class="pa-2" v-if="selectedCountry">
-            <!-- Хедер с выбранной страной -->
-            <v-card class="mb-2">
-              <v-card-text class="pa-3">
-                <div class="d-flex align-center">
-                  <v-btn 
-                    icon="mdi-arrow-left" 
-                    variant="text" 
-                    @click="backToCountrySelection"
-                    class="mr-2"
-                  ></v-btn>
-                  <v-img
-                    :src="'/images/countries/' + countries.find(c => c.id === selectedCountry)?.name + '.png'"
-                    width="40"
-                    height="30"
-                    class="mr-3"
-                  ></v-img>
-                  <div class="flex-grow-1">
-                    <div class="text-caption text-medium-emphasis">Караван в:</div>
-                    <div class="text-h6 font-weight-bold">{{ selectedCountryName }}</div>
+                <!-- Дисплей введенного значения -->
+                <v-card class="mb-3" elevation="0" color="grey-lighten-4">
+                  <v-card-text class="pa-4">
+                    <div class="text-h3 text-center text-primary font-weight-bold">
+                      {{ keyboardValue }}
+                    </div>
+                  </v-card-text>
+                </v-card>
+
+                <!-- Кастомная клавиатура -->
+                <div class="keyboard-container">
+                  <div class="keyboard-row">
+                    <v-btn 
+                      v-for="num in [1, 2, 3]" 
+                      :key="num"
+                      class="keyboard-btn"
+                      size="x-large"
+                      variant="flat"
+                      @click="pressNumber(num)"
+                    >
+                      {{ num }}
+                    </v-btn>
                   </div>
-                  <v-chip v-if="embargo" color="error" size="small">Эмбарго</v-chip>
+                  <div class="keyboard-row">
+                    <v-btn 
+                      v-for="num in [4, 5, 6]" 
+                      :key="num"
+                      class="keyboard-btn"
+                      size="x-large"
+                      variant="flat"
+                      @click="pressNumber(num)"
+                    >
+                      {{ num }}
+                    </v-btn>
+                  </div>
+                  <div class="keyboard-row">
+                    <v-btn 
+                      v-for="num in [7, 8, 9]" 
+                      :key="num"
+                      class="keyboard-btn"
+                      size="x-large"
+                      variant="flat"
+                      @click="pressNumber(num)"
+                    >
+                      {{ num }}
+                    </v-btn>
+                  </div>
+                  <div class="keyboard-row">
+                    <v-btn 
+                      class="keyboard-btn keyboard-zero"
+                      size="x-large"
+                      variant="flat"
+                      @click="pressNumber(0)"
+                    >
+                      0
+                    </v-btn>
+                    <v-btn 
+                      class="keyboard-btn"
+                      size="x-large"
+                      color="orange"
+                      variant="flat"
+                      @click="pressBackspace"
+                    >
+                      <v-icon>mdi-backspace-outline</v-icon>
+                    </v-btn>
+                    <v-btn 
+                      class="keyboard-btn"
+                      size="x-large"
+                      color="red"
+                      variant="flat"
+                      @click="pressClear"
+                    >
+                      C
+                    </v-btn>
+                  </div>
+                  <div class="keyboard-row mt-2">
+                    <v-btn 
+                      block
+                      size="x-large"
+                      color="success"
+                      variant="flat"
+                      @click="confirmKeyboard"
+                    >
+                      <v-icon class="mr-2">mdi-check</v-icon>
+                      Готово
+                    </v-btn>
+                  </div>
+                </div>
+              </v-card-text>
+            </v-card>
+          </v-dialog>
+
+          <!-- ЭКРАН 1: Выбор страны -->
+          <v-container fluid class="pa-2" v-if="!isLoading && !selectedCountry">
+            <!-- Хедер -->
+            <v-card class="mb-3">
+              <v-card-text class="pa-3 text-center">
+                <div class="d-flex align-center justify-center">
+                  <v-icon icon="ri-exchange-line" size="32" class="mr-2" color="primary"></v-icon>
+                  <span class="text-h5 font-weight-bold">Куда караван?</span>
                 </div>
               </v-card-text>
             </v-card>
 
-            <!-- Секция "Игрок отправляет" -->
+            <!-- Сетка стран -->
+            <div class="country-selection-grid">
+              <v-card
+                v-for="country in countries"
+                :key="country.id"
+                @click="selectCountry(country.id)"
+                class="country-selection-card"
+                :class="{ 'embargo-card': hasEmbargo(country) }"
+                elevation="3"
+              >
+                <v-card-text class="pa-4 text-center">
+                  <v-img
+                    :src="'/images/countries/' + country.name + '.png'"
+                    width="80"
+                    height="60"
+                    class="mx-auto mb-3"
+                  ></v-img>
+                  <div class="text-h6 font-weight-bold mb-1">
+                    {{ getShortName(country.name) }}
+                  </div>
+                  <v-chip
+                    v-if="hasEmbargo(country)"
+                    color="error"
+                    size="small"
+                    class="mt-2"
+                  >
+                    Эмбарго
+                  </v-chip>
+                </v-card-text>
+              </v-card>
+            </div>
+          </v-container>
+
+          <!-- ЭКРАН 2: Работа с ресурсами -->
+          <v-container fluid class="pa-2" v-if="!isLoading && selectedCountry">
+            <!-- Хедер с выбранной страной -->
+            <v-card class="mb-2">
+              <v-card-text class="pa-2">
+                <div class="d-flex align-center">
+                  <v-btn 
+                    icon 
+                    size="small" 
+                    @click="backToCountrySelection"
+                    class="mr-2"
+                  >
+                    <v-icon>mdi-arrow-left</v-icon>
+                  </v-btn>
+                  <v-img
+                    v-if="selectedCountry"
+                    :src="'/images/countries/' + countries.find(c => c.id === selectedCountry)?.name + '.png'"
+                    width="40"
+                    height="30"
+                    class="mr-2"
+                  ></v-img>
+                  <span class="text-h6 flex-grow-1">{{ selectedCountryName }}</span>
+                  <v-chip
+                    v-if="embargo"
+                    color="error"
+                    size="small"
+                  >
+                    Эмбарго
+                  </v-chip>
+                </div>
+              </v-card-text>
+            </v-card>
+
+            <!-- Секция "Вы отправляете с караваном" -->
             <v-card class="mb-3">
               <v-card-title class="text-center py-3 bg-success">
-                <v-icon icon="mdi-export-variant" class="mr-2"></v-icon>
-                Игрок отправляет
+                Вы отправляете с караваном
               </v-card-title>
               <v-card-text class="pa-2">
                 <div class="mobile-resources-grid">
@@ -131,29 +269,28 @@
                         class="resource-icon-mobile"
                       ></v-img>
                       <div class="resource-info">
-                        <div class="resource-name-bold">{{ item.name || item.identificator }}</div>
-                        <div class="resource-price">{{ nameChecker(item.sell_price) }}</div>
+                        <div class="resource-name-bold">{{ item.identificator === 'gold' ? 'Золото' : (item.name || item.identificator) }}</div>
+                        <div class="resource-price" v-if="item.identificator !== 'gold'">{{ nameChecker(item.sell_price) }}</div>
                       </div>
-                      <v-text-field
-                        v-model.number="resourcesPlSells[index].count"
-                        type="number"
+                      <v-btn
+                        @click="openKeyboard(item, index, 'sell')"
                         variant="outlined"
-                        density="compact"
-                        hide-details
-                        class="resource-input-mobile"
-                        inputmode="numeric"
-                      ></v-text-field>
+                        size="large"
+                        class="keyboard-trigger-btn"
+                        :color="resourcesPlSells[index].count > 0 ? 'success' : 'grey'"
+                      >
+                        {{ resourcesPlSells[index].count || '0' }}
+                      </v-btn>
                     </div>
                   </div>
                 </div>
               </v-card-text>
             </v-card>
 
-            <!-- Секция "Игрок заказал" -->
+            <!-- Секция "Вы покупаете" -->
             <v-card class="mb-3">
               <v-card-title class="text-center py-3 bg-primary">
-                <v-icon icon="mdi-import" class="mr-2"></v-icon>
-                Игрок заказал
+                Вы покупаете
               </v-card-title>
               <v-card-text class="pa-2">
                 <div class="mobile-resources-grid">
@@ -170,18 +307,18 @@
                         class="resource-icon-mobile"
                       ></v-img>
                       <div class="resource-info">
-                        <div class="resource-name-bold">{{ item.name || item.identificator }}</div>
-                        <div class="resource-price">{{ nameChecker(item.buy_price) }}</div>
+                        <div class="resource-name-bold">{{ item.identificator === 'gold' ? 'Золото' : (item.name || item.identificator) }}</div>
+                        <div class="resource-price" v-if="item.identificator !== 'gold'">{{ nameChecker(item.buy_price) }}</div>
                       </div>
-                      <v-text-field
-                        v-model.number="resourcesPlBuys[index].count"
-                        type="number"
+                      <v-btn
+                        @click="openKeyboard(item, index, 'buy')"
                         variant="outlined"
-                        density="compact"
-                        hide-details
-                        class="resource-input-mobile"
-                        inputmode="numeric"
-                      ></v-text-field>
+                        size="large"
+                        class="keyboard-trigger-btn"
+                        :color="resourcesPlBuys[index].count > 0 ? 'primary' : 'grey'"
+                      >
+                        {{ resourcesPlBuys[index].count || '0' }}
+                      </v-btn>
                     </div>
                   </div>
                 </div>
@@ -193,13 +330,13 @@
               <v-card-text class="pa-2">
                 <v-row dense>
                   <v-col cols="6">
-                    <v-btn @click="submit" block color="primary" size="large">
-                      Обработать
+                    <v-btn @click="resetForm" color="error" block size="large">
+                      Очистить
                     </v-btn>
                   </v-col>
                   <v-col cols="6">
-                    <v-btn @click="resetForm" color="error" block size="large">
-                      Очистить
+                    <v-btn @click="submit" block color="primary" size="large">
+                      Посчитать
                     </v-btn>
                   </v-col>
                 </v-row>
@@ -291,6 +428,11 @@
               </v-card>
             </v-dialog>
           </v-container>
+
+          <v-container v-else class="d-flex flex-column align-center justify-center" style="min-height: 100vh;">
+            <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
+            <div class="mt-4">Загрузка...</div>
+          </v-container>
         </v-app>
       `,
       setup() {
@@ -305,6 +447,13 @@
         const resources = ref({});
         const selectedCountry = ref(null);
         const resourcesPlSells = ref([]);
+        
+        // Состояния для кастомной клавиатуры
+        const showKeyboard = ref(false);
+        const keyboardResource = ref(null);
+        const keyboardValue = ref('0');
+        const keyboardIndex = ref(null);
+        const keyboardType = ref(null); // 'sell' или 'buy'
         const resourcesPlBuys = ref([]);
         const resToPlayer = ref([]);
         const newRelations = ref(false);
@@ -419,8 +568,8 @@
 
         const selectCountry = (countryId) => {
           selectedCountry.value = countryId;
-          // Добавляем состояние в историю браузера для кнопки "Назад"
-          window.history.pushState({ screen: 'resources', countryId }, '');
+          // Добавляем состояние в историю для кнопки "Назад"
+          window.history.pushState({ page: 'resources', countryId }, '');
         };
 
         const backToCountrySelection = () => {
@@ -465,6 +614,64 @@
           }
         };
 
+        // Функции для работы с кастомной клавиатурой
+        const openKeyboard = (item, index, type) => {
+          keyboardResource.value = {
+            identificator: item.identificator,
+            name: item.name || item.identificator,
+            price: nameChecker(type === 'sell' ? item.sell_price : item.buy_price),
+            type: type
+          };
+          keyboardIndex.value = index;
+          keyboardType.value = type;
+          
+          // Устанавливаем текущее значение
+          const currentArray = type === 'sell' ? resourcesPlSells.value : resourcesPlBuys.value;
+          const currentValue = currentArray[index].count;
+          keyboardValue.value = currentValue ? currentValue.toString() : '0';
+          
+          showKeyboard.value = true;
+        };
+
+        const pressNumber = (num) => {
+          if (keyboardValue.value === '0') {
+            keyboardValue.value = num.toString();
+          } else {
+            keyboardValue.value += num.toString();
+          }
+        };
+
+        const pressBackspace = () => {
+          if (keyboardValue.value.length > 1) {
+            keyboardValue.value = keyboardValue.value.slice(0, -1);
+          } else {
+            keyboardValue.value = '0';
+          }
+        };
+
+        const pressClear = () => {
+          keyboardValue.value = '0';
+        };
+
+        const confirmKeyboard = () => {
+          const value = parseInt(keyboardValue.value) || 0;
+          const targetArray = keyboardType.value === 'sell' ? resourcesPlSells.value : resourcesPlBuys.value;
+          
+          if (targetArray[keyboardIndex.value]) {
+            targetArray[keyboardIndex.value].count = value > 0 ? value : null;
+          }
+          
+          cancelKeyboard();
+        };
+
+        const cancelKeyboard = () => {
+          showKeyboard.value = false;
+          keyboardResource.value = null;
+          keyboardValue.value = '0';
+          keyboardIndex.value = null;
+          keyboardType.value = null;
+        };
+
         const resetForm = () => {
           resourcesPlBuys.value = filteredResOffMark.value.map(item => ({
             identificator: item.identificator,
@@ -484,6 +691,8 @@
           try {
             await fetchCountries();
             await fetchResources();
+            
+            // НЕ выбираем страну автоматически - пользователь выберет сам
           } catch (e) {
             console.error(e);
           } finally {
@@ -494,20 +703,41 @@
 
           // Обработчик кнопки "Назад" на телефоне
           const handleBackButton = (event) => {
+            // Если открыта клавиатура, закрываем её
+            if (showKeyboard.value) {
+              event.preventDefault();
+              cancelKeyboard();
+              return;
+            }
+            
+            // Если открыт диалог результатов, закрываем его
+            if (showResultSheet.value) {
+              event.preventDefault();
+              showResultSheet.value = false;
+              return;
+            }
+            
+            // Если открыт диалог эмбарго, закрываем его
+            if (showEmbargoDialog.value) {
+              event.preventDefault();
+              showEmbargoDialog.value = false;
+              return;
+            }
+            
+            // Если мы на экране 2 (выбрана страна), возвращаемся на экран 1
             if (selectedCountry.value) {
-              // Если мы на экране 2 (выбрана страна), возвращаемся на экран 1
               event.preventDefault();
               backToCountrySelection();
+              return;
             }
+            
             // Если мы на экране 1 (страна не выбрана), позволяем закрыть приложение
           };
 
           window.addEventListener('popstate', handleBackButton);
           
-          // Добавляем состояние в историю для корректной работы кнопки "Назад"
-          if (selectedCountry.value) {
-            window.history.pushState({ screen: 'resources' }, '');
-          }
+          // Добавляем начальное состояние в историю
+          window.history.pushState({ page: 'main' }, '');
         });
 
         onBeforeUnmount(() => {
@@ -591,6 +821,16 @@
           confirmContraband,
           resetForm,
           fetchResources,
+          // Клавиатура
+          showKeyboard,
+          keyboardResource,
+          keyboardValue,
+          openKeyboard,
+          pressNumber,
+          pressBackspace,
+          pressClear,
+          confirmKeyboard,
+          cancelKeyboard,
         };
       }
     });
@@ -669,25 +909,28 @@
       z-index: 10;
     }
 
-    .country-selection-grid {
+    .country-grid-mobile {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 16px;
+      gap: 12px;
+      padding: 8px 0;
     }
 
-    .country-card {
-      cursor: pointer;
-      transition: all 0.3s ease;
-      border: 2px solid transparent;
+    .country-btn-mobile {
+      height: auto !important;
+      padding: 16px 8px !important;
     }
 
-    .country-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15) !important;
+    .country-btn-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
     }
 
-    .country-card-embargo {
-      border-color: #f44336 !important;
+    .country-name-mobile {
+      font-size: 14px;
+      font-weight: 600;
     }
 
     .embargo-badge {
@@ -761,6 +1004,65 @@
 
     input[type="number"] {
       -moz-appearance: textfield;
+    }
+
+    /* Стили для кастомной клавиатуры */
+    .keyboard-container {
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    .keyboard-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .keyboard-btn {
+      flex: 1;
+      min-width: 0;
+      font-size: 24px !important;
+      font-weight: bold;
+      height: 60px !important;
+    }
+
+    .keyboard-zero {
+      flex: 1.5;
+    }
+
+    .keyboard-trigger-btn {
+      min-width: 80px !important;
+      font-size: 18px !important;
+      font-weight: bold !important;
+      height: 48px !important;
+    }
+
+    /* Стили для экрана выбора страны */
+    .country-selection-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      padding: 8px;
+    }
+
+    .country-selection-card {
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+    }
+
+    .country-selection-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2) !important;
+    }
+
+    .country-selection-card:active {
+      transform: translateY(-2px);
+    }
+
+    .embargo-card {
+      border-color: #f44336 !important;
+      background-color: rgba(244, 67, 54, 0.05);
     }
   </style>
 </body>
