@@ -1,6 +1,9 @@
 <script setup>
 import axios from 'axios'
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue'
+import { useCaravanStore } from '@/stores/caravan'
+
+const caravanStore = useCaravanStore()
 
 //Основной функционал
 const isLoading = ref(true) // Добавляем флаг 
@@ -32,6 +35,10 @@ const fetchCountries = async () => {
   try {
     const response = await axios.get(`${import.meta.env.VITE_PROXY}/countries/foreign_countries.json`);
     countries.value = response.data;
+    
+    // Сохраняем страны в store для калькулятора
+    caravanStore.setCountries(response.data);
+    
     countriesRelations.value = countries.value.map(item => {
       return {
         name: item.name,
@@ -92,6 +99,14 @@ const fetchResources = async () =>{
   try {
     const response = await axios.get(`${import.meta.env.VITE_PROXY}/resources/show_prices.json`)
     resources.value = response.data.prices;
+    
+    // Сохраняем ресурсы в store для калькулятора
+    // Передаем весь объект с off_market и to_market отдельно
+    caravanStore.setResources({
+      off_market: response.data.prices.off_market || [],
+      to_market: response.data.prices.to_market || []
+    });
+    
     newRelations.value = false;
 
   } catch (error) {
@@ -156,24 +171,22 @@ const filteredResToMark = computed(() => {
 
 async function sendCaravanRequest(isContraband = false) {
   try {
-    const resToBack = {
-      country_id: selectedCountry.value,
-      res_pl_sells: resourcesPlSells.value,
-      res_pl_buys: resourcesPlBuys.value
-    };
     showEmbargoDialog.value = false
-    const response = await axios.post(
-      `${import.meta.env.VITE_PROXY}/resources/send_caravan`,
-      resToBack
-    );
+    
+    // Вместо запроса на сервер, используем локальный расчет через store
+    const result = caravanStore.sendCaravan(
+      selectedCountry.value,
+      resourcesPlSells.value,
+      resourcesPlBuys.value
+    )
+    
+    prices.value = result
+    resToPlayer.value = result.res_to_player
 
-    prices.value = response.data;
-    resToPlayer.value = prices.value.res_to_player;
-
-    return response; 
+    return { data: result }
   } catch (e) {
-    console.error('Ошибка отправки:', e);
-    throw e; 
+    console.error('Ошибка расчета:', e)
+    throw e
   }
 }
 
@@ -183,6 +196,7 @@ async function submit() {
     showEmbargoDialog.value = true
     return
   }
+  
   await sendCaravanRequest()
 }
 
