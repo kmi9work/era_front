@@ -175,6 +175,26 @@
               </VChip>
             </div>
 
+            <!-- QR Code Type Selector -->
+            <div class="d-flex justify-center mb-3" style="gap: 8px;">
+              <VBtn
+                size="small"
+                :color="qrCodeTypes[player.id] === 'main' ? 'primary' : 'default'"
+                :variant="qrCodeTypes[player.id] === 'main' ? 'flat' : 'outlined'"
+                @click="changeQRType(player, 'main')"
+              >
+                Главный
+              </VBtn>
+              <VBtn
+                size="small"
+                :color="qrCodeTypes[player.id] === 'game' ? 'primary' : 'default'"
+                :variant="qrCodeTypes[player.id] === 'game' ? 'flat' : 'outlined'"
+                @click="changeQRType(player, 'game')"
+              >
+                Игровой
+              </VBtn>
+            </div>
+
             <!-- QR Code -->
             <div class="qr-container mb-4">
               <div v-if="generatingQR" class="qr-loading">
@@ -200,7 +220,7 @@
             />
 
             <!-- Actions -->
-            <div class="d-flex gap-2 justify-center">
+            <div class="d-flex justify-center flex-wrap" style="gap: 8px;">
               <VBtn
                 size="small"
                 color="primary"
@@ -220,6 +240,16 @@
                 <VIcon start icon="ri-download-line" />
                 Скачать
               </VBtn>
+              
+              <VBtn
+                size="small"
+                color="info"
+                variant="outlined"
+                @click="openPlayerDialog(player)"
+              >
+                <VIcon start icon="ri-user-settings-line" />
+                Характеристика
+              </VBtn>
             </div>
           </VCardText>
         </VCard>
@@ -238,6 +268,140 @@
         Сбросить фильтры
       </VBtn>
     </VCard>
+
+    <!-- Player Dialog -->
+    <VDialog v-model="playerDialog" max-width="800">
+      <VCard v-if="selectedPlayer">
+        <VCardTitle class="d-flex justify-space-between align-center">
+          <span>Характеристика игрока</span>
+          <VBtn icon variant="text" @click="playerDialog = false">
+            <VIcon icon="ri-close-line" />
+          </VBtn>
+        </VCardTitle>
+
+        <VCardText>
+          <!-- Player Info -->
+          <div class="mb-6">
+            <div class="d-flex align-center mb-4">
+              <VAvatar :color="getPlayerColor(selectedPlayer)" size="80" class="me-4">
+                <VIcon :icon="getPlayerIcon(selectedPlayer)" size="40" />
+              </VAvatar>
+              <div>
+                <h2 class="text-h5 font-weight-bold mb-1">{{ selectedPlayer.name }}</h2>
+                <div class="text-body-1 text-medium-emphasis mb-1">
+                  {{ selectedPlayer.player_type?.name || 'Игрок' }}
+                </div>
+                <VChip :color="getPlayerTypeColor(selectedPlayer)" size="small">
+                  {{ selectedPlayer.family?.name || 'Без семьи' }}
+                </VChip>
+              </div>
+            </div>
+
+            <VDivider class="mb-4" />
+
+            <div class="d-flex flex-column gap-2">
+              <div class="d-flex">
+                <span class="text-medium-emphasis" style="width: 150px;">ID:</span>
+                <span class="font-weight-medium">{{ selectedPlayer.id }}</span>
+              </div>
+              <div class="d-flex">
+                <span class="text-medium-emphasis" style="width: 150px;">Идентификатор:</span>
+                <span class="font-weight-medium">{{ selectedPlayer.identificator }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Resources -->
+          <div class="mb-6">
+            <div class="d-flex justify-space-between align-center mb-3">
+              <h3 class="text-h6 font-weight-bold">Ресурсы игрока</h3>
+              <VBtn
+                color="primary"
+                size="small"
+                @click="loadPlayerResources"
+                :loading="loadingResources"
+              >
+                <VIcon start icon="ri-refresh-line" />
+                Обновить
+              </VBtn>
+            </div>
+
+            <div v-if="loadingResources" class="text-center py-8">
+              <VProgressCircular indeterminate color="primary" />
+            </div>
+
+            <div v-else-if="playerResources.length === 0" class="text-center py-8 text-medium-emphasis">
+              У игрока нет ресурсов
+            </div>
+
+            <div v-else class="resources-grid">
+              <div
+                v-for="resource in playerResources"
+                :key="resource.identificator"
+                class="resource-item"
+              >
+                <VImg
+                  :src="`/images/resources/${resource.identificator}.png`"
+                  width="40"
+                  height="40"
+                  class="me-3"
+                />
+                <div class="flex-grow-1">
+                  <div class="font-weight-medium">{{ resource.name || resource.identificator }}</div>
+                  <div class="text-caption text-medium-emphasis">{{ resource.identificator }}</div>
+                </div>
+                <VChip color="primary" size="small">
+                  {{ resource.count }}
+                </VChip>
+              </div>
+            </div>
+          </div>
+
+          <!-- Add Resources Section -->
+          <VDivider class="mb-4" />
+          
+          <div>
+            <h3 class="text-h6 font-weight-bold mb-3">Добавить ресурсы</h3>
+            
+            <div class="add-resources-grid mb-4">
+              <div
+                v-for="(resource, index) in newResources"
+                :key="index"
+                class="add-resource-item"
+              >
+                <VImg
+                  :src="`/images/resources/${resource.identificator}.png`"
+                  width="40"
+                  height="40"
+                  class="me-2"
+                />
+                <VTextField
+                  v-model.number="resource.count"
+                  :label="resource.name || resource.identificator"
+                  type="number"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  style="flex: 1;"
+                  min="0"
+                />
+              </div>
+            </div>
+
+            <VBtn
+              color="success"
+              block
+              @click="addResourcesToPlayer"
+              :loading="addingResources"
+              :disabled="!hasResourcesToAdd"
+            >
+              <VIcon start icon="ri-add-line" />
+              Добавить выбранные ресурсы
+            </VBtn>
+          </div>
+        </VCardText>
+      </VCard>
+    </VDialog>
   </div>
 </template>
 
@@ -253,6 +417,18 @@ const generatingQR = ref(false)
 const searchQuery = ref('')
 const filterType = ref('')
 const sortBy = ref('name')
+const qrCodeTypes = ref({}) // { playerId: 'main' | 'game' }
+
+// Player dialog
+const playerDialog = ref(false)
+const selectedPlayer = ref(null)
+const playerResources = ref([])
+const loadingResources = ref(false)
+const addingResources = ref(false)
+
+// Available resources for adding
+const allResources = ref([])
+const newResources = ref([])
 
 // Computed properties
 const noblesCount = computed(() => 
@@ -312,12 +488,23 @@ const filteredPlayers = computed(() => {
   return filtered
 })
 
+const hasResourcesToAdd = computed(() => {
+  return newResources.value.some(r => r.count > 0)
+})
+
 // Methods
 const loadPlayers = async () => {
   loading.value = true
   try {
     const response = await axios.get(`${import.meta.env.VITE_PROXY}/players.json`)
     players.value = response.data
+    
+    // Инициализируем тип QR-кода для каждого игрока (по умолчанию "главный")
+    players.value.forEach(player => {
+      if (!qrCodeTypes.value[player.id]) {
+        qrCodeTypes.value[player.id] = 'main'
+      }
+    })
     
     // Ждем обновления DOM и генерируем QR-коды
     await nextTick()
@@ -342,63 +529,77 @@ const generateQRCodes = async () => {
   await nextTick()
   
   for (const player of players.value) {
-    try {
-      const qrData = {
-        type: 'player_auth',
-        identificator: player.identificator,
-        player_name: player.name,
-        generated_at: new Date().toISOString()
+    await generateSingleQRCode(player)
+  }
+}
+
+const changeQRType = async (player, type) => {
+  qrCodeTypes.value[player.id] = type
+  await generateSingleQRCode(player)
+}
+
+const generateSingleQRCode = async (player) => {
+  try {
+    const qrType = qrCodeTypes.value[player.id] || 'main'
+    
+    console.log(`Generating QR for player ${player.name}, type: ${qrType}`)
+    console.log(`Identificator: ${player.identificator}, Name: ${player.name}`)
+    
+    // Главный QR-код содержит только identificator, игровой - только name
+    const qrData = qrType === 'main' ? player.identificator : player.name
+    
+    console.log('QR Data:', qrData)
+
+    const container = document.getElementById(`qr-${player.id}`)
+    if (!container) {
+      console.warn(`Container not found for player ${player.id}`)
+      return
+    }
+
+    // Очищаем контейнер
+    container.innerHTML = ''
+
+    // Создаем canvas
+    const canvas = document.createElement('canvas')
+    canvas.width = 150
+    canvas.height = 150
+    container.appendChild(canvas)
+
+    // Генерируем QR-код (теперь qrData - это простая строка)
+    await QRCode.toCanvas(canvas, qrData, {
+      width: 150,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
       }
+    })
 
-      const container = document.getElementById(`qr-${player.id}`)
-      if (!container) {
-        console.warn(`Container not found for player ${player.id}`)
-        continue
-      }
-
-      // Очищаем контейнер
-      container.innerHTML = ''
-
-      // Создаем canvas
-      const canvas = document.createElement('canvas')
-      canvas.width = 150
-      canvas.height = 150
-      container.appendChild(canvas)
-
-      // Генерируем QR-код
-      await QRCode.toCanvas(canvas, JSON.stringify(qrData), {
-        width: 150,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
-      })
-
-    } catch (error) {
-      console.error(`Error generating QR code for player ${player.id}:`, error)
-      
-      // Fallback: показываем текстовый идентификатор
-      const container = document.getElementById(`qr-${player.id}`)
-      if (container) {
-        container.innerHTML = `
-          <div style="
-            width: 150px; 
-            height: 150px; 
-            border: 1px solid #ccc; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            text-align: center; 
-            font-size: 10px; 
-            word-break: break-all;
-            padding: 5px;
-            background: #f5f5f5;
-          ">
-            ${player.identificator}
-          </div>
-        `
-      }
+  } catch (error) {
+    console.error(`Error generating QR code for player ${player.id}:`, error)
+    
+    // Fallback: показываем текстовый идентификатор
+    const container = document.getElementById(`qr-${player.id}`)
+    if (container) {
+      const qrType = qrCodeTypes.value[player.id] || 'main'
+      const displayText = qrType === 'main' ? player.identificator : player.name
+      container.innerHTML = `
+        <div style="
+          width: 150px; 
+          height: 150px; 
+          border: 1px solid #ccc; 
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          text-align: center; 
+          font-size: 10px; 
+          word-break: break-all;
+          padding: 5px;
+          background: #f5f5f5;
+        ">
+          ${displayText}
+        </div>
+      `
     }
   }
 }
@@ -504,6 +705,103 @@ const clearFilters = () => {
   sortBy.value = 'name'
 }
 
+// Player dialog methods
+const openPlayerDialog = async (player) => {
+  selectedPlayer.value = player
+  playerDialog.value = true
+  
+  // Загружаем список всех ресурсов, если еще не загружен
+  if (allResources.value.length === 0) {
+    await loadAllResources()
+  }
+  
+  // Инициализируем список ресурсов для добавления
+  newResources.value = allResources.value.map(r => ({ ...r, count: 0 }))
+  
+  // Загружаем ресурсы игрока
+  await loadPlayerResources()
+}
+
+const loadAllResources = async () => {
+  try {
+    const response = await axios.get(
+      `${import.meta.env.VITE_PROXY}/resources/show_all_resources`
+    )
+    // Берем только identificator и name
+    allResources.value = response.data.map(r => ({
+      identificator: r.identificator,
+      name: r.name
+    }))
+  } catch (error) {
+    console.error('Error loading all resources:', error)
+    allResources.value = []
+  }
+}
+
+const loadPlayerResources = async () => {
+  if (!selectedPlayer.value) return
+  
+  loadingResources.value = true
+  try {
+    const response = await axios.get(
+      `${import.meta.env.VITE_PROXY}/players/${selectedPlayer.value.id}/show_players_resources`
+    )
+    playerResources.value = response.data || []
+  } catch (error) {
+    console.error('Error loading player resources:', error)
+    playerResources.value = []
+  } finally {
+    loadingResources.value = false
+  }
+}
+
+const addResourcesToPlayer = async () => {
+  if (!selectedPlayer.value || !hasResourcesToAdd.value) return
+  
+  addingResources.value = true
+  try {
+    // Фильтруем только ресурсы с количеством > 0
+    const resourcesToAdd = newResources.value
+      .filter(r => r.count > 0)
+      .map(r => ({
+        identificator: r.identificator,
+        count: r.count,
+        name: r.name
+      }))
+
+    console.log('Adding resources to player:', selectedPlayer.value.id)
+    console.log('Resources:', resourcesToAdd)
+
+    const url = `${import.meta.env.VITE_PROXY}/players/${selectedPlayer.value.id}/receive_from_masters`
+    console.log('POST URL:', url)
+
+    const response = await axios.post(url, {
+      hashed_resources: resourcesToAdd
+    })
+
+    console.log('Response:', response.data)
+
+    if (response.data.success) {
+      // Сбрасываем форму
+      newResources.value = allResources.value.map(r => ({ ...r, count: 0 }))
+      
+      // Перезагружаем ресурсы игрока
+      await loadPlayerResources()
+      
+      // Можно добавить уведомление об успехе
+      alert('Ресурсы успешно добавлены!')
+    } else {
+      alert('Ошибка при добавлении ресурсов: ' + (response.data.error || 'Неизвестная ошибка'))
+    }
+  } catch (error) {
+    console.error('Error adding resources:', error)
+    console.error('Error details:', error.response?.data)
+    alert('Произошла ошибка при добавлении ресурсов: ' + (error.response?.data?.error || error.message))
+  } finally {
+    addingResources.value = false
+  }
+}
+
 // Lifecycle
 onMounted(() => {
   loadPlayers()
@@ -542,6 +840,42 @@ onMounted(() => {
   justify-content: center;
   align-items: center;
   height: 150px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.resources-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.resource-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.add-resources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.add-resource-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
   background: #f8f9fa;
   border-radius: 8px;
   border: 1px solid #e9ecef;
