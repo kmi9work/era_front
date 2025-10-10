@@ -100,14 +100,12 @@ const fetchResources = async () =>{
     const response = await axios.get(`${import.meta.env.VITE_PROXY}/resources/show_prices.json`)
     resources.value = response.data.prices;
     
-    // Объединяем off_market и to_market в один массив для store
-    const allResources = [
-      ...(response.data.prices.off_market || []),
-      ...(response.data.prices.to_market || [])
-    ]
-    
     // Сохраняем ресурсы в store для калькулятора
-    caravanStore.setResources(allResources);
+    // Передаем весь объект с off_market и to_market отдельно
+    caravanStore.setResources({
+      off_market: response.data.prices.off_market || [],
+      to_market: response.data.prices.to_market || []
+    });
     
     newRelations.value = false;
 
@@ -172,8 +170,16 @@ const filteredResToMark = computed(() => {
 
 
 async function sendCaravanRequest(isContraband = false) {
+  console.log('===== sendCaravanRequest CALLED =====')
+  console.log('isContraband:', isContraband)
+  
   try {
     showEmbargoDialog.value = false
+    
+    console.log('Calling caravanStore.sendCaravan with:')
+    console.log('  countryId:', selectedCountry.value)
+    console.log('  resPlSells:', resourcesPlSells.value)
+    console.log('  resPlBuys:', resourcesPlBuys.value)
     
     // Вместо запроса на сервер, используем локальный расчет через store
     const result = caravanStore.sendCaravan(
@@ -181,6 +187,8 @@ async function sendCaravanRequest(isContraband = false) {
       resourcesPlSells.value,
       resourcesPlBuys.value
     )
+    
+    console.log('Result from caravanStore:', result)
     
     prices.value = result
     resToPlayer.value = result.res_to_player
@@ -194,11 +202,18 @@ async function sendCaravanRequest(isContraband = false) {
 
 //ПРОВЕРИТЬ
 async function submit() {
+  console.log('===== SUBMIT CALLED =====')
+  console.log('embargo.value:', embargo.value)
+  
   if (embargo.value) {
+    console.log('Embargo active, showing dialog')
     showEmbargoDialog.value = true
     return
   }
+  
+  console.log('Calling sendCaravanRequest...')
   await sendCaravanRequest()
+  console.log('sendCaravanRequest completed')
 }
 
 // ЭМБАРГО

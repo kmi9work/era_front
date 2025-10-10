@@ -3,13 +3,15 @@ import { ref, computed } from 'vue'
 
 export const useCaravanStore = defineStore('caravan', () => {
   // State
-  const resources = ref([]) // Все ресурсы с ценами
+  const resources = ref({ off_market: [], to_market: [] }) // Ресурсы разделены по типам
   const countries = ref([]) // Все страны
 
   // Getters
   const getResourceByIdentificator = computed(() => {
     return (identificator) => {
-      return resources.value.find(r => r.identificator === identificator)
+      // Ищем в обоих списках
+      const allResources = [...resources.value.off_market, ...resources.value.to_market]
+      return allResources.find(r => r.identificator === identificator)
     }
   })
 
@@ -39,9 +41,9 @@ export const useCaravanStore = defineStore('caravan', () => {
       return []
     }
 
-    // Получаем все ресурсы, которые принимает эта страна
-    // Ресурс может иметь country_id или country.id
-    const countryResources = resources.value.filter(r => 
+    // Получаем все ресурсы, которые принимает эта страна (из обоих списков)
+    const allResources = [...resources.value.off_market, ...resources.value.to_market]
+    const countryResources = allResources.filter(r => 
       r.country_id === countryId || r.country?.id === countryId
     )
     const countryIdentificators = countryResources.map(r => r.identificator)
@@ -85,15 +87,19 @@ export const useCaravanStore = defineStore('caravan', () => {
     const relations = country.relations?.toString() || '0'
     
     // Определяем, какое поле с ценой использовать
-    // Для 'buy' (игрок продает) используем sell_price
-    // Для 'sale' (игрок покупает) используем buy_price
+    // В to_market (игрок продает): используем поле sell_price
+    // В off_market (игрок покупает): используем поле buy_price
     let unitCost
     if (transactionType === 'buy') {
-      // Игрок продает рынку - ищем sell_price
-      unitCost = resource.params?.buy_price?.[relations] || resource.sell_price
+      // Игрок продает рынку - используем sell_price (из to_market)
+      // sell_price уже содержит финальную цену, не нужно искать в params
+      unitCost = resource.sell_price
+      console.log(`CALC: type=buy (player sells), relations=${relations}, sell_price=`, resource.sell_price, 'unitCost=', unitCost)
     } else {
-      // Игрок покупает с рынка - ищем buy_price
-      unitCost = resource.params?.sale_price?.[relations] || resource.buy_price
+      // Игрок покупает с рынка - используем buy_price (из off_market)
+      // buy_price уже содержит финальную цену, не нужно искать в params
+      unitCost = resource.buy_price
+      console.log(`CALC: type=sale (player buys), relations=${relations}, buy_price=`, resource.buy_price, 'unitCost=', unitCost)
     }
 
     if (unitCost !== undefined && unitCost !== null) {
@@ -121,6 +127,14 @@ export const useCaravanStore = defineStore('caravan', () => {
    * @returns {Object} {res_to_player: [...]}
    */
   function sendCaravan(countryId, resPlSells = [], resPlBuys = []) {
+    console.log('🚀 STORE sendCaravan called!')
+    console.log('countryId:', countryId)
+    console.log('resPlSells:', resPlSells)
+    console.log('resPlBuys:', resPlBuys)
+    console.log('resources.value.to_market length:', resources.value.to_market?.length)
+    console.log('resources.value.off_market length:', resources.value.off_market?.length)
+    console.log('countries.value length:', countries.value.length)
+    
     // Валидация
     if (!countryId) {
       throw new Error('country_id is required')
@@ -139,21 +153,40 @@ export const useCaravanStore = defineStore('caravan', () => {
     // Обрабатываем ресурсы, которые игрок продает рынку
     const eligibleSellResources = countryFilter(countryId, resPlSells)
     
+    console.log('SELL: Eligible resources:', eligibleSellResources)
+    
     eligibleSellResources.forEach(res => {
+      console.log('SELL: Processing:', res.identificator, 'count:', res.count)
       if (res.identificator === 'gold') return // Пропускаем золото
       if (!res.count || res.count <= 0) return // Пропускаем пустые значения
 
-      const resourceObj = resources.value.find(r => 
+      // Для продажи ищем в to_market (там есть sell_price)
+      const resourceObj = resources.value.to_market.find(r => 
         r.identificator === res.identificator && 
         (r.country_id === countryId || r.country?.id === countryId)
       )
+      console.log('SELL: Found resource:', resourceObj?.identificator)
+      console.log('SELL: Resource fields:', {
+        identificator: resourceObj.identificator,
+        name: resourceObj.name,
+        sell_price: resourceObj.sell_price,
+        buy_price: resourceObj.buy_price,
+        country: resourceObj.country,
+        country_id: resourceObj.country_id,
+        params: resourceObj.params,
+        embargo: resourceObj.embargo
+      })
       if (!resourceObj) return // Пропускаем несуществующие ресурсы
 
       const costResult = calculateCost('buy', res.count, resourceObj)
+      console.log('SELL: Cost result:', costResult)
       if (costResult.cost) {
         gold += costResult.cost
+        console.log('SELL: Gold now:', gold)
       }
     })
+    
+    console.log('SELL: Final gold:', gold)
 
     // Обрабатываем ресурсы, которые игрок покупает с рынка
     const resToPlayer = []
@@ -162,7 +195,8 @@ export const useCaravanStore = defineStore('caravan', () => {
     eligibleBuyResources.forEach(res => {
       if (!res.count || res.count <= 0) return // Пропускаем пустые значения
 
-      const resourceObj = resources.value.find(r => 
+      // Для покупки ищем в off_market (там есть buy_price)
+      const resourceObj = resources.value.off_market.find(r => 
         r.identificator === res.identificator && 
         (r.country_id === countryId || r.country?.id === countryId)
       )
@@ -180,7 +214,8 @@ export const useCaravanStore = defineStore('caravan', () => {
     })
 
     // Добавляем итоговое золото к результату
-    const goldAsRes = resources.value.find(r => r.identificator === 'gold')
+    const allResources = [...resources.value.off_market, ...resources.value.to_market]
+    const goldAsRes = allResources.find(r => r.identificator === 'gold')
     if (gold !== 0) {
       resToPlayer.push({
         name: goldAsRes?.name || 'Золото',
