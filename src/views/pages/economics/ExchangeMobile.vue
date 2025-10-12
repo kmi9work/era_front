@@ -1,11 +1,8 @@
 <script setup>
 import axios from 'axios'
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue'
-import { useCaravanStore } from '@/stores/caravan'
 
-const caravanStore = useCaravanStore()
-
-//Основной функционал
+// Основной функционал
 const isLoading = ref(true)
 const isFirstRunRel = ref(true)
 const isFirstRunEmbargo = ref(true)
@@ -13,51 +10,308 @@ const pollInterval = ref(null)
 
 // Продажа и вывод
 const countries = ref([])
-const first_country = ref(null)
-const prices = ref([])
+const resources = ref({})
 const selectedCountry = ref(null)
-const resources = ref([])
 const resourcesPlSells = ref([])
 const resourcesPlBuys = ref([])
 const resToPlayer = ref([])
-const resToBack = ref([])
 
-// UI состояния для мобильной версии
-const activeTab = ref('sell') // 'sell' или 'buy'
-const showCountrySheet = ref(false)
+// Состояния для кастомной клавиатуры
+const showKeyboard = ref(false)
+const keyboardResource = ref(null)
+const keyboardValue = ref('0')
+const keyboardIndex = ref(null)
+const keyboardType = ref(null) // 'sell' или 'buy'
+
+// Диалоги
 const showResultSheet = ref(false)
-
-// Отношения (для цен) и эмбарго
-const countriesRelations = ref([])
-const showRelationsDialog = ref(false)
-const newRelations = ref(false)
-const showEmbargoStatusDialog = ref(false)
 const showEmbargoDialog = ref(false)
+const showRelationsDialog = ref(false)
+const showEmbargoStatusDialog = ref(false)
 const embargoStatusMessage = ref('')
 const isEmbargoActive = ref(false)
+const newRelations = ref(false)
+
+const countriesRelations = ref([])
 
 const fetchCountries = async () => {
   try {
     const response = await axios.get(`${import.meta.env.VITE_PROXY}/countries/foreign_countries.json`)
     countries.value = response.data
     
-    caravanStore.setCountries(response.data)
-    
-    countriesRelations.value = countries.value.map(item => {
-      return {
-        name: item.name,
-        relations: item.relations,
-        embargo: item.params["embargo"]
-      }
-    })
-
+    countriesRelations.value = countries.value.map(item => ({
+      name: item.name,
+      relations: item.relations,
+      embargo: item.params["embargo"]
+    }))
   } catch (error) {
     console.error('Error fetching countries:', error)
-    countries.value = []
-    countriesRelations.value = []
   }
 }
 
+const fetchResources = async () => {
+  try {
+    const response = await axios.get(`${import.meta.env.VITE_PROXY}/resources/show_prices.json`)
+    resources.value = response.data.prices
+    newRelations.value = false
+  } catch (error) {
+    console.error('Error fetching resources:', error)
+  }
+}
+
+const filteredResOffMark = computed(() => {
+  if (!resources.value["off_market"] || !selectedCountry.value) return []
+  
+  let filtered = resources.value["off_market"].filter((res) => res.country.id == selectedCountry.value)
+  
+  resourcesPlBuys.value = filtered.map(item => ({
+    identificator: item.identificator,
+    count: null
+  }))
+  
+  return filtered
+})
+
+const filteredResToMark = computed(() => {
+  if (!resources.value["to_market"]) return []
+  
+  let filtered = selectedCountry.value 
+    ? resources.value["to_market"].filter(res => res.country.id == selectedCountry.value)
+    : resources.value["to_market"]
+  
+  resourcesPlSells.value = filtered.map(item => ({
+    identificator: item.identificator,
+    count: null
+  }))
+  
+  const goldItem = { identificator: "gold", count: null }
+  resourcesPlSells.value.push({...goldItem})
+  
+  return [...filtered, {...goldItem}]
+})
+
+const getShortName = (name) => {
+  const shortNames = {
+    'Большая Орда': 'Орда',
+    'Ливонский орден': 'Ливония',
+    'Королевство Швеция': 'Швеция',
+    'Великое княжество Литовское': 'Литва',
+    'Казанское ханство': 'Казань',
+    'Крымское ханство': 'Крым',
+  }
+  return shortNames[name] || name.substring(0, 3)
+}
+
+const selectedCountryName = computed(() => {
+  if (!selectedCountry.value) return ''
+  const country = countries.value.find(c => c.id === selectedCountry.value)
+  return country ? getShortName(country.name) : ''
+})
+
+const embargo = computed(() => {
+  if (selectedCountry.value == null) return false
+  const country = countries.value.find(c => c.id === selectedCountry.value)
+  return Number(country?.params?.embargo) > 0
+})
+
+const hasEmbargo = (country) => {
+  return (country?.params?.embargo > 0)
+}
+
+const nameChecker = (item) => {
+  if (item) {
+    return `По ${item}`
+  } else {
+    return "Золото"
+  }
+}
+
+const selectCountry = (countryId) => {
+  selectedCountry.value = countryId
+  // Добавляем состояние в историю для кнопки "Назад"
+  window.history.pushState({ page: 'resources', countryId }, '')
+}
+
+const backToCountrySelection = () => {
+  selectedCountry.value = null
+  resetForm()
+}
+
+const sendCaravanRequest = async (isContraband = false) => {
+  try {
+    showEmbargoDialog.value = false
+    
+    const response = await axios.post(`${import.meta.env.VITE_PROXY}/resources/send_caravan`, {
+      country_id: selectedCountry.value,
+      res_pl_sells: resourcesPlSells.value.filter(r => r.count),
+      res_pl_buys: resourcesPlBuys.value.filter(r => r.count)
+    })
+    
+    resToPlayer.value = response.data.res_to_player || []
+    showResultSheet.value = true
+  } catch (e) {
+    console.error('Ошибка расчета:', e)
+  }
+}
+
+const submit = async () => {
+  if (embargo.value) {
+    showEmbargoDialog.value = true
+    return
+  }
+  
+  await sendCaravanRequest()
+}
+
+const confirmContraband = async () => {
+  showEmbargoDialog.value = false
+  try {
+    await sendCaravanRequest(true)
+  } catch (error) {
+    console.error("Ошибка при отправке контрабанды:", error)
+  }
+}
+
+// Функции для работы с кастомной клавиатурой
+const openKeyboard = (item, index, type) => {
+  keyboardResource.value = {
+    identificator: item.identificator,
+    name: item.name || item.identificator,
+    price: nameChecker(type === 'sell' ? item.sell_price : item.buy_price),
+    type: type
+  }
+  keyboardIndex.value = index
+  keyboardType.value = type
+  
+  // Устанавливаем текущее значение
+  const currentArray = type === 'sell' ? resourcesPlSells.value : resourcesPlBuys.value
+  const currentValue = currentArray[index].count
+  keyboardValue.value = currentValue ? currentValue.toString() : '0'
+  
+  showKeyboard.value = true
+}
+
+const pressNumber = (num) => {
+  if (keyboardValue.value === '0') {
+    keyboardValue.value = num.toString()
+  } else {
+    keyboardValue.value += num.toString()
+  }
+}
+
+const pressBackspace = () => {
+  if (keyboardValue.value.length > 1) {
+    keyboardValue.value = keyboardValue.value.slice(0, -1)
+  } else {
+    keyboardValue.value = '0'
+  }
+}
+
+const pressClear = () => {
+  keyboardValue.value = '0'
+}
+
+const confirmKeyboard = () => {
+  const value = parseInt(keyboardValue.value) || 0
+  const targetArray = keyboardType.value === 'sell' ? resourcesPlSells.value : resourcesPlBuys.value
+  
+  if (targetArray[keyboardIndex.value]) {
+    targetArray[keyboardIndex.value].count = value > 0 ? value : null
+  }
+  
+  cancelKeyboard()
+}
+
+const cancelKeyboard = () => {
+  showKeyboard.value = false
+  keyboardResource.value = null
+  keyboardValue.value = '0'
+  keyboardIndex.value = null
+  keyboardType.value = null
+}
+
+const resetForm = () => {
+  resourcesPlBuys.value = filteredResOffMark.value.map(item => ({
+    identificator: item.identificator,
+    count: null
+  }))
+  
+  resourcesPlSells.value = filteredResToMark.value.map(item => ({
+    identificator: item.identificator,
+    count: null
+  }))
+  
+  resToPlayer.value = []
+  showResultSheet.value = false
+}
+
+// Обработчик кнопки "Назад" на телефоне
+const handleBackButton = (event) => {
+  // Если открыта клавиатура, закрываем её
+  if (showKeyboard.value) {
+    event.preventDefault()
+    cancelKeyboard()
+    return
+  }
+  
+  // Если открыт диалог результатов, закрываем его
+  if (showResultSheet.value) {
+    event.preventDefault()
+    showResultSheet.value = false
+    return
+  }
+  
+  // Если открыт диалог эмбарго, закрываем его
+  if (showEmbargoDialog.value) {
+    event.preventDefault()
+    showEmbargoDialog.value = false
+    return
+  }
+  
+  // Если мы на экране 2 (выбрана страна), возвращаемся на экран 1
+  if (selectedCountry.value) {
+    event.preventDefault()
+    backToCountrySelection()
+    return
+  }
+  
+  // Если мы на экране 1 (страна не выбрана), позволяем закрыть приложение
+}
+
+onMounted(async () => {
+  try {
+    await fetchCountries()
+    await fetchResources()
+    
+    // НЕ выбираем страну автоматически - пользователь выберет сам
+  } catch (e) {
+    console.error(e)
+  } finally {
+    isLoading.value = false
+  }
+  
+  pollInterval.value = setInterval(fetchCountries, 30000)
+
+  // Обработчик кнопки "Назад" на телефоне
+  window.addEventListener('popstate', handleBackButton)
+  
+  // Добавляем начальное состояние в историю
+  window.history.pushState({ page: 'main' }, '')
+})
+
+onBeforeUnmount(() => {
+  clearInterval(pollInterval.value)
+  window.removeEventListener('popstate', handleBackButton)
+})
+
+watch(selectedCountry, (newVal) => {
+  if (newVal) {
+    filteredResOffMark.value
+    filteredResToMark.value
+  }
+})
+
+// Отслеживание изменения отношений
 watch(
   () => countriesRelations.value.map(country => country.relations),
   (newVal, oldVal) => {
@@ -73,6 +327,7 @@ watch(
   { deep: true }
 )
 
+// Отслеживание изменения эмбарго
 watch(
   () => countriesRelations.value.map(country => country.embargo),
   (newVal, oldVal) => {
@@ -95,510 +350,507 @@ watch(
   },
   { deep: true }
 )
-
-const fetchResources = async () => {
-  try {
-    const response = await axios.get(`${import.meta.env.VITE_PROXY}/resources/show_prices.json`)
-    resources.value = response.data.prices
-    
-    caravanStore.setResources({
-      off_market: response.data.prices.off_market || [],
-      to_market: response.data.prices.to_market || []
-    })
-    
-    newRelations.value = false
-
-  } catch (error) {
-    console.error('Error fetching resources:', error)
-  }
-}
-
-const filteredResOffMark = computed(() => {
-  if (!resources.value["off_market"] || !selectedCountry.value) return []
-
-  let filtered = resources.value["off_market"].filter((res) => res.country.id == selectedCountry.value)
-
-  resourcesPlBuys.value = filtered.map(
-    (item) => ({
-      "identificator": item.identificator,
-      "count": null
-    })
-  )
-
-  return filtered
-})
-
-const getShortName = (name) => {
-  const shortNames = {
-    'Большая Орда': 'Орда',
-    'Ливонский орден': 'Ливония',
-    'Королевство Швеция': 'Швеция',
-    'Великое княжество Литовское': 'Литва',
-    'Казанское ханство': 'Казань',
-    'Крымское ханство': 'Крым',
-  }
-  return shortNames[name] || name.substring(0, 3)
-}
-
-const filteredResToMark = computed(() => {
-  if (!resources.value["to_market"]) return []
-
-  let filtered = selectedCountry.value 
-    ? resources.value["to_market"].filter(res => res.country.id == selectedCountry.value)
-    : resources.value["to_market"]
-
-  resourcesPlSells.value = filtered.map(item => ({
-    identificator: item.identificator,
-    count: null
-  }))
-
-  const goldItem = {
-    identificator: "gold",
-    count: null
-  }
-
-  resourcesPlSells.value.push({...goldItem})
-
-  return [...filtered, {...goldItem}]
-})
-
-async function sendCaravanRequest(isContraband = false) {
-  try {
-    showEmbargoDialog.value = false
-    
-    const result = caravanStore.sendCaravan(
-      selectedCountry.value,
-      resourcesPlSells.value,
-      resourcesPlBuys.value
-    )
-    
-    prices.value = result
-    resToPlayer.value = result.res_to_player
-    showResultSheet.value = true
-
-    return { data: result }
-  } catch (e) {
-    console.error('Ошибка расчета:', e)
-    throw e
-  }
-}
-
-async function submit() {
-  if (embargo.value) {
-    showEmbargoDialog.value = true
-    return
-  }
-  
-  await sendCaravanRequest()
-}
-
-// ЭМБАРГО
-const embargo = computed(() => {
-  if (selectedCountry.value == null) return false
-  const country = countries.value.find(c => c.id === selectedCountry.value)
-  return Number(country?.params?.embargo) > 0
-})
-
-const hasEmbargo = (country) => {
-  return (country?.params?.embargo > 0) 
-}
-
-const getButtonColor = (country) => {
-  if (selectedCountry.value === country.id && !hasEmbargo(country)) return 'success'
-  if (selectedCountry.value === country.id && hasEmbargo(country)) return 'secondary'  
-  if (hasEmbargo(country)) return 'error'
-  return undefined
-}
-
-const nameChecker = (item) => {
-  if (item) {
-    return `По ${item}` 
-  } else {
-    return "Золото"
-  }
-}
-
-const selectedCountryName = computed(() => {
-  if (!selectedCountry.value) return ''
-  const country = countries.value.find(c => c.id === selectedCountry.value)
-  return country ? getShortName(country.name) : ''
-})
-
-// Загружаем данные при монтировании
-onMounted(async () => {
-  try {
-    await fetchCountries()
-    await fetchResources()  
-
-    if (countries.value.length > 0) {
-      first_country.value = countries.value[0].id
-      selectedCountry.value = first_country.value
-    }
-  } catch (e) {
-    console.error(e)
-  } finally {
-    isLoading.value = false
-  }
-
-  pollInterval.value = setInterval(fetchCountries, 30000)
-})
-
-onBeforeUnmount(() => {
-  clearInterval(pollInterval.value)
-})
-
-watch(selectedCountry, (newVal) => {
-  if (newVal) {
-    filteredResOffMark.value
-    filteredResToMark.value
-  }
-})
-
-async function confirmContraband() {
-  showEmbargoDialog.value = false
-  try {
-    await sendCaravanRequest(true)
-  } catch (error) {
-    console.error("Ошибка при отправке контрабанды:", error)
-  }
-}
-
-function resetForm() {
-  resourcesPlBuys.value = filteredResOffMark.value.map(item => ({
-    "identificator": item.identificator,
-    "count": null
-  }))
-
-  resourcesPlSells.value = filteredResToMark.value.map(item => ({
-    "identificator": item.identificator,
-    "count": null
-  }))
-
-  resToPlayer.value = []
-  prices.value = []
-  showResultSheet.value = false
-}
-
-function selectCountry(countryId) {
-  selectedCountry.value = countryId
-  showCountrySheet.value = false
-}
 </script>
 
 <template>
-  <div v-if="!isLoading" class="mobile-container">
-    <!-- Простой хедер с названием -->
-    <VCard class="mobile-header mb-2">
-      <VCardText class="pa-3 text-center">
-        <div class="d-flex align-center justify-center">
-          <VIcon icon="ri-exchange-line" size="28" class="mr-2" color="primary" />
-          <span class="text-h5 font-weight-bold">Рынок</span>
-        </div>
-      </VCardText>
-    </VCard>
+  <VApp>
+    <!-- Диалог с клавиатурой для ввода количества -->
+    <VDialog 
+      v-model="showKeyboard" 
+      fullscreen 
+      transition="dialog-bottom-transition"
+    >
+      <VCard v-if="keyboardResource">
+        <VToolbar color="#1976d2">
+          <VBtn 
+            @click="cancelKeyboard" 
+            variant="text"
+            class="back-btn-mobile"
+          >
+            ← Назад
+          </VBtn>
+          <VToolbarTitle class="title-mobile">Выбор количества</VToolbarTitle>
+          <div style="width: 50px;"></div>
+        </VToolbar>
 
-    <!-- Хедер с выбором страны -->
-    <VCard class="country-selector-card mb-2">
-      <VCardText class="pa-2">
-        <VBtn 
-          @click="showCountrySheet = true"
-          block
-          color="primary"
-          size="large"
-          :class="{ 'embargo-border': embargo }"
+        <VCardText class="pa-4">
+          <!-- Информация о ресурсе -->
+          <VCard class="mb-4" elevation="2">
+            <VCardText class="pa-4">
+              <div class="d-flex align-center justify-space-between">
+                <div class="d-flex align-center">
+                  <VImg
+                    :src="`/images/resources/${keyboardResource.identificator}.png`"
+                    width="48"
+                    height="48"
+                    class="mr-3"
+                  />
+                  <div>
+                    <div class="text-h6">{{ keyboardResource.name }}</div>
+                    <div class="text-caption text-grey">
+                      {{ keyboardResource.type === 'sell' ? 'Продажа' : 'Покупка' }}
+                    </div>
+                  </div>
+                </div>
+                <VChip color="primary" size="large">
+                  {{ keyboardResource.price }}
+                </VChip>
+              </div>
+            </VCardText>
+          </VCard>
+
+          <!-- Дисплей введенного значения -->
+          <div class="quantity-display-mobile">
+            {{ keyboardValue }}
+          </div>
+
+          <!-- Кастомная клавиатура -->
+          <div class="keyboard-container">
+            <div class="keyboard-row">
+              <VBtn 
+  v-for="num in [1, 2, 3]" 
+  :key="num"
+  class="keyboard-btn"
+  size="x-large"
+  variant="flat"
+  :ripple="true"
+  @click="pressNumber(num)"
+  @touchstart.passive
+  style="background-color: white !important; color: #333 !important;"
+>
+  {{ num }}
+</VBtn>
+
+
+            </div>
+            <div class="keyboard-row">
+                 <VBtn 
+  v-for="num in [4, 5, 6]" 
+  :key="num"
+  class="keyboard-btn"
+  size="x-large"
+  variant="flat"
+  :ripple="true"
+  @click="pressNumber(num)"
+  @touchstart.passive
+  style="background-color: white !important; color: #333 !important;"
+>
+  {{ num }}
+</VBtn>
+
+
+            </div>
+            <div class="keyboard-row">
+    <VBtn 
+  v-for="num in [7, 8, 9]" 
+  :key="num"
+  class="keyboard-btn"
+  size="x-large"
+  variant="flat"
+  :ripple="true"
+  @click="pressNumber(num)"
+  @touchstart.passive
+  style="background-color: white !important; color: #333 !important;"
+>
+  {{ num }}
+</VBtn>
+            </div>
+            <div class="keyboard-row">
+              <VBtn 
+                class="keyboard-btn keyboard-zero"
+                size="x-large"
+                variant="flat"
+                :ripple="true"
+                style="background-color: white !important; color: #333 !important;"
+                @click="pressNumber(0)"
+              >
+                0
+              </VBtn>
+              <VBtn 
+                class="keyboard-btn"
+                size="x-large"
+                variant="flat"
+                :ripple="true"
+                style="background-color: #ffc107 !important; color: white !important;"
+                @click="pressBackspace"
+              >
+                <VIcon style="color: white !important;">mdi-backspace-outline</VIcon>
+              </VBtn>
+              <VBtn 
+                class="keyboard-btn"
+                size="x-large"
+                variant="flat"
+                :ripple="true"
+                style="background-color: #f44336 !important; color: white !important;"
+                @click="pressClear"
+              >
+                C
+              </VBtn>
+            </div>
+            <div class="keyboard-row mt-2">
+              <VBtn 
+                block
+                size="x-large"
+                variant="flat"
+                :ripple="true"
+                style="background-color: #4caf50 !important; color: white !important;"
+                @click="confirmKeyboard"
+              >
+                <VIcon class="mr-2" style="color: white !important;">mdi-check</VIcon>
+                Готово
+              </VBtn>
+            </div>
+          </div>
+        </VCardText>
+      </VCard>
+    </VDialog>
+
+    <!-- ЭКРАН 1: Выбор страны -->
+    <VContainer fluid class="pa-2" v-if="!isLoading && !selectedCountry">
+      <!-- Хедер -->
+      <VCard class="mb-3">
+        <VCardText class="pa-3 text-center">
+          <div class="d-flex align-center justify-center">
+            <VIcon icon="ri-exchange-line" size="32" class="mr-2" color="primary" />
+            <span class="text-h5 font-weight-bold">Куда караван?</span>
+          </div>
+        </VCardText>
+      </VCard>
+
+      <!-- Сетка стран -->
+      <div class="country-selection-grid">
+        <VCard
+          v-for="country in countries"
+          :key="country.id"
+          @click="selectCountry(country.id)"
+          class="country-selection-card"
+          :class="{ 'embargo-card': hasEmbargo(country) }"
+          elevation="3"
         >
-          <v-img
+          <VCardText class="pa-4 text-center">
+            <VImg
+              :src="`/images/countries/${country.name}.png`"
+              width="80"
+              height="60"
+              class="mx-auto mb-3"
+            />
+            <div class="text-h6 font-weight-bold mb-1">
+              {{ getShortName(country.name) }}
+            </div>
+            <VChip
+              v-if="hasEmbargo(country)"
+              color="error"
+              size="small"
+              class="mt-2"
+            >
+              Эмбарго
+            </VChip>
+          </VCardText>
+        </VCard>
+      </div>
+    </VContainer>
+
+    <!-- ЭКРАН 2: Работа с ресурсами -->
+    <VContainer fluid class="pa-0" v-if="!isLoading && selectedCountry">
+      <!-- Хедер с выбранной страной -->
+      <div class="header-mobile">
+        <VBtn 
+          @click="backToCountrySelection"
+          variant="text"
+          class="back-btn-mobile"
+        >
+          ← Назад
+        </VBtn>
+        <div class="d-flex align-center flex-grow-1 justify-center">
+          <VImg
             v-if="selectedCountry"
             :src="`/images/countries/${countries.find(c => c.id === selectedCountry)?.name}.png`"
-            width="40"
-            height="30"
+            width="32"
+            height="24"
             class="mr-2"
           />
-          <span class="text-h6">{{ selectedCountryName || 'Выберите страну' }}</span>
-          <span v-if="embargo" class="embargo-badge-mobile ml-2">Эмбарго</span>
-        </VBtn>
-      </VCardText>
-    </VCard>
+          <span class="title-mobile">{{ selectedCountryName }}</span>
+          <VChip
+            v-if="embargo"
+            color="error"
+            size="x-small"
+            class="ml-2"
+          >
+            Эмбарго
+          </VChip>
+        </div>
+        <div style="width: 60px;"></div>
+      </div>
 
-    <!-- Вкладки продажи/покупки -->
-    <VCard class="tabs-card mb-2">
-      <VTabs v-model="activeTab" bg-color="primary" grow>
-        <VTab value="sell">Отправить</VTab>
-        <VTab value="buy">Заказать</VTab>
-      </VTabs>
-    </VCard>
-
-    <!-- Контент вкладок -->
-    <VWindow v-model="activeTab" class="mb-2">
-      <!-- Вкладка продажи -->
-      <VWindowItem value="sell">
-        <VCard>
-          <VCardTitle class="text-center py-2">Игрок отправляет</VCardTitle>
-          <VCardText class="pa-2">
-            <div class="mobile-resources-grid">
-              <div
-                v-for="(item, index) in filteredResToMark"
-                :key="index"
-                class="mobile-resource-item"
-              >
-                <div class="resource-row">
-                  <v-img
-                    :src="`/images/resources/${item.identificator}.png`"
-                    width="48"
-                    height="48"
-                    class="resource-icon-mobile"
-                  />
-                  <div class="resource-info">
-                    <div class="resource-name">{{ item.identificator }}</div>
-                    <div class="resource-price">{{ nameChecker(item.sell_price) }}</div>
-                  </div>
-                  <v-text-field
-                    v-model.number="resourcesPlSells[index].count"
-                    type="number"
-                    variant="outlined"
-                    density="compact"
-                    hide-details
-                    class="resource-input-mobile"
-                    inputmode="numeric"
-                  />
+      <!-- Секция "Вы отправляете с караваном" -->
+      <VCard class="mb-3 section-card" style="margin: 15px;">
+        <VCardTitle class="section-title-mobile">
+          Вы отправляете с караваном
+        </VCardTitle>
+        <VCardText class="pa-3">
+          <div class="mobile-resources-grid">
+            <div
+              v-for="(item, index) in filteredResToMark"
+              :key="'sell-' + index"
+              class="mobile-resource-item"
+            >
+              <div class="resource-row">
+                <VImg
+                  :src="`/images/resources/${item.identificator}.png`"
+                  width="48"
+                  height="48"
+                  class="resource-icon-mobile"
+                />
+                <div class="resource-info">
+                  <div class="resource-name-bold">{{ item.identificator === 'gold' ? 'Золото' : (item.name || item.identificator) }}</div>
                 </div>
+                <VBtn
+                  @click="openKeyboard(item, index, 'sell')"
+                  variant="outlined"
+                  size="large"
+                  class="keyboard-trigger-btn"
+                  :color="resourcesPlSells[index].count > 0 ? 'success' : 'grey'"
+                >
+                  {{ resourcesPlSells[index].count || '0' }}
+                </VBtn>
               </div>
             </div>
-          </VCardText>
-        </VCard>
-      </VWindowItem>
+          </div>
+        </VCardText>
+      </VCard>
 
-      <!-- Вкладка покупки -->
-      <VWindowItem value="buy">
-        <VCard>
-          <VCardTitle class="text-center py-2">Игрок заказал</VCardTitle>
-          <VCardText class="pa-2">
-            <div class="mobile-resources-grid">
-              <div
-                v-for="(item, index) in filteredResOffMark"
-                :key="index"
-                class="mobile-resource-item"
-              >
-                <div class="resource-row">
-                  <v-img
-                    :src="`/images/resources/${item.identificator}.png`"
-                    width="48"
-                    height="48"
-                    class="resource-icon-mobile"
-                  />
-                  <div class="resource-info">
-                    <div class="resource-name">{{ item.identificator }}</div>
-                    <div class="resource-price">{{ nameChecker(item.buy_price) }}</div>
-                  </div>
-                  <v-text-field
-                    v-model.number="resourcesPlBuys[index].count"
-                    type="number"
-                    variant="outlined"
-                    density="compact"
-                    hide-details
-                    class="resource-input-mobile"
-                    inputmode="numeric"
-                  />
+      <!-- Секция "Вы покупаете" -->
+      <VCard class="mb-3 section-card" style="margin: 15px;">
+        <VCardTitle class="section-title-mobile">
+          Вы покупаете
+        </VCardTitle>
+        <VCardText class="pa-3">
+          <div class="mobile-resources-grid">
+            <div
+              v-for="(item, index) in filteredResOffMark"
+              :key="'buy-' + index"
+              class="mobile-resource-item"
+            >
+              <div class="resource-row">
+                <VImg
+                  :src="`/images/resources/${item.identificator}.png`"
+                  width="48"
+                  height="48"
+                  class="resource-icon-mobile"
+                />
+                <div class="resource-info">
+                  <div class="resource-name-bold">{{ item.identificator === 'gold' ? 'Золото' : (item.name || item.identificator) }}</div>
                 </div>
+                <VBtn
+                  @click="openKeyboard(item, index, 'buy')"
+                  variant="outlined"
+                  size="large"
+                  class="keyboard-trigger-btn"
+                  :color="resourcesPlBuys[index].count > 0 ? 'primary' : 'grey'"
+                >
+                  {{ resourcesPlBuys[index].count || '0' }}
+                </VBtn>
               </div>
             </div>
-          </VCardText>
-        </VCard>
-      </VWindowItem>
-    </VWindow>
+          </div>
+        </VCardText>
+      </VCard>
 
-    <!-- Кнопки действий -->
-    <VCard class="actions-card">
-      <VCardText class="pa-2">
+      <!-- Кнопки действий -->
+      <div style="padding: 0 15px 15px;">
         <VRow dense>
           <VCol cols="6">
             <VBtn 
-              @click="submit" 
-              block
-              color="primary"
-              size="large"
-            >
-              Обработать
-            </VBtn>
-          </VCol>
-          <VCol cols="6">
-            <VBtn
-              @click="resetForm"
-              color="error"
-              block
-              size="large"
+              @click="resetForm" 
+              color="#f44336" 
+              block 
+              class="action-btn-mobile"
+              elevation="2"
             >
               Очистить
             </VBtn>
           </VCol>
-          <VCol cols="12">
+          <VCol cols="6">
             <VBtn 
-              @click="fetchResources" 
-              block
-              color="primary"
-              size="large"
-              :disabled="!newRelations"
+              @click="submit" 
+              block 
+              color="#4caf50" 
+              class="action-btn-mobile"
+              elevation="2"
             >
-              Обновить цены
+              Посчитать
             </VBtn>
           </VCol>
         </VRow>
-      </VCardText>
-    </VCard>
+      </div>
 
-    <!-- Bottom Sheet для выбора страны -->
-    <VBottomSheet v-model="showCountrySheet">
-      <VCard>
-        <VCardTitle class="text-center">Выберите страну</VCardTitle>
-        <VCardText>
-          <div class="country-grid-mobile">
-            <VBtn
-              v-for="country in countries"
-              :key="country.id"
-              @click="selectCountry(country.id)"
-              :color="getButtonColor(country)"
-              :class="{ 'embargo-border': hasEmbargo(country) }"
-              size="large"
-              class="country-btn-mobile"
-            >
-              <div class="country-btn-content">
-                <v-img
-                  :src="`/images/countries/${country.name}.png`"
-                  width="48"
-                  height="36"
-                  class="mb-1"
+      <!-- Bottom Sheet - результаты -->
+      <VBottomSheet v-model="showResultSheet">
+        <VCard>
+          <VCardTitle class="text-center">Выдать игроку</VCardTitle>
+          <VCardText>
+            <div class="results-mobile">
+              <div v-for="(item, index) in resToPlayer" :key="index" class="result-item-mobile">
+                <VImg
+                  :src="`/images/resources/${item.identificator || 'gold'}.png`"
+                  width="40"
+                  height="40"
+                  class="mr-3"
                 />
-                <span class="country-name-mobile">{{ getShortName(country.name) }}</span>
-                <span v-if="hasEmbargo(country)" class="embargo-label-mobile">Эмбарго</span>
-              </div>
-            </VBtn>
-          </div>
-        </VCardText>
-      </VCard>
-    </VBottomSheet>
-
-    <!-- Bottom Sheet для результатов -->
-    <VBottomSheet v-model="showResultSheet">
-      <VCard>
-        <VCardTitle class="text-center">Выдать игроку</VCardTitle>
-        <VCardText>
-          <div class="results-mobile">
-            <div v-for="(item, index) in resToPlayer" :key="index" class="result-item-mobile">
-              <v-img
-                v-if="item.identificator !== 'gold'"
-                :src="`/images/resources/${item.identificator}.png`"
-                width="40"
-                height="40"
-                class="mr-3"
-              />
-              <v-img
-                v-else
-                src="/images/resources/gold.png"
-                width="40"
-                height="40"
-                class="mr-3"
-              />
-              <div class="result-info">
-                <span class="result-name">{{ item.name }}</span>
-                <span 
-                  class="result-count"
-                  :class="item.count > 0 ? 'positive' : 'negative'"
-                >
-                  {{ item.count > 0 ? '+' : '' }}{{ item.count }}
-                </span>
+                <div class="result-info">
+                  <span class="result-name">{{ item.name }}</span>
+                  <span 
+                    class="result-count"
+                    :class="item.count > 0 ? 'positive' : 'negative'"
+                  >
+                    {{ item.count > 0 ? '+' : '' }}{{ item.count }}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          </VCardText>
+          <VCardActions>
+            <VBtn @click="showResultSheet = false" block color="primary">Закрыть</VBtn>
+          </VCardActions>
+        </VCard>
+      </VBottomSheet>
+    </VContainer>
+
+    <!-- Loading экран -->
+    <VContainer v-else class="d-flex flex-column align-center justify-center" style="min-height: 100vh;">
+      <VProgressCircular indeterminate color="primary" size="64" />
+      <div class="mt-4">Загрузка...</div>
+    </VContainer>
+
+    <!-- Диалог статуса эмбарго -->
+    <VDialog v-model="showEmbargoStatusDialog" max-width="500">
+      <VCard :color="isEmbargoActive ? 'error' : 'success'">
+        <VCardTitle>
+          {{ isEmbargoActive ? 'Эмбарго введено!' : 'Эмбарго снято!' }}
+        </VCardTitle>
+        <VCardText>
+          {{ embargoStatusMessage }}
         </VCardText>
         <VCardActions>
-          <VBtn @click="showResultSheet = false" block color="primary">Закрыть</VBtn>
+          <VSpacer></VSpacer>
+          <VBtn @click="showEmbargoStatusDialog = false">Закрыть</VBtn>
         </VCardActions>
       </VCard>
-    </VBottomSheet>
-  </div>
+    </VDialog>
 
-  <div v-else class="loading-container-mobile">
-    <VProgressCircular indeterminate color="primary" size="64" />
-    <div class="mt-4">Загрузка...</div>
-  </div>
+    <!-- Диалог изменения отношений -->
+    <VDialog v-model="showRelationsDialog" max-width="500">
+      <VCard>
+        <VCardTitle class="text-h5">Изменение отношений!</VCardTitle>
+        <VCardText>
+          Отношения между странами изменились. Закройте рынок, обработайте все пришедшие караваны, обновите ценники,
+          затем обновите цены в программе (кнопка "Обновить цены")
+        </VCardText>
+        <VCardActions>
+          <VSpacer></VSpacer>
+          <VBtn color="grey-darken-1" text @click="showRelationsDialog = false">
+            Закрыть
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
 
-  <!-- Диалоги (те же, что и в десктопной версии) -->
-  <v-dialog v-model="showEmbargoStatusDialog" max-width="500">
-    <v-card :color="isEmbargoActive ? 'error' : 'success'">
-      <v-card-title>
-        {{ isEmbargoActive ? 'Эмбарго введено!' : 'Эмбарго снято!' }}
-      </v-card-title>
-      <v-card-text>
-        {{ embargoStatusMessage }}
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer></v-spacer>
-        <v-btn @click="showEmbargoStatusDialog = false">Закрыть</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
-
-  <v-dialog v-model="showRelationsDialog" max-width="500">
-    <v-card>
-      <v-card-title class="text-h5">Изменение отношений!</v-card-title>
-      <v-card-text>
-        Отношения между странами изменились. Закройте рынок, обработайте все пришедшие караваны, обновите ценники,
-        затем обновите цены в программе (кнопка "Обновить цены")
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer></v-spacer>
-        <v-btn color="grey-darken-1" text @click="showRelationsDialog = false">
-          Закрыть
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
-
-  <v-dialog v-model="showEmbargoDialog" max-width="500">
-    <v-card>
-      <v-card-title class="text-h5">Эта страна ввела эмбарго против Руси!</v-card-title>
-      <v-card-text>
-        Для совершения операций с этой страной нужна Контрабанда!
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer></v-spacer>
-        <v-btn color="grey-darken-1" text @click="confirmContraband">
-          Есть карточка контрабанды!
-        </v-btn>
-        <v-btn color="grey-darken-1" text @click="showEmbargoDialog = false">
-          Закрыть
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+    <!-- Диалог эмбарго при торговле -->
+    <VDialog v-model="showEmbargoDialog" max-width="500">
+      <VCard>
+        <VCardTitle class="text-h5">Эта страна ввела эмбарго против Руси!</VCardTitle>
+        <VCardText>
+          Для совершения операций с этой страной нужна Контрабанда!
+        </VCardText>
+        <VCardActions>
+          <VSpacer></VSpacer>
+          <VBtn color="grey-darken-1" text @click="confirmContraband">
+            Есть карточка контрабанды!
+          </VBtn>
+          <VBtn color="grey-darken-1" text @click="showEmbargoDialog = false">
+            Закрыть
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+  </VApp>
 </template>
 
 <style scoped>
-.mobile-container {
-  padding: 8px;
-  max-width: 100%;
-  min-height: 100vh;
-  overflow-x: hidden;
-  background: rgb(var(--v-theme-background));
+/* Хедеры и кнопки "Назад" - стиль era_mobile */
+.back-btn-mobile {
+  color: white !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  padding: 4px 8px !important;
+  min-width: auto !important;
+  letter-spacing: normal !important;
 }
 
-.mobile-header {
+.back-btn-header {
+  color: #1976d2 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  padding: 4px 8px !important;
+  min-width: auto !important;
+  letter-spacing: normal !important;
+}
+
+.title-mobile {
+  font-size: 18px !important;
+  font-weight: bold !important;
+  color: white !important;
+}
+
+.title-header-mobile {
+  font-size: 16px !important;
+  font-weight: bold !important;
+  color: #1976d2 !important;
+}
+
+.header-mobile {
+  display: flex;
+  align-items: center;
+  background-color: #1976d2;
+  padding: 15px;
+  border-radius: 8px 8px 0 0;
+}
+
+/* Дисплей количества - стиль era_mobile */
+.quantity-display-mobile {
+  text-align: center;
+  background-color: #f5f5f5;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 15px;
+  border: 2px solid #1976d2;
+  font-size: 48px;
+  font-weight: bold;
+  color: #1976d2;
+}
+
+/* Секции - стиль era_mobile */
+.section-card {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.section-title-mobile {
+  font-size: 18px !important;
+  font-weight: bold !important;
+  color: #333 !important;
+  text-align: left !important;
+  padding: 15px 20px 10px !important;
+}
+
+.sticky-header {
   position: sticky;
   top: 0;
-  z-index: 11;
+  z-index: 100;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.country-selector-card {
-  position: sticky;
-  top: 68px;
-  z-index: 10;
-}
-
-.tabs-card {
-  position: sticky;
-  top: 132px;
-  z-index: 9;
 }
 
 .mobile-resources-grid {
@@ -608,10 +860,11 @@ function selectCountry(countryId) {
 }
 
 .mobile-resource-item {
-  background: rgba(var(--v-theme-surface), 0.5);
-  border-radius: 8px;
-  padding: 12px;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 15px;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .resource-row {
@@ -638,9 +891,18 @@ function selectCountry(countryId) {
   text-overflow: ellipsis;
 }
 
+.resource-name-bold {
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #1a1a1a;
+}
+
 .resource-price {
   font-size: 12px;
-  color: rgba(var(--v-theme-on-surface), 0.7);
+  opacity: 0.7;
 }
 
 .resource-input-mobile {
@@ -652,7 +914,6 @@ function selectCountry(countryId) {
   position: sticky;
   bottom: 0;
   z-index: 10;
-  margin-bottom: 0;
 }
 
 .country-grid-mobile {
@@ -679,7 +940,7 @@ function selectCountry(countryId) {
   font-weight: 600;
 }
 
-.embargo-badge-mobile {
+.embargo-badge {
   background: red;
   color: white;
   font-size: 11px;
@@ -713,9 +974,9 @@ function selectCountry(countryId) {
   display: flex;
   align-items: center;
   padding: 12px;
-  background: rgba(var(--v-theme-surface), 0.5);
+  background: rgba(0, 0, 0, 0.02);
   border-radius: 8px;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.12);
 }
 
 .result-info {
@@ -742,16 +1003,6 @@ function selectCountry(countryId) {
   color: red;
 }
 
-.loading-container-mobile {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  font-size: 1.2rem;
-}
-
-/* Убираем стрелки у number input на мобильных */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
@@ -761,5 +1012,83 @@ input[type="number"]::-webkit-outer-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
-</style>
 
+/* Стили для кастомной клавиатуры - стиль era_mobile */
+.keyboard-container {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.keyboard-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.keyboard-btn {
+  flex: 1;
+  min-width: 0;
+  height: 44px !important;
+  font-size: 20px !important;
+  font-weight: bold !important;
+  background-color: white !important;
+  color: #333 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+  border-radius: 8px !important;
+}
+
+.keyboard-zero {
+  flex: 1;
+  margin-right: 0;
+}
+
+.keyboard-trigger-btn {
+  min-width: 80px !important;
+  font-size: 18px !important;
+  font-weight: bold !important;
+  height: 48px !important;
+}
+
+/* Кнопки действий - стиль era_mobile */
+.action-btn-mobile {
+  font-size: 18px !important;
+  font-weight: bold !important;
+  height: 48px !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  color: white !important;
+  border-radius: 8px !important;
+}
+
+/* Стили для экрана выбора страны - стиль era_mobile */
+.country-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  padding: 8px;
+}
+
+.country-selection-card {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.country-selection-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.country-selection-card:active {
+  transform: translateY(0);
+}
+
+.embargo-card {
+  border-left: 4px solid #f44336;
+  background-color: rgba(244, 67, 54, 0.05);
+}
+</style>
