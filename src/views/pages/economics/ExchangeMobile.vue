@@ -120,7 +120,7 @@ const hasEmbargo = (country) => {
 
 const nameChecker = (item) => {
   if (item) {
-    return `По ${item}`
+    return `По ${item} золота`
   } else {
     return "Золото"
   }
@@ -515,7 +515,7 @@ watch(
         <VCardText class="pa-3 text-center">
           <div class="d-flex align-center justify-center">
             <VIcon icon="ri-exchange-line" size="32" class="mr-2" color="primary" />
-            <span class="text-h5 font-weight-bold">Куда караван?</span>
+            <span class="text-h5 font-weight-bold">Куда отправляется караван?</span>
           </div>
         </VCardText>
       </VCard>
@@ -557,21 +557,19 @@ watch(
     <VContainer fluid class="pa-0" v-if="!isLoading && selectedCountry">
       <!-- Хедер с выбранной страной -->
       <div class="header-mobile">
-        <VBtn 
-          @click="backToCountrySelection"
-          variant="text"
-          class="back-btn-mobile"
-        >
-          ← Назад
-        </VBtn>
-        <div class="d-flex align-center flex-grow-1 justify-center">
-          <VImg
-            v-if="selectedCountry"
-            :src="`/images/countries/${countries.find(c => c.id === selectedCountry)?.name}.png`"
-            width="32"
-            height="24"
-            class="mr-2"
-          />
+        <!-- Левая часть: кнопка "Назад" -->
+        <div class="header-left">
+          <VBtn 
+            @click="backToCountrySelection"
+            variant="text"
+            class="back-btn-mobile"
+          >
+            Назад
+          </VBtn>
+        </div>
+        
+        <!-- Центральная часть: название страны -->
+        <div class="header-center">
           <span class="title-mobile">{{ selectedCountryName }}</span>
           <VChip
             v-if="embargo"
@@ -582,7 +580,16 @@ watch(
             Эмбарго
           </VChip>
         </div>
-        <div style="width: 60px;"></div>
+        
+        <!-- Правая часть: флаг страны -->
+        <div class="header-right">
+          <VImg
+            v-if="selectedCountry"
+            :src="`/images/countries/${countries.find(c => c.id === selectedCountry)?.name}.png`"
+            width="56"
+            height="42"
+          />
+        </div>
       </div>
 
       <!-- Секция "Вы отправляете с караваном" -->
@@ -591,31 +598,22 @@ watch(
           Вы отправляете с караваном
         </VCardTitle>
         <VCardText class="pa-3">
-          <div class="mobile-resources-grid">
+          <div class="resources-grid">
             <div
               v-for="(item, index) in filteredResToMark"
               :key="'sell-' + index"
-              class="mobile-resource-item"
+              class="resource-card-compact"
+              :class="resourcesPlSells[index].count > 0 ? 'card-active' : ''"
+              @click="openKeyboard(item, index, 'sell')"
             >
-              <div class="resource-row">
-                <VImg
-                  :src="`/images/resources/${item.identificator}.png`"
-                  width="48"
-                  height="48"
-                  class="resource-icon-mobile"
-                />
-                <div class="resource-info">
-                  <div class="resource-name-bold">{{ item.identificator === 'gold' ? 'Золото' : (item.name || item.identificator) }}</div>
-                </div>
-                <VBtn
-                  @click="openKeyboard(item, index, 'sell')"
-                  variant="outlined"
-                  size="large"
-                  class="keyboard-trigger-btn"
-                  :color="resourcesPlSells[index].count > 0 ? 'success' : 'grey'"
-                >
-                  {{ resourcesPlSells[index].count || '0' }}
-                </VBtn>
+              <VImg
+                :src="`/images/resources/${item.identificator}.png`"
+                width="56"
+                height="56"
+                class="resource-icon-compact"
+              />
+              <div class="resource-count-compact">
+                {{ resourcesPlSells[index].count || '0' }}
               </div>
             </div>
           </div>
@@ -628,31 +626,22 @@ watch(
           Вы покупаете
         </VCardTitle>
         <VCardText class="pa-3">
-          <div class="mobile-resources-grid">
+          <div class="resources-grid">
             <div
               v-for="(item, index) in filteredResOffMark"
               :key="'buy-' + index"
-              class="mobile-resource-item"
+              class="resource-card-compact"
+              :class="resourcesPlBuys[index].count > 0 ? 'card-active' : ''"
+              @click="openKeyboard(item, index, 'buy')"
             >
-              <div class="resource-row">
-                <VImg
-                  :src="`/images/resources/${item.identificator}.png`"
-                  width="48"
-                  height="48"
-                  class="resource-icon-mobile"
-                />
-                <div class="resource-info">
-                  <div class="resource-name-bold">{{ item.identificator === 'gold' ? 'Золото' : (item.name || item.identificator) }}</div>
-                </div>
-                <VBtn
-                  @click="openKeyboard(item, index, 'buy')"
-                  variant="outlined"
-                  size="large"
-                  class="keyboard-trigger-btn"
-                  :color="resourcesPlBuys[index].count > 0 ? 'primary' : 'grey'"
-                >
-                  {{ resourcesPlBuys[index].count || '0' }}
-                </VBtn>
+              <VImg
+                :src="`/images/resources/${item.identificator}.png`"
+                width="56"
+                height="56"
+                class="resource-icon-compact"
+              />
+              <div class="resource-count-compact">
+                {{ resourcesPlBuys[index].count || '0' }}
               </div>
             </div>
           </div>
@@ -821,6 +810,27 @@ watch(
   border-radius: 8px 8px 0 0;
 }
 
+.header-left {
+  flex: 1;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.header-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.header-right {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
 /* Дисплей количества - стиль era_mobile */
 .quantity-display-mobile {
   text-align: center;
@@ -856,24 +866,52 @@ watch(
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.mobile-resources-grid {
+/* Grid для компактных карточек ресурсов */
+.resources-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.resource-card-compact {
+  background: white;
+  border-radius: 10px;
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-.mobile-resource-item {
-  background: #f8f9fa;
-  border-radius: 10px;
-  padding: 15px;
-  border: none;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.resource-row {
-  display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  min-height: 110px;
+}
+
+.resource-card-compact:active {
+  background: #f5f5f5;
+  transform: scale(0.95);
+}
+
+.resource-card-compact.card-active {
+  border-color: #4caf50;
+  background-color: #f1f8f4;
+  box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
+}
+
+.resource-icon-compact {
+  margin-bottom: 8px;
+}
+
+.resource-count-compact {
+  font-size: 18px;
+  font-weight: bold;
+  color: #666;
+  text-align: center;
+}
+
+.resource-card-compact.card-active .resource-count-compact {
+  color: #4caf50;
 }
 
 .resource-icon-mobile {
@@ -903,14 +941,25 @@ watch(
   color: #1a1a1a;
 }
 
-.resource-price {
-  font-size: 12px;
-  opacity: 0.7;
+.resource-count-badge {
+  min-width: 60px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: #666;
+  background-color: white;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  padding: 0 12px;
 }
 
-.resource-input-mobile {
-  width: 80px;
-  flex-shrink: 0;
+.resource-count-badge.badge-active {
+  color: #4caf50;
+  border-color: #4caf50;
+  background-color: #f1f8f4;
 }
 
 .actions-card {
