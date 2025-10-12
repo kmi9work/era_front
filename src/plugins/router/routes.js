@@ -31,10 +31,7 @@ export const routes = [
       {
         path: 'players',
         component: () => import('@/pages/players.vue'),
-      }
-
-
-
+      },
     ],
   },
   {
@@ -44,6 +41,10 @@ export const routes = [
       {
         path: 'merchant-results',
         component: () => import('@/pages/merchant-results.vue'),
+      },
+      {
+        path: 'mobile-exchange',
+        component: () => import('@/views/pages/economics/ExchangeMobile.vue'),
       },
     ],
   },
