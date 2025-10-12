@@ -96,8 +96,8 @@
 
   // Главная функция feed_to_plant (перенесено с сервера)
   function feedToPlant(plantLevel, request, way = 'from') {
-    // TODO: проверить технологию Tech Schools для коэффициента
-    const coof = 1 // было: Technology.find(Technology::TECH_SCHOOLS).is_open == 1 ? 1.5 : 1
+    // Проверяем, открыта ли технология "Школы" для коэффициента
+    const coof = plantLevel.tech_schools_open ? 1.5 : 1
 
     // Преобразуем request
     const requestCopy = request.map(req => ({
@@ -160,6 +160,7 @@
     }
     
     console.log('PlantLevel:', plantLevel)
+    console.log('Tech Schools открыта:', plantLevel.tech_schools_open ? 'ДА (коэф. 1.5)' : 'НЕТ (коэф. 1.0)')
     console.log('Request:', back_bound_from.value)
     
     const result = feedToPlant(plantLevel, back_bound_from.value, 'from')
@@ -199,6 +200,7 @@
     }
     
     console.log('PlantLevel:', plantLevel)
+    console.log('Tech Schools открыта:', plantLevel.tech_schools_open ? 'ДА (коэф. 1.5)' : 'НЕТ (коэф. 1.0)')
     console.log('Request:', back_bound_to.value)
     
     const result = feedToPlant(plantLevel, back_bound_to.value, 'to')
@@ -224,6 +226,12 @@
     return [...new Set(plantLevelsInfo.value.map(plant => plant.name))]
   })
 
+  // Статус технологии "Школы" для текущего выбранного предприятия
+  const techSchoolsStatus = computed(() => {
+    const plantLevel = plantLevelsInfo.value.find(p => p.id === selectedPlantId.value)
+    return plantLevel?.tech_schools_open || false
+  })
+
   // Растения отфильтрованные по выбранному типу
   const filteredPlantsByType = computed(() => {
     if (selectedPlantTypeIndex.value === null) return []
@@ -244,6 +252,20 @@
 <template>
 
   <div>
+    <!-- Индикатор технологии "Школы" -->
+    <VAlert
+      v-if="selectedPlantId"
+      :type="techSchoolsStatus ? 'success' : 'info'"
+      variant="tonal"
+      class="mb-4"
+    >
+      <template #prepend>
+        <VIcon :icon="techSchoolsStatus ? 'ri-check-line' : 'ri-information-line'" />
+      </template>
+      <strong>Технология "Школы":</strong> 
+      {{ techSchoolsStatus ? 'Открыта (производительность +50%)' : 'Закрыта (обычная производительность)' }}
+    </VAlert>
+
     <v-item-group v-model="selectedPlantTypeIndex" selected-class="bg-primary">
       <v-container>
         <v-row>
