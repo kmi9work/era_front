@@ -174,9 +174,12 @@ const confirmContraband = async () => {
 
 // Функции для работы с кастомной клавиатурой
 const openKeyboard = (item, index, type) => {
+  // Для золота всегда показываем "Золото"
+  const displayName = item.identificator === 'gold' ? 'Золото' : (item.name || item.identificator)
+  
   keyboardResource.value = {
     identificator: item.identificator,
-    name: item.name || item.identificator,
+    name: displayName,
     price: nameChecker(type === 'sell' ? item.sell_price : item.buy_price),
     type: type
   }
@@ -388,7 +391,7 @@ watch(
                   <div>
                     <div class="text-h6">{{ keyboardResource.name }}</div>
                     <div class="text-caption text-grey">
-                      {{ keyboardResource.type === 'sell' ? 'Продажа' : 'Покупка' }}
+                      {{ keyboardResource.type === 'sell' ? 'Вы отправляете с караваном' : 'Вы заказываете' }}
                     </div>
                   </div>
                 </div>
