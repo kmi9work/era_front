@@ -368,12 +368,11 @@ watch(
           <VBtn 
             @click="cancelKeyboard" 
             variant="text"
-            class="back-btn-mobile"
+            block
+            style="color: white !important; font-size: 20px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: normal !important;"
           >
-            ← Назад
+            Назад
           </VBtn>
-          <VToolbarTitle class="title-mobile">Выбор количества</VToolbarTitle>
-          <div style="width: 50px;"></div>
         </VToolbar>
 
         <VCardText class="pa-4">
@@ -553,47 +552,30 @@ watch(
       </div>
     </VContainer>
 
-    <!-- ЭКРАН 2: Работа с ресурсами -->
-    <VContainer fluid class="pa-0" v-if="!isLoading && selectedCountry">
-      <!-- Хедер с выбранной страной -->
-      <div class="header-mobile">
-        <!-- Левая часть: кнопка "Назад" -->
-        <div class="header-left">
+      <!-- ЭКРАН 2: Работа с ресурсами -->
+      <VContainer fluid class="pa-0" v-if="!isLoading && selectedCountry">
+        <!-- Хедер с кнопкой "Назад" -->
+        <VToolbar color="#1976d2">
           <VBtn 
-            @click="backToCountrySelection"
+            @click="backToCountrySelection" 
             variant="text"
-            class="back-btn-mobile"
+            block
+            style="color: white !important; font-size: 20px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: normal !important;"
           >
             Назад
           </VBtn>
-        </div>
-        
-        <!-- Центральная часть: название страны -->
-        <div class="header-center">
-          <span class="title-mobile">{{ selectedCountryName }}</span>
-          <VChip
-            v-if="embargo"
-            color="error"
-            size="x-small"
-            class="ml-2"
-          >
-            Эмбарго
-          </VChip>
-        </div>
-        
-        <!-- Правая часть: флаг страны -->
-        <div class="header-right">
-          <VImg
-            v-if="selectedCountry"
-            :src="`/images/countries/${countries.find(c => c.id === selectedCountry)?.name}.png`"
-            width="56"
-            height="42"
-          />
-        </div>
-      </div>
+        </VToolbar>
 
       <!-- Секция "Вы отправляете с караваном" -->
-      <VCard class="mb-3 section-card" style="margin: 15px;">
+      <VCard class="mb-3 section-card" style="margin: 15px; position: relative;">
+        <!-- Герб страны в правом верхнем углу -->
+        <VImg
+          v-if="selectedCountry"
+          :src="`/images/countries/${countries.find(c => c.id === selectedCountry)?.name}.png`"
+          width="64"
+          height="48"
+          style="position: absolute; top: 8px; right: 8px; opacity: 0.3; z-index: 1;"
+        />
         <VCardTitle class="section-title-mobile">
           Вы отправляете с караваном
         </VCardTitle>
@@ -621,7 +603,15 @@ watch(
       </VCard>
 
       <!-- Секция "Вы покупаете" -->
-      <VCard class="mb-3 section-card" style="margin: 15px;">
+      <VCard class="mb-3 section-card" style="margin: 15px; position: relative;">
+        <!-- Герб страны в правом верхнем углу -->
+        <VImg
+          v-if="selectedCountry"
+          :src="`/images/countries/${countries.find(c => c.id === selectedCountry)?.name}.png`"
+          width="64"
+          height="48"
+          style="position: absolute; top: 8px; right: 8px; opacity: 0.3; z-index: 1;"
+        />
         <VCardTitle class="section-title-mobile">
           Вы покупаете
         </VCardTitle>
@@ -709,7 +699,7 @@ watch(
     </VContainer>
 
     <!-- Loading экран -->
-    <VContainer v-else class="d-flex flex-column align-center justify-center" style="min-height: 100vh;">
+    <VContainer v-if="isLoading" class="d-flex flex-column align-center justify-center" style="min-height: 100vh;">
       <VProgressCircular indeterminate color="primary" size="64" />
       <div class="mt-4">Загрузка...</div>
     </VContainer>
