@@ -79,13 +79,6 @@ const openMarket = (countryId) => {
   emit('open-market', countryId)
 }
 
-const getRelationsClass = (relations) => {
-  if (relations >= 80) return 'relations-excellent'
-  if (relations >= 60) return 'relations-good'
-  if (relations >= 40) return 'relations-neutral'
-  if (relations >= 20) return 'relations-poor'
-  return 'relations-bad'
-}
 
 onMounted(async () => {
   isLoading.value = true
@@ -127,13 +120,13 @@ onMounted(async () => {
           @click="openMarket(item.countryId)"
         >
           <!-- Отношения в левом верхнем углу -->
-          <div 
-            class="relations-badge" 
-            :class="getRelationsClass(item.country?.relations || 0)"
+          <VImg
             v-if="item.country"
-          >
-            {{ item.country.relations || 0 }}
-          </div>
+            :src="`/images/relations/${item.country.relations || 0}.png`"
+            width="24"
+            height="24"
+            class="relations-badge"
+          />
           
           <!-- Герб страны в правом верхнем углу -->
           <VImg
@@ -209,35 +202,8 @@ onMounted(async () => {
   position: absolute;
   top: 4px;
   left: 4px;
-  color: white;
-  font-size: 12px;
-  font-weight: bold;
-  padding: 2px 6px;
-  border-radius: 4px;
-  min-width: 24px;
-  text-align: center;
-  z-index: 2;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-.relations-excellent {
-  background-color: rgba(76, 175, 80, 0.95); /* Ярко-зеленый */
-}
-
-.relations-good {
-  background-color: rgba(139, 195, 74, 0.95); /* Светло-зеленый */
-}
-
-.relations-neutral {
-  background-color: rgba(255, 152, 0, 0.95); /* Оранжевый */
-}
-
-.relations-poor {
-  background-color: rgba(244, 67, 54, 0.95); /* Красный */
-}
-
-.relations-bad {
-  background-color: rgba(183, 28, 28, 0.95); /* Темно-красный */
+  opacity: 0.6;
+  border-radius: 2px;
 }
 
 /* Флаг страны в углу */
