@@ -75,21 +75,21 @@
   }
 
   // Основная функция подсчета для одной формулы
-  function countRequest(formula, request, way) {
+  function countRequest(formula, request, way, plantLevel) {
     let n = 0
     let bucket = JSON.parse(JSON.stringify(formula[way])) // deep copy
     const formulaPart = formula[way]
 
     while (
       isResArrayLess(bucket, request) && 
-      isResArrayLess(resArrayMult(formula.to, n + 1, {}), formula.max_product)
+      isResArrayLess(resArrayMult(formula.to, n + 1, plantLevel), formula.max_product)
     ) {
       bucket = resArraySum(bucket, JSON.parse(JSON.stringify(formulaPart)))
       n += 1
     }
 
-    const to = resArrayMult(formula.to, n, {})
-    const from = resArrayMult(formula.from, n, {})
+    const to = resArrayMult(formula.to, n, plantLevel)
+    const from = resArrayMult(formula.from, n, plantLevel)
 
     return { from, to }
   }
@@ -111,7 +111,7 @@
 
     // Проходим по всем формулам
     plantLevel.formulas.forEach(formula => {
-      const { from, to } = countRequest(formula, requestCopy, way)
+      const { from, to } = countRequest(formula, requestCopy, way, plantLevel)
       
       // Вычитаем использованные ресурсы из request
       if (way === 'from') {
@@ -226,12 +226,6 @@
     return [...new Set(plantLevelsInfo.value.map(plant => plant.name))]
   })
 
-  // Статус технологии "Школы" для текущего выбранного предприятия
-  const techSchoolsStatus = computed(() => {
-    const plantLevel = plantLevelsInfo.value.find(p => p.id === selectedPlantId.value)
-    return plantLevel?.tech_schools_open || false
-  })
-
   // Растения отфильтрованные по выбранному типу
   const filteredPlantsByType = computed(() => {
     if (selectedPlantTypeIndex.value === null) return []
@@ -252,20 +246,6 @@
 <template>
 
   <div>
-    <!-- Индикатор технологии "Школы" -->
-    <VAlert
-      v-if="selectedPlantId"
-      :type="techSchoolsStatus ? 'success' : 'info'"
-      variant="tonal"
-      class="mb-4"
-    >
-      <template #prepend>
-        <VIcon :icon="techSchoolsStatus ? 'ri-check-line' : 'ri-information-line'" />
-      </template>
-      <strong>Технология "Школы":</strong> 
-      {{ techSchoolsStatus ? 'Открыта (производительность +50%)' : 'Закрыта (обычная производительность)' }}
-    </VAlert>
-
     <v-item-group v-model="selectedPlantTypeIndex" selected-class="bg-primary">
       <v-container>
         <v-row>
