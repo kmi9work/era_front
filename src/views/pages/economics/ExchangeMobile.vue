@@ -1,12 +1,16 @@
 <script setup>
 import axios from 'axios'
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue'
+import ShowPricesMobile from './ShowPricesMobile.vue'
 
 // Основной функционал
 const isLoading = ref(true)
 const isFirstRunRel = ref(true)
 const isFirstRunEmbargo = ref(true)
 const pollInterval = ref(null)
+const showMainMenu = ref(true) // Главный экран меню
+const showPrices = ref(false) // Экран цен
+const cameFromPrices = ref(false) // Флаг: пришел ли пользователь с экрана цен
 
 // Продажа и вывод
 const countries = ref([])
@@ -40,9 +44,9 @@ const fetchCountries = async () => {
     countries.value = response.data
     
     countriesRelations.value = countries.value.map(item => ({
-      name: item.name,
-      relations: item.relations,
-      embargo: item.params["embargo"]
+        name: item.name,
+        relations: item.relations,
+        embargo: item.params["embargo"]
     }))
   } catch (error) {
     console.error('Error fetching countries:', error)
@@ -61,14 +65,14 @@ const fetchResources = async () => {
 
 const filteredResOffMark = computed(() => {
   if (!resources.value["off_market"] || !selectedCountry.value) return []
-  
+
   let filtered = resources.value["off_market"].filter((res) => res.country.id == selectedCountry.value)
-  
+
   resourcesPlBuys.value = filtered.map(item => ({
     identificator: item.identificator,
     count: null
   }))
-  
+
   return filtered
 })
 
@@ -133,7 +137,47 @@ const selectCountry = (countryId) => {
 }
 
 const backToCountrySelection = () => {
+  // Если пришли с экрана цен, возвращаемся туда
+  if (cameFromPrices.value) {
+    selectedCountry.value = null
+    resetForm()
+    cameFromPrices.value = false
+    showPrices.value = true
+  } else {
+    // Иначе просто сбрасываем страну (вернемся на экран выбора страны)
+    selectedCountry.value = null
+    resetForm()
+  }
+}
+
+const goToCaravan = () => {
+  showMainMenu.value = false
+  cameFromPrices.value = false
+}
+
+const goToPrices = () => {
+  showMainMenu.value = false
+  showPrices.value = true
+  cameFromPrices.value = false
+}
+
+const backFromPrices = () => {
+  showPrices.value = false
+  showMainMenu.value = true
+  cameFromPrices.value = false
+}
+
+const openMarketFromPrices = (countryId) => {
+  showPrices.value = false
+  cameFromPrices.value = true // Устанавливаем флаг
+  selectCountry(countryId)
+}
+
+const backToMainMenu = () => {
+  showMainMenu.value = true
   selectedCountry.value = null
+  showPrices.value = false
+  cameFromPrices.value = false
   resetForm()
 }
 
@@ -271,6 +315,13 @@ const handleBackButton = (event) => {
     return
   }
   
+  // Если мы на экране цен, возвращаемся в главное меню
+  if (showPrices.value) {
+    event.preventDefault()
+    backFromPrices()
+    return
+  }
+  
   // Если мы на экране 2 (выбрана страна), возвращаемся на экран 1
   if (selectedCountry.value) {
     event.preventDefault()
@@ -278,21 +329,28 @@ const handleBackButton = (event) => {
     return
   }
   
-  // Если мы на экране 1 (страна не выбрана), позволяем закрыть приложение
+  // Если мы на экране 1 (выбор страны), возвращаемся в главное меню
+  if (!showMainMenu.value) {
+    event.preventDefault()
+    backToMainMenu()
+    return
+  }
+  
+  // Если мы в главном меню, позволяем закрыть приложение
 }
 
 onMounted(async () => {
   try {
     await fetchCountries()
-    await fetchResources()
-    
+    await fetchResources()  
+
     // НЕ выбираем страну автоматически - пользователь выберет сам
   } catch (e) {
     console.error(e)
   } finally {
     isLoading.value = false
   }
-  
+
   pollInterval.value = setInterval(fetchCountries, 30000)
 
   // Обработчик кнопки "Назад" на телефоне
@@ -397,9 +455,9 @@ watch(
                 <VChip color="primary" size="large">
                   {{ keyboardResource.price }}
                 </VChip>
-              </div>
-            </VCardText>
-          </VCard>
+        </div>
+      </VCardText>
+    </VCard>
 
           <!-- Дисплей введенного значения -->
           <div class="quantity-display-mobile">
@@ -409,7 +467,7 @@ watch(
           <!-- Кастомная клавиатура -->
           <div class="keyboard-container">
             <div class="keyboard-row">
-              <VBtn 
+        <VBtn 
   v-for="num in [1, 2, 3]" 
   :key="num"
   class="keyboard-btn"
@@ -491,7 +549,7 @@ watch(
             </div>
             <div class="keyboard-row mt-2">
               <VBtn 
-                block
+          block
                 size="x-large"
                 variant="flat"
                 :ripple="true"
@@ -500,17 +558,81 @@ watch(
               >
                 <VIcon class="mr-2" style="color: white !important;">mdi-check</VIcon>
                 Готово
-              </VBtn>
+        </VBtn>
             </div>
           </div>
-        </VCardText>
-      </VCard>
+      </VCardText>
+    </VCard>
     </VDialog>
 
-    <!-- ЭКРАН 1: Выбор страны -->
-    <VContainer fluid class="pa-2" v-if="!isLoading && !selectedCountry">
+    <!-- ЭКРАН ЦЕНЫ: Просмотр цен -->
+    <ShowPricesMobile 
+      v-if="!isLoading && showPrices" 
+      @back="backFromPrices"
+      @open-market="openMarketFromPrices"
+    />
+
+    <!-- ЭКРАН 0: Главное меню -->
+    <VContainer fluid class="pa-0" v-if="!isLoading && showMainMenu && !showPrices">
       <!-- Хедер -->
-      <VCard class="mb-3">
+      <VToolbar color="#1976d2">
+        <VToolbarTitle class="text-center" style="color: white; font-size: 22px; font-weight: 600; width: 100%;">
+          Караваны
+        </VToolbarTitle>
+      </VToolbar>
+
+      <!-- Кнопки меню -->
+      <div class="main-menu-container">
+        <VCard 
+          class="menu-card mb-4"
+          elevation="4"
+          @click="goToCaravan"
+        >
+          <VCardText class="pa-6 text-center">
+            <VIcon icon="ri-exchange-line" size="64" color="primary" class="mb-3" />
+            <div class="text-h5 font-weight-bold">
+              Рассчитать караван
+            </div>
+            <div class="text-body-2 text-medium-emphasis mt-2">
+              Выбрать страну и отправить ресурсы
+            </div>
+          </VCardText>
+        </VCard>
+
+        <VCard 
+          class="menu-card"
+          elevation="4"
+          @click="goToPrices"
+        >
+          <VCardText class="pa-6 text-center">
+            <VIcon icon="mdi-currency-usd" size="64" color="success" class="mb-3" />
+            <div class="text-h5 font-weight-bold">
+              Посмотреть цены
+            </div>
+            <div class="text-body-2 text-medium-emphasis mt-2">
+              Актуальные цены на ресурсы
+            </div>
+          </VCardText>
+        </VCard>
+      </div>
+    </VContainer>
+
+    <!-- ЭКРАН 1: Выбор страны -->
+    <VContainer fluid class="pa-0" v-if="!isLoading && !showMainMenu && !selectedCountry && !showPrices">
+      <!-- Хедер -->
+      <VToolbar color="#1976d2">
+        <VBtn 
+          @click="backToMainMenu" 
+          variant="text"
+          block
+          style="color: white !important; font-size: 20px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: normal !important;"
+        >
+          Назад
+        </VBtn>
+      </VToolbar>
+
+      <!-- Подзаголовок -->
+      <VCard class="ma-3 mb-3">
         <VCardText class="pa-3 text-center">
           <div class="d-flex align-center justify-center">
             <VIcon icon="ri-exchange-line" size="32" class="mr-2" color="primary" />
@@ -520,7 +642,7 @@ watch(
       </VCard>
 
       <!-- Сетка стран -->
-      <div class="country-selection-grid">
+      <div class="country-selection-grid" style="padding: 16px;">
         <VCard
           v-for="country in countries"
           :key="country.id"
@@ -553,7 +675,7 @@ watch(
     </VContainer>
 
       <!-- ЭКРАН 2: Работа с ресурсами -->
-      <VContainer fluid class="pa-0" v-if="!isLoading && selectedCountry">
+      <VContainer fluid class="pa-0" v-if="!isLoading && selectedCountry && !showPrices">
         <!-- Хедер с кнопкой "Назад" -->
         <VToolbar color="#1976d2">
           <VBtn 
@@ -581,26 +703,26 @@ watch(
         </VCardTitle>
         <VCardText class="pa-3">
           <div class="resources-grid">
-            <div
-              v-for="(item, index) in filteredResToMark"
+              <div
+                v-for="(item, index) in filteredResToMark"
               :key="'sell-' + index"
               class="resource-card-compact"
               :class="resourcesPlSells[index].count > 0 ? 'card-active' : ''"
               @click="openKeyboard(item, index, 'sell')"
             >
               <VImg
-                :src="`/images/resources/${item.identificator}.png`"
+                    :src="`/images/resources/${item.identificator}.png`"
                 width="56"
                 height="56"
                 class="resource-icon-compact"
               />
               <div class="resource-count-compact">
                 {{ resourcesPlSells[index].count || '0' }}
+                </div>
               </div>
             </div>
-          </div>
-        </VCardText>
-      </VCard>
+          </VCardText>
+        </VCard>
 
       <!-- Секция "Вы покупаете" -->
       <VCard class="mb-3 section-card" style="margin: 15px; position: relative;">
@@ -617,35 +739,35 @@ watch(
         </VCardTitle>
         <VCardText class="pa-3">
           <div class="resources-grid">
-            <div
-              v-for="(item, index) in filteredResOffMark"
+              <div
+                v-for="(item, index) in filteredResOffMark"
               :key="'buy-' + index"
               class="resource-card-compact"
               :class="resourcesPlBuys[index].count > 0 ? 'card-active' : ''"
               @click="openKeyboard(item, index, 'buy')"
             >
               <VImg
-                :src="`/images/resources/${item.identificator}.png`"
+                    :src="`/images/resources/${item.identificator}.png`"
                 width="56"
                 height="56"
                 class="resource-icon-compact"
               />
               <div class="resource-count-compact">
                 {{ resourcesPlBuys[index].count || '0' }}
+                </div>
               </div>
             </div>
-          </div>
-        </VCardText>
-      </VCard>
+          </VCardText>
+        </VCard>
 
-      <!-- Кнопки действий -->
+    <!-- Кнопки действий -->
       <div style="padding: 0 15px 15px;">
         <VRow dense>
           <VCol cols="6">
             <VBtn 
               @click="resetForm" 
               color="#f44336" 
-              block 
+              block
               class="action-btn-mobile"
               elevation="2"
             >
@@ -653,9 +775,9 @@ watch(
             </VBtn>
           </VCol>
           <VCol cols="6">
-            <VBtn 
+            <VBtn
               @click="submit" 
-              block 
+              block
               color="#4caf50" 
               class="action-btn-mobile"
               elevation="2"
@@ -667,51 +789,51 @@ watch(
       </div>
 
       <!-- Bottom Sheet - результаты -->
-      <VBottomSheet v-model="showResultSheet">
-        <VCard>
-          <VCardTitle class="text-center">Выдать игроку</VCardTitle>
-          <VCardText>
-            <div class="results-mobile">
-              <div v-for="(item, index) in resToPlayer" :key="index" class="result-item-mobile">
+    <VBottomSheet v-model="showResultSheet">
+      <VCard>
+          <VCardTitle class="text-center">Результат торговли</VCardTitle>
+        <VCardText>
+          <div class="results-mobile">
+            <div v-for="(item, index) in resToPlayer" :key="index" class="result-item-mobile">
                 <VImg
                   :src="`/images/resources/${item.identificator || 'gold'}.png`"
-                  width="40"
-                  height="40"
-                  class="mr-3"
-                />
-                <div class="result-info">
-                  <span class="result-name">{{ item.name }}</span>
-                  <span 
-                    class="result-count"
-                    :class="item.count > 0 ? 'positive' : 'negative'"
-                  >
-                    {{ item.count > 0 ? '+' : '' }}{{ item.count }}
-                  </span>
-                </div>
+                width="40"
+                height="40"
+                class="mr-3"
+              />
+              <div class="result-info">
+                <span class="result-name">{{ item.name }}</span>
+                <span 
+                  class="result-count"
+                  :class="item.count > 0 ? 'positive' : 'negative'"
+                >
+                  {{ item.count > 0 ? '+' : '' }}{{ item.count }}
+                </span>
               </div>
             </div>
-          </VCardText>
-          <VCardActions>
-            <VBtn @click="showResultSheet = false" block color="primary">Закрыть</VBtn>
-          </VCardActions>
-        </VCard>
-      </VBottomSheet>
+          </div>
+        </VCardText>
+        <VCardActions>
+          <VBtn @click="showResultSheet = false" block color="primary">Закрыть</VBtn>
+        </VCardActions>
+      </VCard>
+    </VBottomSheet>
     </VContainer>
 
     <!-- Loading экран -->
     <VContainer v-if="isLoading" class="d-flex flex-column align-center justify-center" style="min-height: 100vh;">
-      <VProgressCircular indeterminate color="primary" size="64" />
-      <div class="mt-4">Загрузка...</div>
+    <VProgressCircular indeterminate color="primary" size="64" />
+    <div class="mt-4">Загрузка...</div>
     </VContainer>
 
     <!-- Диалог статуса эмбарго -->
     <VDialog v-model="showEmbargoStatusDialog" max-width="500">
       <VCard :color="isEmbargoActive ? 'error' : 'success'">
         <VCardTitle>
-          {{ isEmbargoActive ? 'Эмбарго введено!' : 'Эмбарго снято!' }}
+        {{ isEmbargoActive ? 'Эмбарго введено!' : 'Эмбарго снято!' }}
         </VCardTitle>
         <VCardText>
-          {{ embargoStatusMessage }}
+        {{ embargoStatusMessage }}
         </VCardText>
         <VCardActions>
           <VSpacer></VSpacer>
@@ -725,13 +847,13 @@ watch(
       <VCard>
         <VCardTitle class="text-h5">Изменение отношений!</VCardTitle>
         <VCardText>
-          Отношения между странами изменились. Закройте рынок, обработайте все пришедшие караваны, обновите ценники,
-          затем обновите цены в программе (кнопка "Обновить цены")
+        Отношения между странами изменились. Закройте рынок, обработайте все пришедшие караваны, обновите ценники,
+        затем обновите цены в программе (кнопка "Обновить цены")
         </VCardText>
         <VCardActions>
           <VSpacer></VSpacer>
           <VBtn color="grey-darken-1" text @click="showRelationsDialog = false">
-            Закрыть
+          Закрыть
           </VBtn>
         </VCardActions>
       </VCard>
@@ -742,15 +864,15 @@ watch(
       <VCard>
         <VCardTitle class="text-h5">Эта страна ввела эмбарго против Руси!</VCardTitle>
         <VCardText>
-          Для совершения операций с этой страной нужна Контрабанда!
+        Для совершения операций с этой страной нужна Контрабанда!
         </VCardText>
         <VCardActions>
           <VSpacer></VSpacer>
           <VBtn color="grey-darken-1" text @click="confirmContraband">
-            Есть карточка контрабанды!
+          Есть карточка контрабанды!
           </VBtn>
           <VBtn color="grey-darken-1" text @click="showEmbargoDialog = false">
-            Закрыть
+          Закрыть
           </VBtn>
         </VCardActions>
       </VCard>
@@ -1132,5 +1254,33 @@ input[type="number"] {
 .embargo-card {
   border-left: 4px solid #f44336;
   background-color: rgba(244, 67, 54, 0.05);
+}
+
+/* Стили для главного меню */
+.main-menu-container {
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: calc(100vh - 64px);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.menu-card {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 16px !important;
+  background: white;
+  overflow: hidden;
+}
+
+.menu-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2) !important;
+}
+
+.menu-card:active {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15) !important;
 }
 </style>
