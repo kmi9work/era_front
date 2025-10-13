@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router'
 import Guilds from '@/views/pages/economics/Guilds.vue'
 import Plants from '@/views/pages/economics/Plants.vue'
 import Exchange from '@/views/pages/economics/Exchange.vue'
+import MobileLink from '@/views/pages/economics/MobileLink.vue'
 import PoliticalActions from '@/views/pages/economics/PoliticalActions.vue'
 import Production from '@/views/pages/economics/Production.vue'
 import ProductionFront from '@/views/pages/economics/ProductionFront.vue'
@@ -27,6 +28,11 @@ const tabs = [
     title: 'Рынок',
     icon: 'ri-exchange-line',
     tab: 'exchange',
+  },
+  {
+    title: 'Рынок (📱)',
+    icon: 'ri-smartphone-line',
+    tab: 'exchange_mobile',
   },
   {
     title: 'Производство',
@@ -84,6 +90,10 @@ const tabs = [
 
       <VWindowItem value="exchange">
         <Exchange />
+      </VWindowItem>
+
+      <VWindowItem value="exchange_mobile">
+        <MobileLink />
       </VWindowItem>
 
       <VWindowItem value="production">
