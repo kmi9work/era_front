@@ -7,14 +7,14 @@ import axios from 'axios'
 import '@core/scss/template/index.scss'
 import '@layouts/styles/index.scss'
 
-// Импортируем Vue компонент
-import ExchangeMobile from './views/pages/economics/ExchangeMobile.vue'
+// Импортируем главный контейнер
+import MobileHelper from './views/pages/MobileHelper.vue'
 
-// Создаем Pinia store (необходимо для caravanStore)
+// Создаем Pinia store
 const pinia = createPinia()
 
 // Создаем приложение
-const app = createApp(ExchangeMobile)
+const app = createApp(MobileHelper)
 
 // Подключаем плагины
 app.use(pinia)

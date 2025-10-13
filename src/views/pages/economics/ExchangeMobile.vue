@@ -1,16 +1,23 @@
 <script setup>
 import axios from 'axios'
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue'
-import ShowPricesMobile from './ShowPricesMobile.vue'
+
+// Props
+const props = defineProps({
+  initialCountryId: {
+    type: Number,
+    default: null
+  }
+})
+
+// Emits
+const emit = defineEmits(['back-to-menu'])
 
 // Основной функционал
 const isLoading = ref(true)
 const isFirstRunRel = ref(true)
 const isFirstRunEmbargo = ref(true)
 const pollInterval = ref(null)
-const showMainMenu = ref(true) // Главный экран меню
-const showPrices = ref(false) // Экран цен
-const cameFromPrices = ref(false) // Флаг: пришел ли пользователь с экрана цен
 
 // Продажа и вывод
 const countries = ref([])
@@ -132,52 +139,10 @@ const nameChecker = (item) => {
 
 const selectCountry = (countryId) => {
   selectedCountry.value = countryId
-  // Добавляем состояние в историю для кнопки "Назад"
-  window.history.pushState({ page: 'resources', countryId }, '')
 }
 
 const backToCountrySelection = () => {
-  // Если пришли с экрана цен, возвращаемся туда
-  if (cameFromPrices.value) {
-    selectedCountry.value = null
-    resetForm()
-    cameFromPrices.value = false
-    showPrices.value = true
-  } else {
-    // Иначе просто сбрасываем страну (вернемся на экран выбора страны)
-    selectedCountry.value = null
-    resetForm()
-  }
-}
-
-const goToCaravan = () => {
-  showMainMenu.value = false
-  cameFromPrices.value = false
-}
-
-const goToPrices = () => {
-  showMainMenu.value = false
-  showPrices.value = true
-  cameFromPrices.value = false
-}
-
-const backFromPrices = () => {
-  showPrices.value = false
-  showMainMenu.value = true
-  cameFromPrices.value = false
-}
-
-const openMarketFromPrices = (countryId) => {
-  showPrices.value = false
-  cameFromPrices.value = true // Устанавливаем флаг
-  selectCountry(countryId)
-}
-
-const backToMainMenu = () => {
-  showMainMenu.value = true
   selectedCountry.value = null
-  showPrices.value = false
-  cameFromPrices.value = false
   resetForm()
 }
 
@@ -315,13 +280,6 @@ const handleBackButton = (event) => {
     return
   }
   
-  // Если мы на экране цен, возвращаемся в главное меню
-  if (showPrices.value) {
-    event.preventDefault()
-    backFromPrices()
-    return
-  }
-  
   // Если мы на экране 2 (выбрана страна), возвращаемся на экран 1
   if (selectedCountry.value) {
     event.preventDefault()
@@ -329,14 +287,9 @@ const handleBackButton = (event) => {
     return
   }
   
-  // Если мы на экране 1 (выбор страны), возвращаемся в главное меню
-  if (!showMainMenu.value) {
-    event.preventDefault()
-    backToMainMenu()
-    return
-  }
-  
-  // Если мы в главном меню, позволяем закрыть приложение
+  // Если мы на экране 1 (выбор страны), возвращаемся в меню через emit
+  event.preventDefault()
+  emit('back-to-menu')
 }
 
 onMounted(async () => {
@@ -565,69 +518,17 @@ watch(
     </VCard>
     </VDialog>
 
-    <!-- ЭКРАН ЦЕНЫ: Просмотр цен -->
-    <ShowPricesMobile 
-      v-if="!isLoading && showPrices" 
-      @back="backFromPrices"
-      @open-market="openMarketFromPrices"
-    />
-
-    <!-- ЭКРАН 0: Главное меню -->
-    <VContainer fluid class="pa-0" v-if="!isLoading && showMainMenu && !showPrices">
-      <!-- Хедер -->
-      <VToolbar color="#1976d2">
-        <VToolbarTitle class="text-center" style="color: white; font-size: 22px; font-weight: 600; width: 100%;">
-          Караваны
-        </VToolbarTitle>
-      </VToolbar>
-
-      <!-- Кнопки меню -->
-      <div class="main-menu-container">
-        <VCard 
-          class="menu-card mb-4"
-          elevation="4"
-          @click="goToCaravan"
-        >
-          <VCardText class="pa-6 text-center">
-            <VIcon icon="ri-exchange-line" size="64" color="primary" class="mb-3" />
-            <div class="text-h5 font-weight-bold">
-              Рассчитать караван
-            </div>
-            <div class="text-body-2 text-medium-emphasis mt-2">
-              Выбрать страну и отправить ресурсы
-            </div>
-          </VCardText>
-        </VCard>
-
-        <VCard 
-          class="menu-card"
-          elevation="4"
-          @click="goToPrices"
-        >
-          <VCardText class="pa-6 text-center">
-            <VIcon icon="mdi-currency-usd" size="64" color="success" class="mb-3" />
-            <div class="text-h5 font-weight-bold">
-              Посмотреть цены
-            </div>
-            <div class="text-body-2 text-medium-emphasis mt-2">
-              Актуальные цены на ресурсы
-            </div>
-          </VCardText>
-        </VCard>
-      </div>
-    </VContainer>
-
     <!-- ЭКРАН 1: Выбор страны -->
-    <VContainer fluid class="pa-0" v-if="!isLoading && !showMainMenu && !selectedCountry && !showPrices">
+    <VContainer fluid class="pa-0" v-if="!isLoading && !selectedCountry">
       <!-- Хедер -->
       <VToolbar color="#1976d2">
         <VBtn 
-          @click="backToMainMenu" 
+          @click="emit('back-to-menu')" 
           variant="text"
           block
           style="color: white !important; font-size: 20px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: normal !important;"
         >
-          Назад
+          Назад в меню
         </VBtn>
       </VToolbar>
 
@@ -675,7 +576,7 @@ watch(
     </VContainer>
 
       <!-- ЭКРАН 2: Работа с ресурсами -->
-      <VContainer fluid class="pa-0" v-if="!isLoading && selectedCountry && !showPrices">
+      <VContainer fluid class="pa-0" v-if="!isLoading && selectedCountry">
         <!-- Хедер с кнопкой "Назад" -->
         <VToolbar color="#1976d2">
           <VBtn 
