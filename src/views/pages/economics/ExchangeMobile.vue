@@ -257,65 +257,27 @@ const resetForm = () => {
   showResultSheet.value = false
 }
 
-// Обработчик кнопки "Назад" на телефоне
-const handleBackButton = (event) => {
-  // Если открыта клавиатура, закрываем её
-  if (showKeyboard.value) {
-    event.preventDefault()
-    cancelKeyboard()
-    return
-  }
-  
-  // Если открыт диалог результатов, закрываем его
-  if (showResultSheet.value) {
-    event.preventDefault()
-    showResultSheet.value = false
-    return
-  }
-  
-  // Если открыт диалог эмбарго, закрываем его
-  if (showEmbargoDialog.value) {
-    event.preventDefault()
-    showEmbargoDialog.value = false
-    return
-  }
-  
-  // Если мы на экране 2 (выбрана страна), возвращаемся на экран 1
-  if (selectedCountry.value) {
-    event.preventDefault()
-    backToCountrySelection()
-    return
-  }
-  
-  // Если мы на экране 1 (выбор страны), возвращаемся в меню через emit
-  event.preventDefault()
-  emit('back-to-menu')
-}
-
 onMounted(async () => {
   try {
     await fetchCountries()
-    await fetchResources()  
-
-    // НЕ выбираем страну автоматически - пользователь выберет сам
+    await fetchResources()
+    
+    // Если передан initialCountryId, автоматически выбираем страну
+    if (props.initialCountryId) {
+      selectedCountry.value = props.initialCountryId
+    }
   } catch (e) {
     console.error(e)
   } finally {
     isLoading.value = false
   }
 
+  // Обновляем данные каждые 30 секунд
   pollInterval.value = setInterval(fetchCountries, 30000)
-
-  // Обработчик кнопки "Назад" на телефоне
-  window.addEventListener('popstate', handleBackButton)
-  
-  // Добавляем начальное состояние в историю
-  window.history.pushState({ page: 'main' }, '')
 })
 
 onBeforeUnmount(() => {
   clearInterval(pollInterval.value)
-  window.removeEventListener('popstate', handleBackButton)
 })
 
 watch(selectedCountry, (newVal) => {
@@ -367,7 +329,7 @@ watch(
 </script>
 
 <template>
-  <VApp>
+  <div>
     <!-- Диалог с клавиатурой для ввода количества -->
     <VDialog 
       v-model="showKeyboard" 
@@ -520,18 +482,6 @@ watch(
 
     <!-- ЭКРАН 1: Выбор страны -->
     <VContainer fluid class="pa-0" v-if="!isLoading && !selectedCountry">
-      <!-- Хедер -->
-      <VToolbar color="#1976d2">
-        <VBtn 
-          @click="emit('back-to-menu')" 
-          variant="text"
-          block
-          style="color: white !important; font-size: 20px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: normal !important;"
-        >
-          Назад в меню
-        </VBtn>
-      </VToolbar>
-
       <!-- Подзаголовок -->
       <VCard class="ma-3 mb-3">
         <VCardText class="pa-3 text-center">
@@ -778,7 +728,7 @@ watch(
         </VCardActions>
       </VCard>
     </VDialog>
-  </VApp>
+  </div>
 </template>
 
 <style scoped>
