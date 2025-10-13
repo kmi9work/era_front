@@ -86,28 +86,23 @@ onMounted(async () => {
   await fetchResources()
   isLoading.value = false
 })
+
+// Универсальная функция "Назад" для кнопки телефона
+const handleBack = () => {
+  emit('back')
+}
+
+// Expose для родительского компонента
+defineExpose({
+  handleBack
+})
 </script>
 
 <template>
   <VApp>
-    <VContainer fluid class="pa-0">
-      <!-- Хедер -->
-      <VToolbar color="#1976d2">
-        <VBtn 
-          @click="$emit('back')" 
-          variant="text"
-          block
-          style="color: white !important; font-size: 20px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: normal !important;"
-        >
-          Назад
-        </VBtn>
-      </VToolbar>
-
-      <!-- Подзаголовок -->
-    
-
+    <div style="width: 100%; height: 100%;">
       <!-- Загрузка -->
-      <div v-if="isLoading" class="text-center pa-8">
+      <div v-if="isLoading" class="text-center" style="padding: 32px;">
         <VProgressCircular indeterminate color="primary" size="64" />
       </div>
 
@@ -158,7 +153,23 @@ onMounted(async () => {
           </div>
         </div>
       </div>
-    </VContainer>
+      <!-- Отступ для плавающей кнопки -->
+      <div style="height: 80px;"></div>
+    </div>
+
+    <!-- Плавающая кнопка "Назад" внизу -->
+    <div class="floating-back-button">
+      <VBtn 
+        @click="handleBack" 
+        color="#1976d2"
+        block
+        size="x-large"
+        elevation="8"
+        style="color: white !important; font-size: 20px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: normal !important;"
+      >
+        Назад
+      </VBtn>
+    </div>
   </VApp>
 </template>
 
@@ -271,6 +282,17 @@ onMounted(async () => {
 
 .price-unavailable-item .price-value {
   color: #999 !important;
+}
+
+.floating-back-button {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  padding: 12px;
+  background: white;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
 }
 </style>
 

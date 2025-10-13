@@ -7,11 +7,15 @@ const props = defineProps({
   initialCountryId: {
     type: Number,
     default: null
+  },
+  cameFromPrices: {
+    type: Boolean,
+    default: false
   }
 })
 
 // Emits
-const emit = defineEmits(['back-to-menu'])
+const emit = defineEmits(['back-to-menu', 'back-to-prices'])
 
 // Основной функционал
 const isLoading = ref(true)
@@ -280,6 +284,34 @@ onBeforeUnmount(() => {
   clearInterval(pollInterval.value)
 })
 
+// Универсальная функция "Назад" для кнопки телефона
+const handleBack = () => {
+  if (showKeyboard.value) {
+    // Если открыта клавиатура - закрываем её
+    cancelKeyboard()
+  } else if (showResultSheet.value) {
+    // Если открыты результаты - закрываем их
+    showResultSheet.value = false
+  } else if (selectedCountry.value) {
+    // Если выбрана страна
+    if (props.cameFromPrices) {
+      // Если пришли из цен - сразу возвращаемся на цены
+      emit('back-to-prices')
+    } else {
+      // Иначе - возвращаемся к выбору страны
+      backToCountrySelection()
+    }
+  } else {
+    // Если не выбрана страна - возвращаемся в меню
+    emit('back-to-menu')
+  }
+}
+
+// Expose для родительского компонента
+defineExpose({
+  handleBack
+})
+
 watch(selectedCountry, (newVal) => {
   if (newVal) {
     filteredResOffMark.value
@@ -329,19 +361,7 @@ watch(
 </script>
 
 <template>
-  <div>
-    <!-- Хедер с кнопкой "Назад" (показывается всегда кроме диалогов) -->
-    <VToolbar color="#1976d2" v-if="!showKeyboard && !showResultSheet">
-      <VBtn 
-        @click="selectedCountry ? backToCountrySelection() : $emit('back-to-menu')" 
-        variant="text"
-        block
-        style="color: white !important; font-size: 20px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: normal !important;"
-      >
-        {{ selectedCountry ? 'Назад' : 'Назад' }}
-      </VBtn>
-    </VToolbar>
-
+  <div style="position: relative; min-height: 100vh;">
     <!-- Диалог с клавиатурой для ввода количества -->
     <VDialog 
       v-model="showKeyboard" 
@@ -349,17 +369,6 @@ watch(
       transition="dialog-bottom-transition"
     >
       <VCard v-if="keyboardResource">
-        <VToolbar color="#1976d2">
-          <VBtn 
-            @click="cancelKeyboard" 
-            variant="text"
-            block
-            style="color: white !important; font-size: 20px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: normal !important;"
-          >
-            Назад
-          </VBtn>
-        </VToolbar>
-
         <VCardText class="pa-4">
           <!-- Информация о ресурсе -->
           <VCard class="mb-4" elevation="2">
@@ -493,15 +502,15 @@ watch(
     </VDialog>
 
     <!-- ЭКРАН 1: Выбор страны -->
-    <VContainer fluid class="pa-0" v-if="!isLoading && !selectedCountry">
+    <div v-if="!isLoading && !selectedCountry" style="width: 100%; height: 100%;">
       <!-- Заголовок (без отдельного VCard) -->
-      <div class="ma-3 mb-3 text-center">
+      <div class="text-center" style="padding: 12px;">
         <VIcon icon="ri-exchange-line" size="32" class="mr-2" color="primary" />
         <span class="text-h5 font-weight-bold">Куда отправляется караван?</span>
       </div>
 
       <!-- Сетка стран -->
-      <div class="country-selection-grid" style="padding: 16px;">
+      <div class="country-selection-grid">
         <VCard
           v-for="country in countries"
           :key="country.id"
@@ -531,10 +540,10 @@ watch(
           </VCardText>
         </VCard>
       </div>
-    </VContainer>
+    </div>
 
       <!-- ЭКРАН 2: Работа с ресурсами -->
-      <VContainer fluid class="pa-0" v-if="!isLoading && selectedCountry">
+      <div v-if="!isLoading && selectedCountry" style="width: 100%; height: 100%;">
 
       <!-- Секция "Вы отправляете с караваном" -->
       <VCard class="mb-3 section-card" style="margin: 15px; position: relative;">
@@ -666,13 +675,13 @@ watch(
         </VCardActions>
       </VCard>
     </VBottomSheet>
-    </VContainer>
+    </div>
 
     <!-- Loading экран -->
-    <VContainer v-if="isLoading" class="d-flex flex-column align-center justify-center" style="min-height: 100vh;">
+    <div v-if="isLoading" class="d-flex flex-column align-center justify-center" style="width: 100%; height: 100vh;">
     <VProgressCircular indeterminate color="primary" size="64" />
     <div class="mt-4">Загрузка...</div>
-    </VContainer>
+    </div>
 
     <!-- Диалог статуса эмбарго -->
     <VDialog v-model="showEmbargoStatusDialog" max-width="500">
@@ -725,6 +734,20 @@ watch(
         </VCardActions>
       </VCard>
     </VDialog>
+
+    <!-- Плавающая кнопка "Назад" внизу -->
+    <div class="floating-back-button">
+      <VBtn 
+        @click="handleBack" 
+        color="#1976d2"
+        block
+        size="x-large"
+        elevation="8"
+        style="color: white !important; font-size: 20px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: normal !important;"
+      >
+        Назад
+      </VBtn>
+    </div>
   </div>
 </template>
 
@@ -1078,7 +1101,7 @@ input[type="number"] {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
-  padding: 8px;
+  padding: 16px;
 }
 
 .country-selection-card {
@@ -1130,5 +1153,16 @@ input[type="number"] {
 .menu-card:active {
   transform: translateY(-2px);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15) !important;
+}
+
+.floating-back-button {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  padding: 12px;
+  background: white;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
 }
 </style>

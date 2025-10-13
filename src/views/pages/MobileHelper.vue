@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, provide } from 'vue'
 import ExchangeMobile from './economics/ExchangeMobile.vue'
 import ShowPricesMobile from './economics/ShowPricesMobile.vue'
 import ProductionMobile from './economics/ProductionMobile.vue'
@@ -7,11 +7,18 @@ import ProductionMobile from './economics/ProductionMobile.vue'
 // Навигация между экранами
 const currentScreen = ref('menu') // 'menu', 'caravan', 'production', 'prices'
 const selectedCountryId = ref(null) // Для передачи в ExchangeMobile
+const cameFromPrices = ref(false) // Флаг: пришли ли из экрана цен
+
+// Референсы для всех компонентов
+const productionMobileRef = ref(null)
+const exchangeMobileRef = ref(null)
+const showPricesMobileRef = ref(null)
 
 // Переход на экраны
 const goToCaravan = () => {
   currentScreen.value = 'caravan'
   selectedCountryId.value = null
+  cameFromPrices.value = false
 }
 
 const goToProduction = () => {
@@ -25,19 +32,41 @@ const goToPrices = () => {
 const backToMenu = () => {
   currentScreen.value = 'menu'
   selectedCountryId.value = null
+  cameFromPrices.value = false
+}
+
+const backToPrices = () => {
+  currentScreen.value = 'prices'
+  selectedCountryId.value = null
+  cameFromPrices.value = false
 }
 
 // Обработка событий от дочерних компонентов
 const handleOpenMarketFromPrices = (countryId) => {
   selectedCountryId.value = countryId
+  cameFromPrices.value = true
   currentScreen.value = 'caravan'
 }
 
-// Обработка кнопки "Назад" браузера
+// Мапа экранов на их ref-ы
+const componentRefs = {
+  production: productionMobileRef,
+  caravan: exchangeMobileRef,
+  prices: showPricesMobileRef
+}
+
+// Обработка кнопки "Назад" телефона
 const handleBackButton = (event) => {
-  if (currentScreen.value !== 'menu') {
-    event.preventDefault()
-    backToMenu()
+  // Если на главном меню - разрешаем закрытие приложения
+  if (currentScreen.value === 'menu') {
+    return
+  }
+  
+  // Для всех остальных экранов - вызываем handleBack()
+  event.preventDefault()
+  const currentRef = componentRefs[currentScreen.value]
+  if (currentRef?.value) {
+    currentRef.value.handleBack()
   }
 }
 
@@ -117,19 +146,23 @@ onBeforeUnmount(() => {
     <!-- ЭКРАН: Караван -->
     <div v-if="currentScreen === 'caravan'">
       <ExchangeMobile 
+        ref="exchangeMobileRef"
         :initial-country-id="selectedCountryId"
+        :came-from-prices="cameFromPrices"
         @back-to-menu="backToMenu"
+        @back-to-prices="backToPrices"
       />
     </div>
 
     <!-- ЭКРАН: Производство -->
     <div v-if="currentScreen === 'production'">
-      <ProductionMobile @back="backToMenu" />
+      <ProductionMobile ref="productionMobileRef" @back="backToMenu" />
     </div>
 
     <!-- ЭКРАН: Цены -->
     <div v-if="currentScreen === 'prices'">
       <ShowPricesMobile 
+        ref="showPricesMobileRef"
         @back="backToMenu"
         @open-market="handleOpenMarketFromPrices"
       />
