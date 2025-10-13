@@ -330,6 +330,18 @@ watch(
 
 <template>
   <div>
+    <!-- Хедер с кнопкой "Назад" (показывается всегда кроме диалогов) -->
+    <VToolbar color="#1976d2" v-if="!showKeyboard && !showResultSheet">
+      <VBtn 
+        @click="selectedCountry ? backToCountrySelection() : $emit('back-to-menu')" 
+        variant="text"
+        block
+        style="color: white !important; font-size: 20px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: normal !important;"
+      >
+        {{ selectedCountry ? 'Назад' : 'Назад' }}
+      </VBtn>
+    </VToolbar>
+
     <!-- Диалог с клавиатурой для ввода количества -->
     <VDialog 
       v-model="showKeyboard" 
@@ -482,15 +494,11 @@ watch(
 
     <!-- ЭКРАН 1: Выбор страны -->
     <VContainer fluid class="pa-0" v-if="!isLoading && !selectedCountry">
-      <!-- Подзаголовок -->
-      <VCard class="ma-3 mb-3">
-        <VCardText class="pa-3 text-center">
-          <div class="d-flex align-center justify-center">
-            <VIcon icon="ri-exchange-line" size="32" class="mr-2" color="primary" />
-            <span class="text-h5 font-weight-bold">Куда отправляется караван?</span>
-          </div>
-        </VCardText>
-      </VCard>
+      <!-- Заголовок (без отдельного VCard) -->
+      <div class="ma-3 mb-3 text-center">
+        <VIcon icon="ri-exchange-line" size="32" class="mr-2" color="primary" />
+        <span class="text-h5 font-weight-bold">Куда отправляется караван?</span>
+      </div>
 
       <!-- Сетка стран -->
       <div class="country-selection-grid" style="padding: 16px;">
@@ -527,17 +535,6 @@ watch(
 
       <!-- ЭКРАН 2: Работа с ресурсами -->
       <VContainer fluid class="pa-0" v-if="!isLoading && selectedCountry">
-        <!-- Хедер с кнопкой "Назад" -->
-        <VToolbar color="#1976d2">
-          <VBtn 
-            @click="backToCountrySelection" 
-            variant="text"
-            block
-            style="color: white !important; font-size: 20px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: normal !important;"
-          >
-            Назад
-          </VBtn>
-        </VToolbar>
 
       <!-- Секция "Вы отправляете с караваном" -->
       <VCard class="mb-3 section-card" style="margin: 15px; position: relative;">

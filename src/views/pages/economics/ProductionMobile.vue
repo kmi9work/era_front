@@ -2,6 +2,8 @@
 import { ref, watch, onMounted } from 'vue'
 import { useProductionStore } from '@/stores/production'
 
+const emit = defineEmits(['back'])
+
 const productionStore = useProductionStore()
 
 // Состояния для UI
@@ -84,6 +86,18 @@ onMounted(async () => {
 
 <template>
   <div>
+    <!-- Хедер с кнопкой "Назад" -->
+    <VToolbar color="#1976d2" v-if="!showKeyboard && !showResultSheet">
+      <VBtn 
+        @click="$emit('back')" 
+        variant="text"
+        block
+        style="color: white !important; font-size: 20px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: normal !important;"
+      >
+        Назад
+      </VBtn>
+    </VToolbar>
+
     <!-- Диалог с клавиатурой -->
     <v-dialog 
       v-model="showKeyboard" 

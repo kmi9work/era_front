@@ -116,21 +116,6 @@ onBeforeUnmount(() => {
 
     <!-- ЭКРАН: Караван -->
     <div v-if="currentScreen === 'caravan'">
-      <VContainer fluid class="pa-2">
-        <VCard class="mb-3">
-          <VCardText class="pa-2">
-            <VBtn 
-              icon 
-              size="small" 
-              @click="backToMenu"
-            >
-              <VIcon>mdi-arrow-left</VIcon>
-            </VBtn>
-            <span class="text-h6 ml-2">Назад в меню</span>
-          </VCardText>
-        </VCard>
-      </VContainer>
-
       <ExchangeMobile 
         :initial-country-id="selectedCountryId"
         @back-to-menu="backToMenu"
@@ -139,41 +124,11 @@ onBeforeUnmount(() => {
 
     <!-- ЭКРАН: Производство -->
     <div v-if="currentScreen === 'production'">
-      <VContainer fluid class="pa-2">
-        <VCard class="mb-3">
-          <VCardText class="pa-2">
-            <VBtn 
-              icon 
-              size="small" 
-              @click="backToMenu"
-            >
-              <VIcon>mdi-arrow-left</VIcon>
-            </VBtn>
-            <span class="text-h6 ml-2">Назад в меню</span>
-          </VCardText>
-        </VCard>
-      </VContainer>
-
-      <ProductionMobile />
+      <ProductionMobile @back="backToMenu" />
     </div>
 
     <!-- ЭКРАН: Цены -->
     <div v-if="currentScreen === 'prices'">
-      <VContainer fluid class="pa-2">
-        <VCard class="mb-3">
-          <VCardText class="pa-2">
-            <VBtn 
-              icon 
-              size="small" 
-              @click="backToMenu"
-            >
-              <VIcon>mdi-arrow-left</VIcon>
-            </VBtn>
-            <span class="text-h6 ml-2">Назад в меню</span>
-          </VCardText>
-        </VCard>
-      </VContainer>
-
       <ShowPricesMobile 
         @back="backToMenu"
         @open-market="handleOpenMarketFromPrices"
