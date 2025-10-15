@@ -1,15 +1,71 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+<<<<<<< HEAD
+import axios from 'axios'
+
+export const useProductionStore = defineStore('production', () => {
+  // State
+  const plantLevelsInfo = ref([])
+  const selectedPlantTypeIndex = ref(null)
+  const selectedPlantLevelIndex = ref(null)
+  const calculationMode = ref('from') // 'from' или 'to'
+  const inputResources = ref([])
+  const result = ref({ from: [], to: [], change: [] })
+  const isLoading = ref(false)
+
+  // Computed
+=======
 
 export const useProductionStore = defineStore('production', () => {
   // State
   const plantLevelsInfo = ref([]) // Информация о всех предприятиях
 
   // Getters
+>>>>>>> mobile_helper
   const uniquePlantTypes = computed(() => {
     return [...new Set(plantLevelsInfo.value.map(plant => plant.name))]
   })
 
+<<<<<<< HEAD
+  const filteredPlantsByType = computed(() => {
+    if (selectedPlantTypeIndex.value === null) return []
+    const selectedType = uniquePlantTypes.value[selectedPlantTypeIndex.value]
+    return plantLevelsInfo.value.filter(plant => plant.name === selectedType)
+  })
+
+  const selectedPlantId = computed(() => {
+    if (selectedPlantLevelIndex.value === null) return null
+    return filteredPlantsByType.value[selectedPlantLevelIndex.value]?.id || null
+  })
+
+  const selectedPlantLevel = computed(() => {
+    return plantLevelsInfo.value.find(p => p.id === selectedPlantId.value)
+  })
+
+  const availableResources = computed(() => {
+    if (!selectedPlantLevel.value) return []
+    
+    if (calculationMode.value === 'from') {
+      return selectedPlantLevel.value.formula_from || []
+    } else {
+      return selectedPlantLevel.value.formula_to || []
+    }
+  })
+
+  const resultDisplay = computed(() => {
+    if (calculationMode.value === 'from') {
+      return result.value.to.filter(r => r.count > 0)
+    } else {
+      return result.value.from.filter(r => r.count > 0)
+    }
+  })
+
+  const changeDisplay = computed(() => {
+    return result.value.change.filter(r => r.count !== 0)
+  })
+
+  // Вспомогательные функции (перенесено из ProductionFront.vue)
+=======
   /**
    * Получить предприятие по ID
    * @param {number} plantLevelId - ID предприятия
@@ -31,6 +87,7 @@ export const useProductionStore = defineStore('production', () => {
    * @param {Array} resArray2 - Второй массив ресурсов
    * @returns {boolean}
    */
+>>>>>>> mobile_helper
   function isResArrayLess(resArray1, resArray2) {
     for (const res1 of resArray1) {
       const var2 = resArray2.find(res2 => res1.identificator === res2.identificator)
@@ -40,6 +97,8 @@ export const useProductionStore = defineStore('production', () => {
     return true
   }
 
+<<<<<<< HEAD
+=======
   /**
    * Умножает массив ресурсов на число
    * @param {Array} resArray - Массив ресурсов
@@ -47,6 +106,7 @@ export const useProductionStore = defineStore('production', () => {
    * @param {Object} plantLevel - Объект предприятия
    * @returns {Array}
    */
+>>>>>>> mobile_helper
   function resArrayMult(resArray, n, plantLevel) {
     return resArray.map(res => ({
       ...res,
@@ -55,6 +115,11 @@ export const useProductionStore = defineStore('production', () => {
     }))
   }
 
+<<<<<<< HEAD
+  function resArraySum(array1, array2, sign = 1) {
+    const arr2Copy = JSON.parse(JSON.stringify(array2))
+    
+=======
   /**
    * Складывает два массива ресурсов (модифицирует array1 in-place)
    * @param {Array} array1 - Первый массив (будет изменен)
@@ -66,6 +131,7 @@ export const useProductionStore = defineStore('production', () => {
     const arr2Copy = JSON.parse(JSON.stringify(array2))
     
     // Проходим по array1 и добавляем/вычитаем совпадающие элементы из arr2Copy
+>>>>>>> mobile_helper
     for (const res1 of array1) {
       for (let i = arr2Copy.length - 1; i >= 0; i--) {
         if (res1.identificator === arr2Copy[i].identificator) {
@@ -75,7 +141,10 @@ export const useProductionStore = defineStore('production', () => {
       }
     }
     
+<<<<<<< HEAD
+=======
     // Добавляем оставшиеся элементы из arr2Copy в array1
+>>>>>>> mobile_helper
     for (const res of arr2Copy) {
       array1.push({...res, count: res.count * sign})
     }
@@ -83,6 +152,12 @@ export const useProductionStore = defineStore('production', () => {
     return array1
   }
 
+<<<<<<< HEAD
+  function lookUpRes(identificator, plantLevel) {
+    const fromRes = plantLevel.formula_from?.find(r => r.identificator === identificator)
+    if (fromRes) return fromRes.name
+    
+=======
   /**
    * Поиск имени ресурса
    * @param {string} identificator - Идентификатор ресурса
@@ -95,12 +170,18 @@ export const useProductionStore = defineStore('production', () => {
     if (fromRes) return fromRes.name
     
     // Ищем в formula_to
+>>>>>>> mobile_helper
     const toRes = plantLevel.formula_to?.find(r => r.identificator === identificator)
     if (toRes) return toRes.name
     
     return identificator
   }
 
+<<<<<<< HEAD
+  function countRequest(formula, request, way, plantLevel) {
+    let n = 0
+    let bucket = JSON.parse(JSON.stringify(formula[way]))
+=======
   /**
    * Основная функция подсчета для одной формулы
    * @param {Object} formula - Формула производства
@@ -112,6 +193,7 @@ export const useProductionStore = defineStore('production', () => {
   function countRequest(formula, request, way, plantLevel) {
     let n = 0
     let bucket = JSON.parse(JSON.stringify(formula[way])) // deep copy
+>>>>>>> mobile_helper
     const formulaPart = formula[way]
 
     while (
@@ -128,6 +210,11 @@ export const useProductionStore = defineStore('production', () => {
     return { from, to }
   }
 
+<<<<<<< HEAD
+  function feedToPlant(plantLevel, request, way = 'from') {
+    const coof = plantLevel.tech_schools_open ? 1.5 : 1
+
+=======
   /**
    * Главная функция расчета производства
    * @param {number} plantLevelId - ID предприятия
@@ -146,6 +233,7 @@ export const useProductionStore = defineStore('production', () => {
     const coof = plantLevel.tech_schools_open ? 1.5 : 1
 
     // Преобразуем request
+>>>>>>> mobile_helper
     const requestCopy = request.map(req => ({
       identificator: req.identificator.toString(),
       count: way === 'to' ? Math.ceil(parseInt(req.count || 0) / coof) : parseInt(req.count || 0),
@@ -155,11 +243,17 @@ export const useProductionStore = defineStore('production', () => {
     let resultingFrom = []
     let resultingTo = []
 
+<<<<<<< HEAD
+    plantLevel.formulas.forEach(formula => {
+      const { from, to } = countRequest(formula, requestCopy, way, plantLevel)
+      
+=======
     // Проходим по всем формулам
     plantLevel.formulas.forEach(formula => {
       const { from, to } = countRequest(formula, requestCopy, way, plantLevel)
       
       // Вычитаем использованные ресурсы из request
+>>>>>>> mobile_helper
       if (way === 'from') {
         resArraySum(requestCopy, from, -1)
       } else {
@@ -170,7 +264,10 @@ export const useProductionStore = defineStore('production', () => {
       resArraySum(resultingTo, to)
     })
 
+<<<<<<< HEAD
+=======
     // Применяем коэффициент к результату
+>>>>>>> mobile_helper
     resultingTo.forEach(res => {
       res.count = res.count * coof
     })
@@ -182,6 +279,67 @@ export const useProductionStore = defineStore('production', () => {
     }
   }
 
+<<<<<<< HEAD
+  // Actions
+  async function fetchPlantLevels() {
+    isLoading.value = true
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_PROXY}/plant_levels/prod_info_full.json`)
+      plantLevelsInfo.value = response.data
+    } catch (error) {
+      console.error('Error fetching plant levels:', error)
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  function initializeInputResources() {
+    if (!selectedPlantLevel.value) return
+    
+    inputResources.value = availableResources.value.map(res => ({
+      identificator: res.identificator,
+      name: res.name,
+      count: 0
+    }))
+  }
+
+  function calculateProduction() {
+    if (!selectedPlantLevel.value) {
+      throw new Error('Предприятие не выбрано')
+    }
+    
+    const hasInput = inputResources.value.some(res => res.count > 0)
+    if (!hasInput) {
+      throw new Error('Введите количество ресурсов')
+    }
+
+    result.value = feedToPlant(
+      selectedPlantLevel.value, 
+      inputResources.value, 
+      calculationMode.value
+    )
+
+    return result.value
+  }
+
+  function clearProduction() {
+    inputResources.value.forEach(res => res.count = 0)
+    result.value = { from: [], to: [], change: [] }
+  }
+
+  function setResourceCount(index, count) {
+    if (inputResources.value[index]) {
+      inputResources.value[index].count = count
+    }
+  }
+
+  function resetSelection() {
+    selectedPlantTypeIndex.value = null
+    selectedPlantLevelIndex.value = null
+    inputResources.value = []
+    result.value = { from: [], to: [], change: [] }
+=======
   /**
    * Получить отфильтрованные предприятия по типу
    * @param {string} plantType - Тип предприятия
@@ -189,11 +347,37 @@ export const useProductionStore = defineStore('production', () => {
    */
   function getPlantsByType(plantType) {
     return plantLevelsInfo.value.filter(plant => plant.name === plantType)
+>>>>>>> mobile_helper
   }
 
   return {
     // State
     plantLevelsInfo,
+<<<<<<< HEAD
+    selectedPlantTypeIndex,
+    selectedPlantLevelIndex,
+    calculationMode,
+    inputResources,
+    result,
+    isLoading,
+
+    // Computed
+    uniquePlantTypes,
+    filteredPlantsByType,
+    selectedPlantId,
+    selectedPlantLevel,
+    availableResources,
+    resultDisplay,
+    changeDisplay,
+
+    // Actions
+    fetchPlantLevels,
+    initializeInputResources,
+    calculateProduction,
+    clearProduction,
+    setResourceCount,
+    resetSelection,
+=======
     
     // Getters
     getPlantLevelById,
@@ -209,6 +393,7 @@ export const useProductionStore = defineStore('production', () => {
     resArrayMult,
     resArraySum,
     lookUpRes
+>>>>>>> mobile_helper
   }
 })
 
