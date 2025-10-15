@@ -1,26 +1,29 @@
 <script setup>
   import axios from 'axios'
-  import { ref } from 'vue'
+  import { ref, computed, watch, onBeforeMount } from 'vue'
+  import { useProductionStore } from '@/stores/production'
+
+  const productionStore = useProductionStore()
 
   onBeforeMount(async () => {
-    await axios.get(`${import.meta.env.VITE_PROXY}/plant_levels/prod_info.json`)
+    await axios.get(`${import.meta.env.VITE_PROXY}/plant_levels/prod_info_full.json`)
     .then(response => {
-      plantLevelsInfo.value = response.data;
-      selectedPlantLevel.value = plantLevelsInfo.value[0]?.id;
+      // Сохраняем данные в store
+      productionStore.setPlantLevels(response.data)
+      selectedPlantLevel.value = productionStore.plantLevelsInfo[0]?.id
     })
   })
 
   const to = ref([])
   const from = ref([])
   const change = ref([])
-  const plantLevelsInfo = ref([])
   const back_bound_from = ref([])
   const prodResult_from = ref([])
   const selectedPlantLevel = ref(0)
 
   const plantLevel_from = computed(() => {
-    let filtered = plantLevelsInfo.value.filter((res) => res.id == selectedPlantId.value);
-    console.log(filtered);
+    let filtered = productionStore.plantLevelsInfo.filter((res) => res.id == selectedPlantId.value)
+    console.log(filtered)
 
     if (filtered.length){
       back_bound_from.value = Array(filtered[0]["formula_from"].length).fill(0).map(
@@ -35,22 +38,33 @@
   })
 
   function submit_from(){
-    let request = {"request": back_bound_from.value, "way": "from"}
-    axios.post(`${import.meta.env.VITE_PROXY}/plant_levels/${selectedPlantId.value}/feed_to_plant`, request)
-    .then(response => {
-      prodResult_from.value = response.data;
-      to.value = prodResult_from.value["to"]
-      change.value = prodResult_from.value["change"]
-      from.value = null;
-    })
+    const plantLevel = productionStore.getPlantLevelById(selectedPlantId.value)
+    if (!plantLevel) {
+      console.error('PlantLevel not found')
+      return
+    }
+    
+    console.log('PlantLevel:', plantLevel)
+    console.log('Tech Schools открыта:', plantLevel.tech_schools_open ? 'ДА (коэф. 1.5)' : 'НЕТ (коэф. 1.0)')
+    console.log('Request:', back_bound_from.value)
+    
+    // Используем store для расчета
+    const result = productionStore.feedToPlant(selectedPlantId.value, back_bound_from.value, 'from')
+    
+    console.log('Result:', result)
+    
+    prodResult_from.value = result
+    to.value = result.to
+    change.value = result.change
+    from.value = null
   }
 
   const back_bound_to = ref([])
   const prodResult_to = ref([])
 
   const plantLevel_to = computed(() => {
-    let filtered = plantLevelsInfo.value.filter((res) => res.id == selectedPlantId.value);
-    console.log(filtered);
+    let filtered = productionStore.plantLevelsInfo.filter((res) => res.id == selectedPlantId.value)
+    console.log(filtered)
     if (filtered.length){
       back_bound_to.value = Array(filtered[0]["formula_to"].length).fill(0).map(
         function(_, i) {
@@ -58,21 +72,32 @@
         })
       return filtered[0]["formula_to"]
     }else{
-      return [];
+      return []
     }
 
   })
 
 
   function submit_to(){
-     let request = {"request": back_bound_to.value, "way": "to"}
-     axios.post(`${import.meta.env.VITE_PROXY}/plant_levels/${selectedPlantId.value}/feed_to_plant`, request)
-     .then(response => {
-      prodResult_to.value = response.data;
-      from.value = prodResult_to.value["from"]
-      change.value = prodResult_to.value["change"]
-      to.value = null;
-    })
+    const plantLevel = productionStore.getPlantLevelById(selectedPlantId.value)
+    if (!plantLevel) {
+      console.error('PlantLevel not found')
+      return
+    }
+    
+    console.log('PlantLevel:', plantLevel)
+    console.log('Tech Schools открыта:', plantLevel.tech_schools_open ? 'ДА (коэф. 1.5)' : 'НЕТ (коэф. 1.0)')
+    console.log('Request:', back_bound_to.value)
+    
+    // Используем store для расчета
+    const result = productionStore.feedToPlant(selectedPlantId.value, back_bound_to.value, 'to')
+    
+    console.log('Result:', result)
+    
+    prodResult_to.value = result
+    from.value = result.from
+    change.value = result.change
+    to.value = null
   }
 
   // ID выбранного растения
@@ -84,15 +109,14 @@
   const selectedPlantTypeIndex = ref(null)
   const selectedPlantLevelIndex = ref(null)
 
-  const uniquePlantTypes = computed(() => {
-    return [...new Set(plantLevelsInfo.value.map(plant => plant.name))]
-  })
+  // Используем computed из store
+  const uniquePlantTypes = computed(() => productionStore.uniquePlantTypes)
 
   // Растения отфильтрованные по выбранному типу
   const filteredPlantsByType = computed(() => {
     if (selectedPlantTypeIndex.value === null) return []
     const selectedType = uniquePlantTypes.value[selectedPlantTypeIndex.value]
-    return plantLevelsInfo.value.filter(plant => plant.name === selectedType)
+    return productionStore.getPlantsByType(selectedType)
   })
 
   // Можно добавить watcher для selectedPlantId если нужно

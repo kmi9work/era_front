@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import AutoImport from 'unplugin-auto-import/vite'
@@ -58,11 +59,21 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 5000,
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        mobile: resolve(__dirname, 'mobile-market.html'),
+      },
+    },
   },
   optimizeDeps: {
     exclude: ['vuetify'],
     entries: [
       './src/**/*.vue',
     ],
+  },
+  server: {
+    host: '0.0.0.0', // Позволяет доступ из сети
+    port: 5173,
   },
 })
