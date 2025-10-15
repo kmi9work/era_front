@@ -5,7 +5,7 @@ import Plants from '@/views/pages/economics/Plants.vue'
 import Exchange from '@/views/pages/economics/Exchange.vue'
 import MobileLink from '@/views/pages/economics/MobileLink.vue'
 import PoliticalActions from '@/views/pages/economics/PoliticalActions.vue'
-import Production from '@/views/pages/economics/Production.vue'
+import ProductionFront from '@/views/pages/economics/ProductionFront.vue'
 
 
 const route = useRoute()
@@ -35,8 +35,8 @@ const tabs = [
   },
   {
     title: 'Производство',
-    icon: 'ri-exchange-line',
-    tab: 'production',
+    icon: 'ri-cpu-line',
+    tab: 'production_front',
   },
 
   {
@@ -90,8 +90,9 @@ const tabs = [
         <MobileLink />
       </VWindowItem>
 
-      <VWindowItem value="production">
-        <Production />
+
+      <VWindowItem value="production_front">
+        <ProductionFront />
       </VWindowItem>
 
       <VWindowItem value="buyer_actions">
