@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import QRCode from 'qrcode'
 
 const qrCodeUrl = ref('')
-const mobileUrl = `http://192.168.1.45:5173/mobile-market.html`
+const mobileUrl = `http://192.168.1.45:5173/merchant_mobile_helper.html`
 
 const generateQRCode = async () => {
   try {
@@ -42,14 +42,14 @@ onMounted(() => {
         <VCard class="pa-6">
           <VCardTitle class="text-center text-h4 mb-4">
             <VIcon icon="ri-smartphone-line" size="36" class="mr-2" color="primary" />
-            Мобильная версия рынка
+            Помощник купца
           </VCardTitle>
 
           <VCardText>
             <div class="text-center mb-6">
               <p class="text-h6 mb-2">Отсканируйте QR-код на телефоне</p>
               <p class="text-body-2 text-medium-emphasis">
-                или скопируйте ссылку для доступа к мобильной версии рынка
+                или скопируйте ссылку для доступа к помощнику купца
               </p>
             </div>
 
@@ -118,7 +118,7 @@ onMounted(() => {
                     <strong>Убедитесь:</strong> Телефон и компьютер подключены к одной WiFi сети
                   </li>
                   <li>
-                    <strong>Готово!</strong> Используйте полнофункциональную мобильную версию рынка
+                    <strong>Готово!</strong> Используйте помощник купца для расчетов
                   </li>
                 </ol>
               </VCardText>
@@ -128,15 +128,15 @@ onMounted(() => {
             <VCard class="mt-4" variant="outlined" color="success">
               <VCardTitle class="text-h6">
                 <VIcon icon="ri-check-line" class="mr-2" />
-                Особенности мобильной версии:
+                Возможности помощника купца:
               </VCardTitle>
               <VCardText>
-                <VChip class="ma-1" color="success" size="small">Вертикальная компоновка</VChip>
-                <VChip class="ma-1" color="success" size="small">Вкладки продажи/покупки</VChip>
-                <VChip class="ma-1" color="success" size="small">Bottom Sheet выбора</VChip>
-                <VChip class="ma-1" color="success" size="small">Sticky кнопки</VChip>
+                <VChip class="ma-1" color="success" size="small">Просмотр цен на ресурсы</VChip>
+                <VChip class="ma-1" color="success" size="small">Расчет караванов</VChip>
+                <VChip class="ma-1" color="success" size="small">Калькулятор производства</VChip>
                 <VChip class="ma-1" color="success" size="small">Сенсорное управление</VChip>
-                <VChip class="ma-1" color="success" size="small">Standalone страница</VChip>
+                <VChip class="ma-1" color="success" size="small">Красивый интерфейс</VChip>
+                <VChip class="ma-1" color="success" size="small">Автономная работа</VChip>
               </VCardText>
             </VCard>
           </VCardText>
