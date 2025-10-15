@@ -89,7 +89,7 @@ onBeforeUnmount(() => {
       <div class="menu-container">
         <!-- Заголовок -->
         <div class="menu-header">
-          <h1 class="menu-title">Помощник торговца</h1>
+          <h1 class="menu-title">Помощник купца</h1>
         </div>
 
         <!-- Опции меню -->
