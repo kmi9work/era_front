@@ -3,6 +3,7 @@ import { ref, onMounted, onBeforeUnmount, provide } from 'vue'
 import ExchangeMobile from './economics/ExchangeMobile.vue'
 import ShowPricesMobile from './economics/ShowPricesMobile.vue'
 import ProductionMobile from './economics/ProductionMobile.vue'
+import '@/assets/fonts/fonts.css'
 
 // Навигация между экранами
 const currentScreen = ref('menu') // 'menu', 'caravan', 'production', 'prices'
@@ -89,7 +90,6 @@ onBeforeUnmount(() => {
         <!-- Заголовок -->
         <div class="menu-header">
           <h1 class="menu-title">Помощник торговца</h1>
-          <p class="menu-subtitle">Выберите действие</p>
         </div>
 
         <!-- Опции меню -->
@@ -97,18 +97,36 @@ onBeforeUnmount(() => {
           <VCard 
             class="menu-item"
             elevation="2"
+            @click="goToPrices"
+            ripple
+          >
+            <div class="menu-item-content">
+              <div class="menu-icon-wrapper">
+                <img src="@/assets/images/prices.jpeg" alt="Цены" class="menu-image" />
+              </div>
+              <div class="menu-text">
+                <div class="menu-item-title">Цены</div>
+                <div class="menu-item-description">Посмотреть актуальные цены на все ресурсы</div>
+              </div>
+              <VIcon icon="mdi-chevron-right" size="32" color="white" class="menu-arrow" />
+            </div>
+          </VCard>
+
+          <VCard 
+            class="menu-item"
+            elevation="2"
             @click="goToCaravan"
             ripple
           >
             <div class="menu-item-content">
-              <div class="menu-icon-wrapper market-icon">
-                <VIcon icon="mdi-cart" size="40" color="white" />
+              <div class="menu-icon-wrapper">
+                <img src="@/assets/images/market.jpg" alt="Рынок" class="menu-image" />
               </div>
               <div class="menu-text">
                 <div class="menu-item-title">Рынок</div>
-                <div class="menu-item-description">Торговля ресурсами между странами</div>
+                <div class="menu-item-description">Рассчитать отправку каравана</div>
               </div>
-              <VIcon icon="mdi-chevron-right" size="32" color="grey-lighten-1" class="menu-arrow" />
+              <VIcon icon="mdi-chevron-right" size="32" color="white" class="menu-arrow" />
             </div>
           </VCard>
 
@@ -119,32 +137,14 @@ onBeforeUnmount(() => {
             ripple
           >
             <div class="menu-item-content">
-              <div class="menu-icon-wrapper production-icon">
-                <VIcon icon="mdi-factory" size="40" color="white" />
+              <div class="menu-icon-wrapper">
+                <img src="@/assets/images/production.jpeg" alt="Производство" class="menu-image" />
               </div>
               <div class="menu-text">
                 <div class="menu-item-title">Производство</div>
-                <div class="menu-item-description">Калькулятор переработки ресурсов</div>
+                <div class="menu-item-description">Рассчитать переработку ресурсов</div>
               </div>
-              <VIcon icon="mdi-chevron-right" size="32" color="grey-lighten-1" class="menu-arrow" />
-            </div>
-          </VCard>
-
-          <VCard 
-            class="menu-item"
-            elevation="2"
-            @click="goToPrices"
-            ripple
-          >
-            <div class="menu-item-content">
-              <div class="menu-icon-wrapper prices-icon">
-                <VIcon icon="mdi-currency-usd" size="40" color="white" />
-              </div>
-              <div class="menu-text">
-                <div class="menu-item-title">Цены</div>
-                <div class="menu-item-description">Актуальные цены на все ресурсы</div>
-              </div>
-              <VIcon icon="mdi-chevron-right" size="32" color="grey-lighten-1" class="menu-arrow" />
+              <VIcon icon="mdi-chevron-right" size="32" color="white" class="menu-arrow" />
             </div>
           </VCard>
         </div>
@@ -181,29 +181,37 @@ onBeforeUnmount(() => {
 <style scoped>
 .menu-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-image: 
+    linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
+    url('@/assets/images/merchant_helper_background.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   padding: 24px 16px;
 }
 
 .menu-header {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 8px;
   padding-top: 40px;
 }
 
 .menu-title {
-  font-size: 32px;
+  font-family: 'Monomakh', serif;
+  font-size: 40px;
   font-weight: 700;
   color: white;
   margin: 0;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8);
 }
 
 .menu-subtitle {
   font-size: 16px;
-  color: rgba(255, 255, 255, 0.9);
+  color: white;
   margin: 8px 0 0 0;
   font-weight: 400;
+  text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
 }
 
 .menu-list {
@@ -219,7 +227,7 @@ onBeforeUnmount(() => {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 16px !important;
   overflow: hidden;
-  background: white;
+  background: rgba(255, 255, 255, 0.25) !important;
 }
 
 .menu-item:active {
@@ -241,19 +249,14 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-.market-icon {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-}
-
-.production-icon {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-}
-
-.prices-icon {
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+.menu-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .menu-text {
@@ -262,22 +265,28 @@ onBeforeUnmount(() => {
 }
 
 .menu-item-title {
-  font-size: 20px;
+  font-family: 'Monomakh', serif;
+  font-size: 26px;
   font-weight: 600;
-  color: #1a1a1a;
-  margin-bottom: 4px;
+  color: white;
+  margin-bottom: 0px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
 }
 
 .menu-item-description {
+  font-family: 'Monomakh', serif;
   font-size: 14px;
-  color: #666;
+  color: white;
   line-height: 1.4;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+  margin-top: -2px;
 }
 
 .menu-arrow {
   flex-shrink: 0;
-  opacity: 0.5;
+  opacity: 0.8;
   transition: all 0.3s ease;
+  filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.8));
 }
 
 .menu-item:hover .menu-arrow {
