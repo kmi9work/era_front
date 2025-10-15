@@ -184,7 +184,7 @@
       <VCardText>
         <VRow>
           <VCol>
-            <VCard title="Произвести из ресурсов (ФРОНТ)">
+            <VCard title="Произвести из ресурсов">
               <v-form @submit.prevent="submit_from" class= "px-3">
                 <v-text-field
                  v-for="item, index in plantLevel_from"
@@ -201,7 +201,7 @@
 
           </VCol>
           <VCol>
-            <VCard title="Сколько надо ресурсов? (ФРОНТ)">
+            <VCard title="Сколько надо ресурсов?">
               <v-form @submit.prevent="submit_to" class= "px-3">
                 <v-text-field
                   v-for="item, index in plantLevel_to"
