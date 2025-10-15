@@ -15,25 +15,20 @@ const showResultSheet = ref(false)
 const showSelection = ref(true) // Экран выбора предприятия
 const showInput = ref(false) // Экран ввода ресурсов
 
-// Выбор предприятия
-const selectPlant = (plantId) => {
-  // Находим индексы по ID
-  const plant = productionStore.plantLevelsInfo.find(p => p.id === plantId)
-  if (!plant) return
-  
-  const typeIndex = productionStore.uniquePlantTypes.indexOf(plant.name)
-  const levelIndex = productionStore.plantLevelsInfo
-    .filter(p => p.name === plant.name)
-    .findIndex(p => p.id === plantId)
-  
+// Выбор типа предприятия (по названию, а не ID)
+const selectPlantType = (plantTypeName) => {
+  const typeIndex = productionStore.uniquePlantTypes.indexOf(plantTypeName)
   productionStore.selectedPlantTypeIndex = typeIndex
-  productionStore.selectedPlantLevelIndex = levelIndex
+  // По умолчанию выбираем первый уровень (индекс 0)
+  productionStore.selectedPlantLevelIndex = 0
   
   showSelection.value = false
   showInput.value = true
-  
-  // Добавляем состояние в history
-  window.history.pushState({ page: 'production-input' }, '')
+}
+
+// Изменение уровня на экране ввода
+const changeLevel = (levelIndex) => {
+  productionStore.selectedPlantLevelIndex = levelIndex
 }
 
 const backToSelection = () => {
@@ -295,7 +290,7 @@ defineExpose({
 
     <!-- Основной контент -->
     <div v-if="!productionStore.isLoading">
-      <!-- ЭКРАН ВЫБОРА ПРЕДПРИЯТИЯ -->
+      <!-- ЭКРАН ВЫБОРА ТИПА ПРЕДПРИЯТИЯ -->
       <div v-if="showSelection">
         <!-- Хедер -->
         <v-card class="mb-3">
@@ -307,23 +302,27 @@ defineExpose({
           </v-card-text>
         </v-card>
 
-        <!-- Сетка предприятий -->
-        <div class="plant-selection-grid">
+        <!-- Сетка типов предприятий -->
+        <div class="plant-type-selection-grid">
           <v-card
-            v-for="plant in productionStore.plantLevelsInfo"
-            :key="plant.id"
-            @click="selectPlant(plant.id)"
-            class="plant-card"
+            v-for="plantType in productionStore.uniquePlantTypes"
+            :key="plantType"
+            @click="selectPlantType(plantType)"
+            class="plant-type-card"
             elevation="3"
           >
-            <v-card-text class="pa-4 text-center">
-              <!-- Уровень большой цифрой -->
-              <div class="plant-level-number">
-                {{ plant.level }}
+            <v-card-text class="pa-3 text-center">
+              <!-- Картинка предприятия -->
+              <div class="plant-image-container">
+                <img 
+                  :src="`/src/assets/images/plants/${plantType}.jpg`"
+                  :alt="plantType"
+                  class="plant-image"
+                />
               </div>
               <!-- Название предприятия -->
-              <div class="plant-name">
-                {{ plant.name }}
+              <div class="plant-type-name">
+                {{ plantType }}
               </div>
             </v-card-text>
           </v-card>
@@ -340,8 +339,25 @@ defineExpose({
             <div class="text-h6 font-weight-bold">
               {{ productionStore.selectedPlantLevel.name }}
             </div>
-            <div class="text-h4 text-primary mt-1">
-              Уровень {{ productionStore.selectedPlantLevel.level }}
+          </v-card-text>
+        </v-card>
+
+        <!-- Выбор уровня -->
+        <v-card class="mb-3" v-if="productionStore.filteredPlantsByType.length">
+          <v-card-title class="text-center py-2">Уровень</v-card-title>
+          <v-card-text class="pa-2">
+            <div class="level-selector">
+              <v-btn
+                v-for="(plant, index) in productionStore.filteredPlantsByType"
+                :key="plant.id"
+                @click="changeLevel(index)"
+                :color="productionStore.selectedPlantLevelIndex === index ? 'primary' : 'default'"
+                :variant="productionStore.selectedPlantLevelIndex === index ? 'flat' : 'outlined'"
+                class="level-btn"
+                size="large"
+              >
+                {{ ['I', 'II', 'III'][plant.level - 1] || plant.level }}
+              </v-btn>
             </div>
           </v-card-text>
         </v-card>
@@ -644,44 +660,63 @@ defineExpose({
   background-color: rgba(76, 175, 80, 0.1);
 }
 
-.plant-selection-grid {
+.plant-type-selection-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
   padding: 12px;
 }
 
-.plant-card {
+.plant-type-card {
   cursor: pointer;
   transition: all 0.3s ease;
   border: 2px solid transparent;
 }
 
-.plant-card:hover {
+.plant-type-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2) !important;
   border-color: #1976d2;
 }
 
-.plant-card:active {
+.plant-type-card:active {
   transform: translateY(-2px);
 }
 
-.plant-level-number {
-  font-size: 48px;
-  font-weight: bold;
-  color: #1976d2;
-  line-height: 1;
+.plant-image-container {
+  width: 100%;
+  height: 120px;
+  overflow: hidden;
+  border-radius: 8px;
+  margin-bottom: 8px;
 }
 
-.plant-name {
-  font-size: 14px;
+.plant-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.plant-type-name {
+  font-size: 16px;
   font-weight: 600;
-  color: #666;
-  margin-top: 8px;
+  color: #333;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.level-selector {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.level-btn {
+  flex: 1;
+  max-width: 100px;
+  font-size: 20px !important;
+  font-weight: bold !important;
 }
 
 .quantity-display-mobile {
