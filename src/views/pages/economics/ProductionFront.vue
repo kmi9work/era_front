@@ -1,144 +1,29 @@
 <script setup>
   import axios from 'axios'
-  import { ref } from 'vue'
+  import { ref, computed, watch, onBeforeMount } from 'vue'
+  import { useProductionStore } from '@/stores/production'
+
+  const productionStore = useProductionStore()
 
   onBeforeMount(async () => {
     await axios.get(`${import.meta.env.VITE_PROXY}/plant_levels/prod_info_full.json`)
     .then(response => {
-      plantLevelsInfo.value = response.data;
-      selectedPlantLevel.value = plantLevelsInfo.value[0]?.id;
+      // Сохраняем данные в store
+      productionStore.setPlantLevels(response.data)
+      selectedPlantLevel.value = productionStore.plantLevelsInfo[0]?.id
     })
   })
 
   const to = ref([])
   const from = ref([])
   const change = ref([])
-  const plantLevelsInfo = ref([])
   const back_bound_from = ref([])
   const prodResult_from = ref([])
   const selectedPlantLevel = ref(0)
 
-  // Вспомогательные функции для работы с массивами ресурсов (перенесено с сервера)
-  
-  // Проверяет, не превышает ли количество хоть одного ресурса во втором массиве количество такого же ресурса в первом.
-  function isResArrayLess(resArray1, resArray2) {
-    for (const res1 of resArray1) {
-      const var2 = resArray2.find(res2 => res1.identificator === res2.identificator)
-      if (!var2) return false
-      if (res1.count > var2.count) return false
-    }
-    return true
-  }
-
-  // Умножает массив ресурсов на число
-  function resArrayMult(resArray, n, plantLevel) {
-    return resArray.map(res => ({
-      ...res,
-      count: res.count * n,
-      name: res.name || lookUpRes(res.identificator, plantLevel)
-    }))
-  }
-
-  // Складывает два массива ресурсов (модифицирует array1 in-place, как на сервере)
-  function resArraySum(array1, array2, sign = 1) {
-    const arr2Copy = JSON.parse(JSON.stringify(array2))
-    
-    // Проходим по array1 и добавляем/вычитаем совпадающие элементы из arr2Copy
-    for (const res1 of array1) {
-      for (let i = arr2Copy.length - 1; i >= 0; i--) {
-        if (res1.identificator === arr2Copy[i].identificator) {
-          res1.count += arr2Copy[i].count * sign
-          arr2Copy.splice(i, 1)
-        }
-      }
-    }
-    
-    // Добавляем оставшиеся элементы из arr2Copy в array1
-    for (const res of arr2Copy) {
-      array1.push({...res, count: res.count * sign})
-    }
-    
-    return array1
-  }
-
-  // Поиск имени ресурса (аналог look_up_res)
-  function lookUpRes(identificator, plantLevel) {
-    // Ищем в formula_from
-    const fromRes = plantLevel.formula_from?.find(r => r.identificator === identificator)
-    if (fromRes) return fromRes.name
-    
-    // Ищем в formula_to
-    const toRes = plantLevel.formula_to?.find(r => r.identificator === identificator)
-    if (toRes) return toRes.name
-    
-    return identificator
-  }
-
-  // Основная функция подсчета для одной формулы
-  function countRequest(formula, request, way, plantLevel) {
-    let n = 0
-    let bucket = JSON.parse(JSON.stringify(formula[way])) // deep copy
-    const formulaPart = formula[way]
-
-    while (
-      isResArrayLess(bucket, request) && 
-      isResArrayLess(resArrayMult(formula.to, n + 1, plantLevel), formula.max_product)
-    ) {
-      bucket = resArraySum(bucket, JSON.parse(JSON.stringify(formulaPart)))
-      n += 1
-    }
-
-    const to = resArrayMult(formula.to, n, plantLevel)
-    const from = resArrayMult(formula.from, n, plantLevel)
-
-    return { from, to }
-  }
-
-  // Главная функция feed_to_plant (перенесено с сервера)
-  function feedToPlant(plantLevel, request, way = 'from') {
-    // Проверяем, открыта ли технология "Школы" для коэффициента
-    const coof = plantLevel.tech_schools_open ? 1.5 : 1
-
-    // Преобразуем request
-    const requestCopy = request.map(req => ({
-      identificator: req.identificator.toString(),
-      count: way === 'to' ? Math.ceil(parseInt(req.count || 0) / coof) : parseInt(req.count || 0),
-      name: lookUpRes(req.identificator, plantLevel)
-    }))
-
-    let resultingFrom = []
-    let resultingTo = []
-
-    // Проходим по всем формулам
-    plantLevel.formulas.forEach(formula => {
-      const { from, to } = countRequest(formula, requestCopy, way, plantLevel)
-      
-      // Вычитаем использованные ресурсы из request
-      if (way === 'from') {
-        resArraySum(requestCopy, from, -1)
-      } else {
-        resArraySum(requestCopy, to, -1)
-      }
-
-      resArraySum(resultingFrom, from)
-      resArraySum(resultingTo, to)
-    })
-
-    // Применяем коэффициент к результату
-    resultingTo.forEach(res => {
-      res.count = res.count * coof
-    })
-
-    return {
-      from: resultingFrom,
-      to: resultingTo,
-      change: requestCopy
-    }
-  }
-
   const plantLevel_from = computed(() => {
-    let filtered = plantLevelsInfo.value.filter((res) => res.id == selectedPlantId.value);
-    console.log(filtered);
+    let filtered = productionStore.plantLevelsInfo.filter((res) => res.id == selectedPlantId.value)
+    console.log(filtered)
 
     if (filtered.length){
       back_bound_from.value = Array(filtered[0]["formula_from"].length).fill(0).map(
@@ -153,7 +38,7 @@
   })
 
   function submit_from(){
-    const plantLevel = plantLevelsInfo.value.find(p => p.id === selectedPlantId.value)
+    const plantLevel = productionStore.getPlantLevelById(selectedPlantId.value)
     if (!plantLevel) {
       console.error('PlantLevel not found')
       return
@@ -163,7 +48,8 @@
     console.log('Tech Schools открыта:', plantLevel.tech_schools_open ? 'ДА (коэф. 1.5)' : 'НЕТ (коэф. 1.0)')
     console.log('Request:', back_bound_from.value)
     
-    const result = feedToPlant(plantLevel, back_bound_from.value, 'from')
+    // Используем store для расчета
+    const result = productionStore.feedToPlant(selectedPlantId.value, back_bound_from.value, 'from')
     
     console.log('Result:', result)
     
@@ -177,8 +63,8 @@
   const prodResult_to = ref([])
 
   const plantLevel_to = computed(() => {
-    let filtered = plantLevelsInfo.value.filter((res) => res.id == selectedPlantId.value);
-    console.log(filtered);
+    let filtered = productionStore.plantLevelsInfo.filter((res) => res.id == selectedPlantId.value)
+    console.log(filtered)
     if (filtered.length){
       back_bound_to.value = Array(filtered[0]["formula_to"].length).fill(0).map(
         function(_, i) {
@@ -186,14 +72,14 @@
         })
       return filtered[0]["formula_to"]
     }else{
-      return [];
+      return []
     }
 
   })
 
 
   function submit_to(){
-    const plantLevel = plantLevelsInfo.value.find(p => p.id === selectedPlantId.value)
+    const plantLevel = productionStore.getPlantLevelById(selectedPlantId.value)
     if (!plantLevel) {
       console.error('PlantLevel not found')
       return
@@ -203,7 +89,8 @@
     console.log('Tech Schools открыта:', plantLevel.tech_schools_open ? 'ДА (коэф. 1.5)' : 'НЕТ (коэф. 1.0)')
     console.log('Request:', back_bound_to.value)
     
-    const result = feedToPlant(plantLevel, back_bound_to.value, 'to')
+    // Используем store для расчета
+    const result = productionStore.feedToPlant(selectedPlantId.value, back_bound_to.value, 'to')
     
     console.log('Result:', result)
     
@@ -222,15 +109,14 @@
   const selectedPlantTypeIndex = ref(null)
   const selectedPlantLevelIndex = ref(null)
 
-  const uniquePlantTypes = computed(() => {
-    return [...new Set(plantLevelsInfo.value.map(plant => plant.name))]
-  })
+  // Используем computed из store
+  const uniquePlantTypes = computed(() => productionStore.uniquePlantTypes)
 
   // Растения отфильтрованные по выбранному типу
   const filteredPlantsByType = computed(() => {
     if (selectedPlantTypeIndex.value === null) return []
     const selectedType = uniquePlantTypes.value[selectedPlantTypeIndex.value]
-    return plantLevelsInfo.value.filter(plant => plant.name === selectedType)
+    return productionStore.getPlantsByType(selectedType)
   })
 
   // Можно добавить watcher для selectedPlantId если нужно
