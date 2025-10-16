@@ -100,6 +100,10 @@ const fetchResources = async () =>{
     const response = await axios.get(`${import.meta.env.VITE_PROXY}/resources/show_prices.json`)
     resources.value = response.data.prices;
     
+    console.log('📦 Полученные данные с сервера:', response.data.prices);
+    console.log('📦 Пример off_market:', response.data.prices.off_market?.[0]);
+    console.log('📦 Пример to_market:', response.data.prices.to_market?.[0]);
+    
     // Сохраняем ресурсы в store для калькулятора
     // Передаем весь объект с off_market и to_market отдельно
     caravanStore.setResources({
@@ -222,9 +226,49 @@ const getButtonColor = (country) => {
   return undefined
 }
 
-const nameChecker = (item) => {
-  if (item){
-    return `По ${item}` 
+// Получаем отношения выбранной страны
+const selectedCountryRelations = computed(() => {
+  if (!selectedCountry.value || !countries.value.length) return '0'
+  const country = countries.value.find(c => c.id === selectedCountry.value)
+  const relations = country?.relations?.toString() || '0'
+  console.log('🌍 Выбранная страна и отношения:', {
+    countryId: selectedCountry.value,
+    countryName: country?.name,
+    relations: relations,
+    relationsType: typeof country?.relations
+  })
+  return relations
+})
+
+// Функция для получения цены на основе объекта цен и отношений
+const getPriceByRelations = (priceObj, relations) => {
+  if (!priceObj) return null
+  
+  // Если это объект с ценами для разных отношений
+  if (typeof priceObj === 'object' && !Array.isArray(priceObj)) {
+    const price = priceObj[relations]
+    console.log('💰 Получение цены:', {
+      priceObj,
+      relations,
+      relationsType: typeof relations,
+      price,
+      availableKeys: Object.keys(priceObj)
+    })
+    return price
+  }
+  
+  // Обратная совместимость: если это число
+  if (typeof priceObj === 'number') {
+    return priceObj
+  }
+  
+  return null
+}
+
+const nameChecker = (priceObj) => {
+  if (priceObj){
+    const price = getPriceByRelations(priceObj, selectedCountryRelations.value)
+    return price !== null ? `По ${price}` : "Нет цены"
   }else{
     return "Золото"
   }
@@ -347,7 +391,7 @@ function resetForm() {
               </div>
               <v-text-field
                 v-model.number="resourcesPlSells[index].count"
-                :label="nameChecker(item.sell_price)"
+                :label="nameChecker(item.sale_price)"
                 type="number"
                 variant="outlined"
                 density="compact"

@@ -84,20 +84,49 @@ export const useCaravanStore = defineStore('caravan', () => {
       }
     }
 
+    // Получаем уровень отношений страны
     const relations = country.relations?.toString() || '0'
     
-    // Определяем, какое поле с ценой использовать
-    // В to_market (игрок продает): используем поле sell_price
+    // Определяем, какое поле с ценой использовать и выбираем цену по отношениям
+    // В to_market (игрок продает): используем поле sale_price
     // В off_market (игрок покупает): используем поле buy_price
     let unitCost
     if (transactionType === 'buy') {
-      // Игрок продает рынку - используем sell_price (из to_market)
-      // sell_price уже содержит финальную цену, не нужно искать в params
-      unitCost = resource.sell_price
+      // Игрок продает рынку - используем sale_price (из to_market)
+      // sale_price теперь объект с ценами для разных отношений: {"0": 10, "1": 8, "2": 6}
+      const priceObj = resource.sale_price
+      if (typeof priceObj === 'object' && priceObj !== null && !Array.isArray(priceObj)) {
+        // Выбираем цену по уровню отношений
+        unitCost = priceObj[relations]
+        console.log('🔍 calculateCost BUY:', {
+          resource: resource.identificator,
+          relations,
+          priceObj,
+          unitCost,
+          country: country.name
+        })
+      } else {
+        // Обратная совместимость: если это число, используем как есть
+        unitCost = priceObj
+      }
     } else {
       // Игрок покупает с рынка - используем buy_price (из off_market)
-      // buy_price уже содержит финальную цену, не нужно искать в params
-      unitCost = resource.buy_price
+      // buy_price теперь объект с ценами для разных отношений: {"0": 5, "1": 7, "2": 9}
+      const priceObj = resource.buy_price
+      if (typeof priceObj === 'object' && priceObj !== null && !Array.isArray(priceObj)) {
+        // Выбираем цену по уровню отношений
+        unitCost = priceObj[relations]
+        console.log('🔍 calculateCost SALE:', {
+          resource: resource.identificator,
+          relations,
+          priceObj,
+          unitCost,
+          country: country.name
+        })
+      } else {
+        // Обратная совместимость: если это число, используем как есть
+        unitCost = priceObj
+      }
     }
 
     if (unitCost !== undefined && unitCost !== null) {
@@ -147,7 +176,7 @@ export const useCaravanStore = defineStore('caravan', () => {
       if (res.identificator === 'gold') return // Пропускаем золото
       if (!res.count || res.count <= 0) return // Пропускаем пустые значения
 
-      // Для продажи ищем в to_market (там есть sell_price)
+      // Для продажи ищем в to_market (там есть sale_price)
       const resourceObj = resources.value.to_market.find(r => 
         r.identificator === res.identificator && 
         (r.country_id === countryId || r.country?.id === countryId)
