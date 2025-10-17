@@ -62,12 +62,10 @@ const currentPlace = computed(() => {
 // Watch который следит за изменениями activeScreen
 watch(activeScreen, (newScreen, oldScreen) => {
   const newPlace = placeMap[newScreen] || 0
-  console.log(`Экран изменился: ${oldScreen} -> ${newScreen}, Место: ${newPlace}`)
   
   // Здесь можно добавить дополнительную логику
   if (newPlace !== 0) {
     // Выполнить какие-то действия при смене места
-    console.log(`Активное место: ${newPlace}`)
   }
 }, { immediate: true }) // immediate: true - выполнить сразу при загрузке
 
@@ -93,7 +91,6 @@ const filterNobleResults = async (display, place = null) => {
 watch(
   () => endGameResultsStore.merchantResults,
   (val) => {
-    console.log("merchantResults обновился:", val)
   },
   { deep: true }
 )
@@ -179,13 +176,11 @@ const changeScreen = async (screen) => {
 
 watch(activeScreen, (newScreen) => {
   // Здесь можно добавить логику синхронизации с store если нужно
-  console.log('Active screen changed to:', newScreen)
 })
 
 
 
 watch(() => endGameResultsStore.currentNobleResultsScreen, (newScreen) => {
-  console.log('Noble screen changed to:', newScreen); // для отладки
   // Здесь можно добавить дополнительную логику при изменении экрана
 });
 
