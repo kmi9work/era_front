@@ -130,7 +130,6 @@
       // Принудительно обновляем реактивность
       audits.value = [...audits.value]
       
-      console.log(`Отмечено как просмотренные: ${response.data.marked_count} событий`)
     } catch (error) {
       console.error('Ошибка при отметке всех событий как просмотренных:', error)
     }

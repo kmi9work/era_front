@@ -6,17 +6,6 @@
     alert(selected_names.value[1]);
     alert(selected_names.value[2]);
   }
-
-  // axios.post('/user', {
-  //   firstName: names[0],
-  //   lastName: names[1]
-  // })
-  // .then(function (response) {
-  //   console.log(response);
-  // })
-  // .catch(function (error) {
-  //   console.log(error);
-  // });
 </script>
 
 <template>
