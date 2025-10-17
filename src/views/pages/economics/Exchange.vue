@@ -30,6 +30,8 @@ const showEmbargoStatusDialog = ref(false);
 const showEmbargoDialog = ref(false)        //  при продаже/покупке
 const embargoStatusMessage = ref('');
 const isEmbargoActive = ref(false);
+const showConfirmDialog = ref(false);       // Модальное окно подтверждения после расчета
+const caravanPending = ref(false);          // Флаг, что караван ожидает регистрации
 
 const fetchCountries = async () => {
   try {
@@ -169,12 +171,12 @@ const filteredResToMark = computed(() => {
 })
 
 
-async function sendCaravanRequest(isContraband = false) {
+async function calculateCaravanRequest(isContraband = false) {
   try {
     showEmbargoDialog.value = false
     
     // Вместо запроса на сервер, используем локальный расчет через store
-    const result = caravanStore.sendCaravan(
+    const result = caravanStore.calculateCaravan(
       selectedCountry.value,
       resourcesPlSells.value,
       resourcesPlBuys.value
@@ -197,7 +199,11 @@ async function submit() {
     return
   }
   
-  await sendCaravanRequest()
+  await calculateCaravanRequest()
+  
+  // Открываем модальное окно подтверждения
+  showConfirmDialog.value = true
+  caravanPending.value = true
 }
 
 // ЭМБАРГО
@@ -230,6 +236,15 @@ const nameChecker = (item) => {
   }
 }
 
+// Обработчик предупреждения при закрытии вкладки
+const handleBeforeUnload = (e) => {
+  if (caravanPending.value) {
+    e.preventDefault();
+    e.returnValue = 'Караван не отправлен. Вы уверены, что хотите закрыть вкладку?';
+    return e.returnValue;
+  }
+};
+
 // Загружаем данные при монтировании
 onMounted(async () => {
   try {
@@ -249,10 +264,14 @@ onMounted(async () => {
   }
 
   pollInterval.value = setInterval(fetchCountries, 30000); // 30 секунд
+  
+  // Добавляем обработчик предупреждения при закрытии
+  window.addEventListener('beforeunload', handleBeforeUnload);
 })
 
 onBeforeUnmount(() => {
   clearInterval(pollInterval.value);
+  window.removeEventListener('beforeunload', handleBeforeUnload);
 });
 
 // Следим за изменением selectedCountry
@@ -267,7 +286,7 @@ watch(selectedCountry, (newVal) => {
 async function confirmContraband() {
   showEmbargoDialog.value = false;
   try {
-    await sendCaravanRequest(true);
+    await calculateCaravanRequest(true);
     // Опционально: показать уведомление об успехе
   } catch (error) {
     console.error("Ошибка при отправке контрабанды:", error);
@@ -292,11 +311,102 @@ function resetForm() {
   // Очищаем результаты
   resToPlayer.value = [];
   prices.value = [];
+  
+  // Сбрасываем флаг ожидания каравана
+  showConfirmDialog.value = false;
+  caravanPending.value = false;
 }
+
+const registerCaravan  = async () =>{
+  try {
+    // Проверяем, что есть результаты расчета
+    if (!resToPlayer.value || resToPlayer.value.length === 0) {
+      console.log('Сначала нажмите кнопку "Обработать" для расчета обмена!');
+      return;
+    }
+    
+    // Обогащаем incoming данными из filteredResToMark
+    // Включаем ВСЕ ресурсы, включая золото (то, что игрок отправляет)
+    const enrichedIncoming = resourcesPlSells.value
+      .filter(item => item.count && item.count > 0)
+      .map(item => {
+        // Находим полные данные ресурса
+        const fullResource = filteredResToMark.value.find(
+          res => res.identificator === item.identificator
+        );
+        
+        return {
+          identificator: item.identificator,
+          name: fullResource?.name || (item.identificator === 'gold' ? 'Золото' : item.identificator),
+          count: item.count
+        };
+      });
+    
+    // Обогащаем outcoming данными из filteredResOffMark и других источников
+    const enrichedOutcoming = resToPlayer.value.map(item => {
+      // Для исходящих ресурсов пытаемся найти identificator
+      const fullResource = filteredResOffMark.value.find(
+        res => res.name === item.name
+      );
+      
+      // Также проверяем в to_market на случай, если это золото
+      const toMarketResource = filteredResToMark.value.find(
+        res => res.name === item.name
+      );
+      
+      return {
+        identificator: fullResource?.identificator || toMarketResource?.identificator || (item.name === 'Золото' ? 'gold' : ''),
+        name: item.name,
+        count: item.count
+      };
+    });
+    
+    const request = {
+      country_id: selectedCountry.value, 
+      incoming: enrichedIncoming, 
+      outcoming: enrichedOutcoming
+    }
+    
+    console.log('Отправка караван-запроса:', request);
+    
+    const response = await axios.post(`${import.meta.env.VITE_PROXY}/caravans/register_caravan`, request)
+    
+    console.log('Караван зарегистрирован:', response.data);
+    
+    // Закрываем модальное окно и сбрасываем флаг
+    showConfirmDialog.value = false;
+    caravanPending.value = false;
+    
+    // Очищаем форму после успешной регистрации
+    resetForm();
+    
+  } catch (error) {
+    console.error('Error registering caravan:', error);
+    console.error('Error details:', error.response?.data);
+  }
+}
+
+// Функция для пересчета (закрыть модальное окно без регистрации)
+const recalculate = () => {
+  showConfirmDialog.value = false;
+  caravanPending.value = false;
+  // Оставляем результаты расчета, просто закрываем окно
+}
+
+// Проверяем, достаточно ли денег
+const hasEnoughGold = computed(() => {
+  const goldItem = resToPlayer.value.find(item => 
+    item.name === 'Золото' || item.name?.toLowerCase()?.includes('золото')
+  );
+  return !goldItem || goldItem.count >= 0;
+});
 
 </script>
 
 <template>
+
+
+
   <div v-if="!isLoading" class="main-container">
 
     <!-- Кнопки стран с флагами -->
@@ -505,7 +615,7 @@ function resetForm() {
       </v-card-text>
       <v-card-actions>
         <v-spacer></v-spacer>
-        <v-btn color="grey-darken-1" text @click="sendCaravanRequest(true) ">
+        <v-btn color="grey-darken-1" text @click="calculateCaravanRequest(true) ">
           Есть карточка контрабанды!
         </v-btn>
           <v-btn color="grey-darken-1" text @click="showEmbargoDialog = false">
@@ -515,7 +625,118 @@ function resetForm() {
     </v-card>
   </v-dialog>
 
+  <!-- Модальное окно подтверждения каравана -->
+  <v-dialog v-model="showConfirmDialog" max-width="800" persistent>
+    <v-card>
+      <v-card-title class="text-h5 bg-primary">Подтверждение каравана</v-card-title>
+      
+      <v-card-text class="pt-4">
+        <!-- Игрок отправляет -->
+        <div class="mb-6">
+          <h3 class="mb-3">Игрок отправляет с караваном:</h3>
+          <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+            <div
+              v-for="(item, index) in resourcesPlSells.filter(r => r.count && r.count > 0)"
+              :key="index"
+              style="display: flex; align-items: center; gap: 8px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; min-width: 200px;"
+            >
+              <v-img
+                :src="`/images/resources/${item.identificator}.png`"
+                width="48"
+                height="48"
+                class="resource-icon"
+              />
+              <div>
+                <div class="text-subtitle-1 font-weight-bold">{{ item.identificator === 'gold' ? 'Золото' : item.identificator }}</div>
+                <div class="text-body-2">Количество: {{ item.count }}</div>
+              </div>
+            </div>
+          </div>
+          <div v-if="resourcesPlSells.filter(r => r.count && r.count > 0).length === 0" class="text-body-2 text-grey">
+            Нет ресурсов для отправки
+          </div>
+        </div>
 
+        <v-divider class="my-4"></v-divider>
+
+        <!-- Игрок получает -->
+        <div>
+          <h3 class="mb-3">Игрок получает:</h3>
+          <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+            <div
+              v-for="(item, index) in resToPlayer"
+              :key="index"
+              :style="{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px',
+                border: item.count < 0 ? '2px solid #ff5252' : '1px solid #ddd',
+                borderRadius: '8px',
+                minWidth: '200px',
+                backgroundColor: item.count < 0 ? '#ffebee' : 'transparent'
+              }"
+            >
+              <v-img
+                v-if="item.name !== 'Золото' && !item.name?.toLowerCase()?.includes('золото')"
+                :src="`/images/resources/${item.identificator || 'unknown'}.png`"
+                width="48"
+                height="48"
+                class="resource-icon"
+              />
+              <v-img
+                v-else
+                src="/images/resources/gold.png"
+                width="48"
+                height="48"
+                class="resource-icon"
+              />
+              <div>
+                <div class="text-subtitle-1 font-weight-bold">{{ item.name }}</div>
+                <div 
+                  class="text-body-2" 
+                  :style="{ color: item.count < 0 ? '#ff5252' : item.count > 0 ? '#4caf50' : 'inherit' }"
+                >
+                  Количество: {{ item.count }}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Предупреждение о недостатке денег -->
+          <v-alert
+            v-if="!hasEnoughGold"
+            type="error"
+            class="mt-4"
+            variant="tonal"
+          >
+            <strong>Недостаточно денег!</strong> Караван с отрицательным золотом не может быть зарегистрирован.
+          </v-alert>
+        </div>
+      </v-card-text>
+
+      <v-card-actions class="pa-4">
+        <v-btn
+          color="primary"
+          variant="outlined"
+          @click="recalculate"
+          size="large"
+        >
+          Пересчитать
+        </v-btn>
+        <v-spacer></v-spacer>
+        <v-btn
+          color="success"
+          variant="elevated"
+          @click="registerCaravan"
+          size="large"
+          :disabled="!hasEnoughGold"
+        >
+          Зарегистрировать караван
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 
 </template>
 
