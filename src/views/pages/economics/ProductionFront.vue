@@ -23,7 +23,6 @@
 
   const plantLevel_from = computed(() => {
     let filtered = productionStore.plantLevelsInfo.filter((res) => res.id == selectedPlantId.value)
-    console.log(filtered)
 
     if (filtered.length){
       back_bound_from.value = Array(filtered[0]["formula_from"].length).fill(0).map(
@@ -44,14 +43,8 @@
       return
     }
     
-    console.log('PlantLevel:', plantLevel)
-    console.log('Tech Schools открыта:', plantLevel.tech_schools_open ? 'ДА (коэф. 1.5)' : 'НЕТ (коэф. 1.0)')
-    console.log('Request:', back_bound_from.value)
-    
     // Используем store для расчета
     const result = productionStore.feedToPlant(selectedPlantId.value, back_bound_from.value, 'from')
-    
-    console.log('Result:', result)
     
     prodResult_from.value = result
     to.value = result.to
@@ -64,7 +57,6 @@
 
   const plantLevel_to = computed(() => {
     let filtered = productionStore.plantLevelsInfo.filter((res) => res.id == selectedPlantId.value)
-    console.log(filtered)
     if (filtered.length){
       back_bound_to.value = Array(filtered[0]["formula_to"].length).fill(0).map(
         function(_, i) {
@@ -85,14 +77,8 @@
       return
     }
     
-    console.log('PlantLevel:', plantLevel)
-    console.log('Tech Schools открыта:', plantLevel.tech_schools_open ? 'ДА (коэф. 1.5)' : 'НЕТ (коэф. 1.0)')
-    console.log('Request:', back_bound_to.value)
-    
     // Используем store для расчета
     const result = productionStore.feedToPlant(selectedPlantId.value, back_bound_to.value, 'to')
-    
-    console.log('Result:', result)
     
     prodResult_to.value = result
     from.value = result.from
@@ -121,7 +107,6 @@
 
   // Можно добавить watcher для selectedPlantId если нужно
   watch(selectedPlantId, (newId) => {
-    console.log('Выбранный ID растения:', newId)
     // Здесь можно выполнять дополнительные действия при изменении выбранного ID
   })
 

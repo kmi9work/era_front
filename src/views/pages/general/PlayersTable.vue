@@ -24,8 +24,6 @@ const emit = defineEmits(['reload-data'])
 
 // Отладочная информация
 onMounted(() => {
-  console.log('Players table - Building types:', props.buildingTypes)
-  console.log('Players table - First building type:', props.buildingTypes[0])
 })
 
 // Получаем армии игрока

@@ -24,8 +24,6 @@ const emit = defineEmits(['reload-data'])
 
 // Отладочная информация
 onMounted(() => {
-  console.log('Building types:', props.buildingTypes)
-  console.log('First building type:', props.buildingTypes[0])
 })
 
 // Получаем все постройки в регионе, отсортированные по типу
