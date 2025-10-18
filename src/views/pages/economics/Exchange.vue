@@ -325,46 +325,52 @@ const registerCaravan  = async () =>{
       return;
     }
     
-    // Обогащаем incoming данными из filteredResToMark
-    // Включаем ВСЕ ресурсы, включая золото (то, что игрок отправляет)
+    // Обогащаем incoming данными из filteredResToMark (ресурсы БЕЗ золота)
     const enrichedIncoming = resourcesPlSells.value
-      .filter(item => item.count && item.count > 0)
+      .filter(item => item.count && item.count > 0 && item.identificator !== 'gold')
       .map(item => {
-        // Находим полные данные ресурса
         const fullResource = filteredResToMark.value.find(
           res => res.identificator === item.identificator
         );
         
         return {
           identificator: item.identificator,
-          name: fullResource?.name || (item.identificator === 'gold' ? 'Золото' : item.identificator),
+          name: fullResource?.name || item.identificator,
           count: item.count
         };
       });
     
-    // Обогащаем outcoming данными из filteredResOffMark и других источников
-    const enrichedOutcoming = resToPlayer.value.map(item => {
-      // Для исходящих ресурсов пытаемся найти identificator
-      const fullResource = filteredResOffMark.value.find(
-        res => res.name === item.name
-      );
-      
-      // Также проверяем в to_market на случай, если это золото
-      const toMarketResource = filteredResToMark.value.find(
-        res => res.name === item.name
-      );
-      
-      return {
-        identificator: fullResource?.identificator || toMarketResource?.identificator || (item.name === 'Золото' ? 'gold' : ''),
-        name: item.name,
-        count: item.count
-      };
-    });
+    // Обогащаем outcoming данными (ресурсы БЕЗ золота)
+    const enrichedOutcoming = resToPlayer.value
+      .filter(item => item.name !== 'Золото' && !item.name?.toLowerCase()?.includes('золото'))
+      .map(item => {
+        const fullResource = filteredResOffMark.value.find(
+          res => res.name === item.name
+        );
+        
+        const toMarketResource = filteredResToMark.value.find(
+          res => res.name === item.name
+        );
+        
+        return {
+          identificator: fullResource?.identificator || toMarketResource?.identificator || '',
+          name: item.name,
+          count: item.count
+        };
+      });
+    
+    // Получаем данные по золоту
+    const goldPaid = resourcesPlSells.value.find(r => r.identificator === 'gold')?.count || 0;
+    const purchaseCost = caravanStore.totalPurchaseCost || 0;
+    const saleIncome = caravanStore.totalSaleIncome || 0;
     
     const request = {
       country_id: selectedCountry.value, 
       incoming: enrichedIncoming, 
-      outcoming: enrichedOutcoming
+      outcoming: enrichedOutcoming,
+      purchase_cost: purchaseCost,  // Стоимость покупки
+      sale_income: saleIncome,       // Выручка от продажи
+      gold_paid: goldPaid            // Сколько игрок вложил
     }
     
     console.log('Отправка караван-запроса:', request);
@@ -393,18 +399,82 @@ const recalculate = () => {
   // Оставляем результаты расчета, просто закрываем окно
 }
 
+// Получаем сколько игрок вложил золота
+const goldPaidByPlayer = computed(() => {
+  return resourcesPlSells.value.find(r => r.identificator === 'gold')?.count || 0;
+});
+
+// Вычисляем нехватку золота (учитывая выручку от продажи)
+const goldShortage = computed(() => {
+  const purchaseCost = caravanStore.totalPurchaseCost || 0;
+  const saleIncome = caravanStore.totalSaleIncome || 0;
+  const goldPaid = goldPaidByPlayer.value;
+  
+  if (purchaseCost === 0) return 0;
+  
+  // Вычитаем выручку от продажи из стоимости покупки
+  const netCost = purchaseCost - saleIncome;
+  
+  // Если выручка покрывает покупку, нехватки нет
+  if (netCost <= 0) return 0;
+  
+  // Иначе проверяем сколько игрок вложил
+  const shortage = netCost - goldPaid;
+  return shortage > 0 ? shortage : 0;
+});
+
 // Проверяем, достаточно ли денег
 const hasEnoughGold = computed(() => {
-  const goldItem = resToPlayer.value.find(item => 
-    item.name === 'Золото' || item.name?.toLowerCase()?.includes('золото')
+  return goldShortage.value === 0;
+});
+
+// Вычисляем что выдать игроку (с учетом сдачи)
+const itemsToGivePlayer = computed(() => {
+  if (!resToPlayer.value || resToPlayer.value.length === 0) return [];
+  
+  // Ресурсы без золота
+  const resources = resToPlayer.value.filter(item => 
+    item.name !== 'Золото' && !item.name?.toLowerCase()?.includes('золото')
   );
-  return !goldItem || goldItem.count >= 0;
+  
+  const purchaseCost = caravanStore.totalPurchaseCost || 0;
+  const saleIncome = caravanStore.totalSaleIncome || 0;
+  const goldPaid = goldPaidByPlayer.value;
+  
+  // Вычисляем итоговое золото для выдачи
+  // Формула: Вложенное + Выручка - Стоимость покупки
+  let goldToGive = goldPaid + saleIncome - purchaseCost;
+  let goldLabel = 'Золото';
+  
+  if (purchaseCost > 0 && saleIncome > 0) {
+    // Есть и покупка, и продажа
+    goldLabel = 'Золото (сдача + выручка)';
+  } else if (purchaseCost > 0) {
+    // Только покупка
+    goldLabel = 'Золото (сдача)';
+  } else if (saleIncome > 0) {
+    // Только продажа
+    goldLabel = 'Золото (выручка)';
+  }
+  
+  // Добавляем золото если оно больше 0
+  if (goldToGive > 0) {
+    return [
+      ...resources,
+      {
+        identificator: 'gold',
+        name: goldLabel,
+        count: goldToGive
+      }
+    ];
+  }
+  
+  return resources;
 });
 
 </script>
 
 <template>
-
 
 
   <div v-if="!isLoading" class="main-container">
@@ -557,15 +627,41 @@ const hasEnoughGold = computed(() => {
 </div>
 
       <!-- Результаты -->
-      <VCard title="Выдать игроку" class="results-card">
+      <VCard class="results-card">
+        <v-card-title>Выдать игроку</v-card-title>
         <v-card-text>
-          <div v-for="(item, index) in resToPlayer" :key="index">
-            <p v-if="item.count > 0">
-              <span style="color: green;">{{ item.name }}: {{ item.count }}</span>
-            </p>
-            <p v-else-if="item.count < 0">
-              <span style="color: red;">{{ item.name }}: {{ item.count }}</span>
-            </p>
+          <!-- Ресурсы для выдачи с картинками -->
+          <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+            <div
+              v-for="(item, index) in itemsToGivePlayer"
+              :key="index"
+              style="display: flex; align-items: center; gap: 8px; padding: 12px; border: 1px solid #4caf50; border-radius: 8px; min-width: 200px; background-color: #e8f5e9;"
+            >
+              <v-img
+                v-if="!item.name?.toLowerCase()?.includes('золото')"
+                :src="`/images/resources/${item.identificator || 'unknown'}.png`"
+                width="48"
+                height="48"
+                class="resource-icon"
+              />
+              <v-img
+                v-else
+                src="/images/resources/gold.png"
+                width="48"
+                height="48"
+                class="resource-icon"
+              />
+              <div>
+                <div class="text-subtitle-1 font-weight-bold" style="color: #2e7d32;">{{ item.name }}</div>
+                <div class="text-body-2" style="color: #1b5e20;">
+                  Количество: {{ item.count }}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div v-if="itemsToGivePlayer.length === 0" class="text-body-2 text-grey mt-2">
+            Нет ресурсов для выдачи
           </div>
         </v-card-text>
       </VCard>
@@ -636,7 +732,7 @@ const hasEnoughGold = computed(() => {
           <h3 class="mb-3">Игрок отправляет с караваном:</h3>
           <div style="display: flex; flex-wrap: wrap; gap: 16px;">
             <div
-              v-for="(item, index) in resourcesPlSells.filter(r => r.count && r.count > 0)"
+              v-for="(item, index) in resourcesPlSells.filter(r => r.count && r.count > 0 && r.identificator !== 'gold')"
               :key="index"
               style="display: flex; align-items: center; gap: 8px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; min-width: 200px;"
             >
@@ -647,13 +743,53 @@ const hasEnoughGold = computed(() => {
                 class="resource-icon"
               />
               <div>
-                <div class="text-subtitle-1 font-weight-bold">{{ item.identificator === 'gold' ? 'Золото' : item.identificator }}</div>
+                <div class="text-subtitle-1 font-weight-bold">{{ item.identificator }}</div>
                 <div class="text-body-2">Количество: {{ item.count }}</div>
               </div>
             </div>
           </div>
-          <div v-if="resourcesPlSells.filter(r => r.count && r.count > 0).length === 0" class="text-body-2 text-grey">
+          <div v-if="resourcesPlSells.filter(r => r.count && r.count > 0 && r.identificator !== 'gold').length === 0" class="text-body-2 text-grey">
             Нет ресурсов для отправки
+          </div>
+          
+          <!-- Информация о золоте -->
+          <div v-if="caravanStore.totalPurchaseCost > 0 || goldPaidByPlayer > 0" class="mt-4">
+            <v-divider class="mb-3"></v-divider>
+            <h4 class="mb-2">💰 Информация о золоте:</h4>
+            
+            <div class="pa-3" style="background-color: #f5f5f5; border-radius: 8px;">
+              
+              <div v-if="caravanStore.totalPurchaseCost > 0" style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span>Стоимость покупки:</span>
+                <strong style="color: #ff6f00;">{{ caravanStore.totalPurchaseCost }}</strong>
+              </div>
+              
+              <div v-if="caravanStore.totalSaleIncome > 0" style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span>Выручка от продажи:</span>
+                <strong style="color: #2e7d32;">- {{ caravanStore.totalSaleIncome }}</strong>
+              </div>
+              
+              <div v-if="caravanStore.totalSaleIncome > 0 && caravanStore.totalPurchaseCost > 0" style="display: flex; justify-content: space-between; margin-bottom: 8px; padding-left: 16px;">
+                <span style="color: #1976d2;">= К оплате:</span>
+                <strong style="color: #1976d2;">{{ Math.max(0, caravanStore.totalPurchaseCost - caravanStore.totalSaleIncome) }}</strong>
+              </div>
+              
+              <div v-if="goldPaidByPlayer > 0" style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span>Игрок вложил:</span>
+                <strong :style="{ color: hasEnoughGold ? '#2e7d32' : '#d32f2f' }">{{ goldPaidByPlayer }}</strong>
+              </div>
+              
+              <v-divider v-if="caravanStore.totalPurchaseCost > 0" class="my-2"></v-divider>
+              
+              <div v-if="goldShortage > 0" style="display: flex; justify-content: space-between;">
+                <span style="color: #d32f2f; font-weight: bold;">❌ Нехватка:</span>
+                <strong style="color: #d32f2f;">{{ goldShortage }}</strong>
+              </div>
+              <div v-else-if="caravanStore.totalPurchaseCost > 0" style="display: flex; justify-content: space-between;">
+                <span style="color: #2e7d32; font-weight: bold;">✅ Всё в порядке</span>
+                <strong style="color: #2e7d32;">✓</strong>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -662,23 +798,15 @@ const hasEnoughGold = computed(() => {
         <!-- Игрок получает -->
         <div>
           <h3 class="mb-3">Игрок получает:</h3>
+          
           <div style="display: flex; flex-wrap: wrap; gap: 16px;">
             <div
-              v-for="(item, index) in resToPlayer"
+              v-for="(item, index) in itemsToGivePlayer"
               :key="index"
-              :style="{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px',
-                border: item.count < 0 ? '2px solid #ff5252' : '1px solid #ddd',
-                borderRadius: '8px',
-                minWidth: '200px',
-                backgroundColor: item.count < 0 ? '#ffebee' : 'transparent'
-              }"
+              style="display: flex; align-items: center; gap: 8px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; min-width: 200px;"
             >
               <v-img
-                v-if="item.name !== 'Золото' && !item.name?.toLowerCase()?.includes('золото')"
+                v-if="!item.name?.toLowerCase()?.includes('золото')"
                 :src="`/images/resources/${item.identificator || 'unknown'}.png`"
                 width="48"
                 height="48"
@@ -695,12 +823,16 @@ const hasEnoughGold = computed(() => {
                 <div class="text-subtitle-1 font-weight-bold">{{ item.name }}</div>
                 <div 
                   class="text-body-2" 
-                  :style="{ color: item.count < 0 ? '#ff5252' : item.count > 0 ? '#4caf50' : 'inherit' }"
+                  style="color: #4caf50;"
                 >
                   Количество: {{ item.count }}
                 </div>
               </div>
             </div>
+          </div>
+          
+          <div v-if="itemsToGivePlayer.length === 0" class="text-body-2 text-grey mt-2">
+            Нет ресурсов для выдачи
           </div>
           
           <!-- Предупреждение о недостатке денег -->
