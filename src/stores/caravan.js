@@ -124,7 +124,7 @@ export const useCaravanStore = defineStore('caravan', () => {
    * @param {Array} resPlBuys - Ресурсы, которые игрок покупает [{identificator, count, name}]
    * @returns {Object} {res_to_player: [...]}
    */
-  function sendCaravan(countryId, resPlSells = [], resPlBuys = []) {
+  function calculateCaravan(countryId, resPlSells = [], resPlBuys = []) {
     // Валидация
     if (!countryId) {
       throw new Error('country_id is required')
@@ -213,7 +213,7 @@ export const useCaravanStore = defineStore('caravan', () => {
     setCountries,
     countryFilter,
     calculateCost,
-    sendCaravan
+    calculateCaravan
   }
 })
 
