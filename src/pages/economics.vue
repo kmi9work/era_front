@@ -1,10 +1,12 @@
 <script setup>
+import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import Guilds from '@/views/pages/economics/Guilds.vue'
 import Plants from '@/views/pages/economics/Plants.vue'
 import Exchange from '@/views/pages/economics/Exchange.vue'
 import PoliticalActions from '@/views/pages/economics/PoliticalActions.vue'
 import ProductionFront from '@/views/pages/economics/ProductionFront.vue'
+import TradeTurnover from '@/views/pages/economics/TradeTurnover.vue'
 
 
 const route = useRoute()
@@ -26,6 +28,11 @@ const tabs = [
     title: 'Рынок',
     icon: 'ri-exchange-line',
     tab: 'exchange',
+  },
+  {
+    title: 'Товарооборот',
+    icon: 'ri-arrow-left-right-line',
+    tab: 'trade_turnover',
   },
   {
     title: 'Производство',
@@ -77,6 +84,10 @@ const tabs = [
 
       <VWindowItem value="exchange">
         <Exchange />
+      </VWindowItem>
+
+      <VWindowItem value="trade_turnover">
+        <TradeTurnover />
       </VWindowItem>
 
       <VWindowItem value="production_front">
