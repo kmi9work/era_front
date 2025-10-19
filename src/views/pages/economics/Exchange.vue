@@ -336,8 +336,9 @@ const registerCaravan  = async () =>{
         
         return {
           identificator: item.identificator,
-          name: fullResource?.name || item.identificator,
-          count: item.count
+          name: fullResource?.name || item.name || item.identificator,
+          count: item.count,
+          current_sell_price: fullResource?.sell_price || 0  // Цена продажи за единицу
         };
       });
     
@@ -356,7 +357,8 @@ const registerCaravan  = async () =>{
         return {
           identificator: fullResource?.identificator || toMarketResource?.identificator || '',
           name: item.name,
-          count: item.count
+          count: item.count,
+          current_buy_price: fullResource?.buy_price || 0  // Цена покупки за единицу
         };
       });
     
@@ -370,8 +372,7 @@ const registerCaravan  = async () =>{
       incoming: enrichedIncoming, 
       outcoming: enrichedOutcoming,
       purchase_cost: purchaseCost,  // Стоимость покупки
-      sale_income: saleIncome,       // Выручка от продажи
-      gold_paid: goldPaid            // Сколько игрок вложил
+      sale_income: saleIncome      // Выручка от продажи
     }
     
     console.log('Отправка караван-запроса:', request);
