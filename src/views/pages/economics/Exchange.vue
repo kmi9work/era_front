@@ -153,6 +153,7 @@ const filteredResToMark = computed(() => {
 
   // Создаем копию для resourcesPlSells
   resourcesPlSells.value = filtered.map(item => ({
+    name: item.name,
     identificator: item.identificator,
     count: null
   }))
@@ -593,7 +594,7 @@ const itemsToGivePlayer = computed(() => {
           color="primary"
           height="48"
         >
-          Обработать
+          Посчитать
         </v-btn>
       </VCol>
 
@@ -743,7 +744,7 @@ const itemsToGivePlayer = computed(() => {
                 class="resource-icon"
               />
               <div>
-                <div class="text-subtitle-1 font-weight-bold">{{ item.identificator }}</div>
+                <div class="text-subtitle-1 font-weight-bold">{{ item.name }}</div>
                 <div class="text-body-2">Количество: {{ item.count }}</div>
               </div>
             </div>
@@ -756,29 +757,26 @@ const itemsToGivePlayer = computed(() => {
           <div v-if="caravanStore.totalPurchaseCost > 0 || goldPaidByPlayer > 0" class="mt-4">
             <v-divider class="mb-3"></v-divider>
             <h4 class="mb-2">💰 Информация о золоте:</h4>
-            
             <div class="pa-3" style="background-color: #f5f5f5; border-radius: 8px;">
+
+              <div v-if="goldPaidByPlayer > 0" style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span>Игрок вложил золота:</span>
+                <strong :style="{ color: hasEnoughGold ? '#2e7d32' : '#d32f2f' }">{{ goldPaidByPlayer }}</strong>
+              </div>
+              <div v-if="caravanStore.totalSaleIncome > 0" style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span>Выручка от продажи:</span>
+                <strong style="color: #2e7d32;"> {{ caravanStore.totalSaleIncome }}</strong>
+              </div>
               
               <div v-if="caravanStore.totalPurchaseCost > 0" style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                 <span>Стоимость покупки:</span>
-                <strong style="color: #ff6f00;">{{ caravanStore.totalPurchaseCost }}</strong>
+                <strong style="color: #ff6f00;">- {{ caravanStore.totalPurchaseCost }}</strong>
               </div>
-              
-              <div v-if="caravanStore.totalSaleIncome > 0" style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                <span>Выручка от продажи:</span>
-                <strong style="color: #2e7d32;">- {{ caravanStore.totalSaleIncome }}</strong>
-              </div>
-              
               <div v-if="caravanStore.totalSaleIncome > 0 && caravanStore.totalPurchaseCost > 0" style="display: flex; justify-content: space-between; margin-bottom: 8px; padding-left: 16px;">
                 <span style="color: #1976d2;">= К оплате:</span>
                 <strong style="color: #1976d2;">{{ Math.max(0, caravanStore.totalPurchaseCost - caravanStore.totalSaleIncome) }}</strong>
               </div>
-              
-              <div v-if="goldPaidByPlayer > 0" style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                <span>Игрок вложил:</span>
-                <strong :style="{ color: hasEnoughGold ? '#2e7d32' : '#d32f2f' }">{{ goldPaidByPlayer }}</strong>
-              </div>
-              
+
               <v-divider v-if="caravanStore.totalPurchaseCost > 0" class="my-2"></v-divider>
               
               <div v-if="goldShortage > 0" style="display: flex; justify-content: space-between;">
