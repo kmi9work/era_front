@@ -65,4 +65,9 @@ export default defineConfig({
       './src/**/*.vue',
     ],
   },
+  server: {
+    host: process.env.DEV_IP || '0.0.0.0',
+    port: parseInt(process.env.FRONTEND_PORT) || 5173,
+    strictPort: false,
+  },
 })
