@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
 import axios from 'axios'
 import { useTimerStore } from '@/stores/timer'
 import { useEndGameResultsStore } from '@/stores/end_game_results.js'
@@ -20,6 +20,25 @@ const pollInterval = ref(null)
 const activeScreen = ref('merchPlaceholder')
 const currentMerchPlace = ref(0)
 const currentNoblePlace = ref(0)
+
+// Товарооборот
+const tradeTurnovers = ref([])
+
+// Загружаем товарообороты
+const fetchTradeTurnovers = async () => {
+  try {
+    const response = await axios.get(`${import.meta.env.VITE_PROXY}/countries/show_trade_turnover.json`)
+    tradeTurnovers.value = response.data
+  } catch (error) {
+    console.error('Error fetching trade turnovers:', error)
+  }
+}
+
+// Форматирование товарооборота
+const formatTurnover = (turnover) => {
+  if (!turnover || turnover === 0) return '—'
+  return turnover.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
 
 // Функции для работы с полноэкранным режимом
 const toggleFullscreen = () => {
@@ -151,7 +170,11 @@ const loadScreen = async () => {
 // Настройка polling
 const startPolling = () => {
   loadScreen()
-  pollInterval.value = setInterval(loadScreen, 5000)
+  fetchTradeTurnovers()  // Загружаем товарообороты сразу
+  pollInterval.value = setInterval(() => {
+    loadScreen()
+    fetchTradeTurnovers()  // Обновляем товарообороты каждые 5 сек
+  }, 5000)
 }
 
 // Смена экрана
@@ -251,6 +274,7 @@ onUnmounted(() => {
           v-for="screen in [         
             { id: 'placeholder', label: 'Заглушка' },
             { id: 'timer', label: 'Таймер' },
+            { id: 'trade_turnover', label: 'Товарооборот' },
             { id: 'merchant_results', label: 'Результаты купцов' },
             { id: 'noble_results', label: 'Результаты знати' }
           ]"
@@ -279,6 +303,12 @@ onUnmounted(() => {
               </div>
             </div>
 
+            <div v-else-if="screen.id === 'trade_turnover'" class="timer-preview">
+              <div class="preview-message">
+                <p style="font-size: 1.2rem; margin-bottom: 8px;">Товарооборот</p>
+                <p style="font-size: 0.9rem; opacity: 0.8;">Торговля с иностранными государствами</p>
+              </div>
+            </div>
 
             <div v-else-if="screen.id === 'noble_results'" class="results-preview">
               <div class="preview-message">
@@ -536,6 +566,43 @@ onUnmounted(() => {
               </div>
             </div>
           </Transition>
+        </template>
+
+        <template v-else-if="selectedScreen === 'trade_turnover'">
+          <div class="fullscreen-text-container">
+            <Transition name="text-fade" mode="out-in">
+              <p key="title" class="fullscreen-schedule-name">
+                {{ timerStore.currentScheduleItemName }}
+              </p>
+            </Transition>
+            <Transition name="text-fade" mode="out-in">
+              <p key="timer" class="fullscreen-timer-value">
+                {{ timerStore.formattedRemainingTime }}
+              </p>
+            </Transition>
+            
+            <!-- Товарооборот с флагами -->
+            <div class="trade-turnover-fullscreen">
+              <Transition name="text-fade" mode="out-in">
+                <div key="turnovers" class="countries-grid">
+                  <div 
+                    v-for="item in tradeTurnovers" 
+                    :key="item.country_id"
+                    class="country-turnover-card"
+                  >
+                    <img 
+                      :src="`/images/countries/${item.country_name}.png`"
+                      class="country-flag-large"
+                      :alt="item.country_name"
+                    />
+                    <div class="turnover-amount">
+                      {{ formatTurnover(item.trade_turnover) }}
+                    </div>
+                  </div>
+                </div>
+              </Transition>
+            </div>
+          </div>
         </template>
 
 <template v-else-if="selectedScreen === 'merchant_results'">
@@ -1746,5 +1813,57 @@ onUnmounted(() => {
     min-width: 36px;
     height: 24px;
   }
+}
+
+/* Стили для товарооборота */
+.trade-turnover-fullscreen {
+  margin-top: 30px;
+  width: 100%;
+  max-width: 1200px;
+}
+
+.countries-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  padding: 10px;
+}
+
+.country-turnover-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.country-turnover-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.country-flag-large {
+  width: 120px;
+  height: 90px;
+  object-fit: contain;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+
+.turnover-amount {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #FFD700;
+  text-shadow: 0 0 15px rgba(255, 215, 0, 0.5),
+               0 0 30px rgba(255, 215, 0, 0.3);
+  letter-spacing: 1px;
+  font-family: 'Roboto Mono', monospace;
 }
 </style>
