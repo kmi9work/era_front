@@ -43,6 +43,23 @@
       })
   }
 
+  async function improveRelationsViaTrade(country_id, country_name){
+    const confirmed = confirm(`Улучшить отношения с ${country_name} за 1 торговое очко?`);
+    if (!confirmed) return;
+    
+    try {
+      const response = await axios.patch(`${import.meta.env.VITE_PROXY}/countries/${country_id}/improve_relations_via_trade.json`);
+      
+      if (response.data.success) {
+        alert(`✅ Отношения улучшены!\nНовый уровень: ${response.data.new_relations}\nОсталось торговых очков: ${response.data.relation_points_left}`);
+        emit('reload-dashboard');
+      }
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || error.message;
+      alert(`❌ Ошибка: ${errorMsg}`);
+    }
+  }
+
 </script>
 
 
@@ -109,6 +126,7 @@
             </td>
             <td>
               {{ country.relations }} 
+
               <IconBtn icon="ri-arrow-up-double-line" @click="relationsChange(country.id, 1)" title="Повысить отношения на 1"></IconBtn>
               <IconBtn icon="ri-arrow-down-double-line" @click="relationsChange(country.id, -1)" title="Понизить отношения на 1"></IconBtn>
               <IconBtn 
@@ -117,6 +135,13 @@
                   @click="setEmbargo(country.id)"
                   v-if="country.embargo != null"
                   :title="`Эмбарго ${country.embargo == 1 ? 'введено' : 'нет'}`"
+              ></IconBtn>
+                            <IconBtn 
+                icon="ri-arrow-up-circle-fill" 
+                color="success"
+                @click="improveRelationsViaTrade(country.id, country.name)" 
+                :title="`Улучшить через торговлю (${country.relation_points || 0} очков)`"
+                v-if="country.relation_points && country.relation_points > 0"
               ></IconBtn>
             </td>
           </tr>
