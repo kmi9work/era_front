@@ -1,91 +1,78 @@
 <script setup>
   import axios from 'axios'
   import ArmyDialog from './ArmyDialog.vue' // Добавьте этот импорт
-  import stone_brick from '@images/resources/stone_brick.png'
-  import weapon from '@images/resources/weapon.png'
-  import tools from '@images/resources/tools.png'
-  import timber from '@images/resources/timber.png'
-  import stone from '@images/resources/stone.png'
-  import metal_ore from '@images/resources/metal_ore.png'
-  import metal from '@images/resources/metal.png'
-  import meat from '@images/resources/meat.png'
-  import luxury from '@images/resources/luxury.png'
-  import horses from '@images/resources/horses.png'
-  import grain from '@images/resources/grain.png'
-  import gems from '@images/resources/gems.png'
-  import food from '@images/resources/food.png'
-  import flour from '@images/resources/flour.png'
-  import boards from '@images/resources/boards.png'
-  import armor from '@images/resources/armor.png'
-  import money from '@images/resources/money.png'
+
+  const getResourceImageUrl = (identificator) => {
+    return `${import.meta.env.VITE_PROXY}/images/resources/${identificator}.png`
+  }
 
   const resources = {
     'stone_brick': {
-      'img': stone_brick,
+      'img': getResourceImageUrl('stone_brick'),
       'name': 'Каменный кирпич'
     },
     'weapon': {
-      'img': weapon,
+      'img': getResourceImageUrl('weapon'),
       'name': 'Оружие'
     },
     'tools': {
-      'img': tools,
+      'img': getResourceImageUrl('tools'),
       'name': 'Инструменты'
     },
     'timber': {
-      'img': timber,
+      'img': getResourceImageUrl('timber'),
       'name': 'Брёвна'
     },
     'stone': {
-      'img': stone,
+      'img': getResourceImageUrl('stone'),
       'name': 'Камень'
     },
     'metal_ore': {
-      'img': metal_ore,
+      'img': getResourceImageUrl('metal_ore'),
       'name': 'Железная руда'
     },
     'metal': {
-      'img': metal,
+      'img': getResourceImageUrl('metal'),
       'name': 'Металл'
     },
     'meat': {
-      'img': meat,
+      'img': getResourceImageUrl('meat'),
       'name': 'Мясо'
     },
     'luxury': {
-      'img': luxury,
+      'img': getResourceImageUrl('luxury'),
       'name': 'Роскошь'
     },
     'horses': {
-      'img': horses,
+      'img': getResourceImageUrl('horses'),
       'name': 'Лошади'
     },
     'grain': {
-      'img': grain,
+      'img': getResourceImageUrl('grain'),
       'name': 'Зерно'
     },
     'gems': {
-      'img': gems,
+      'img': getResourceImageUrl('gems'),
       'name': 'Драгоценный металл'
     },
     'food': {
-      'img': food,
+      'img': getResourceImageUrl('food'),
       'name': 'Провизия'
     },
     'flour': {
-      'img': flour,
+      'img': getResourceImageUrl('flour'),
       'name': 'Мука'
     },
     'boards': {
-      'img': boards,
+      'img': getResourceImageUrl('boards'),
       'name': 'Доски'
     },
     'armor': {
-      'img': armor,
+      'img': getResourceImageUrl('armor'),
       'name': 'Доспехи'
     },
     'money': {
-      'img': money,
+      'img': getResourceImageUrl('money'),
       'name': 'Золото'
     },
   }

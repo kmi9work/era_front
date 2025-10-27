@@ -5,6 +5,10 @@ import { useCaravanStore } from '@/stores/caravan'
 
 const caravanStore = useCaravanStore()
 
+// URL для загрузки изображений ресурсов с бэкенда
+const baseURL = import.meta.env.VITE_PROXY
+const getResourceImageUrl = (identificator) => `${baseURL}/images/resources/${identificator}.png`
+
 //Основной функционал
 const isLoading = ref(true) // Добавляем флаг 
 const isFirstRunRel = ref(true); 
@@ -339,7 +343,7 @@ function resetForm() {
             <div style="display: flex; align-items: center; gap: 8px;">
               <div style="display: flex; align-items: center;">
                 <v-img
-                  :src="`/images/resources/${item.identificator}.png`"
+                  :src="getResourceImageUrl(item.identificator)"
                   width="40"
                   height="40"
                   class="resource-icon"
@@ -379,7 +383,7 @@ function resetForm() {
             <div style="display: flex; align-items: center; gap: 8px;">
               <div style="display: flex; align-items: center;">
                 <v-img
-                  :src="`/images/resources/${item.identificator}.png`"
+                  :src="getResourceImageUrl(item.identificator)"
                   width="40"
                   height="40"
                   class="resource-icon"

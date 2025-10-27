@@ -11,7 +11,7 @@
         size="1.25rem"
         class="mx-1"
       />
-      By Michail, Anton and Daria
+      By Michail and Anton
     </span>
   </div>
 </template>
