@@ -1,5 +1,6 @@
 <script setup>
 import axios from 'axios'
+import { ref, onBeforeMount, onBeforeUnmount } from 'vue'
 
 import Nobles from '@/views/dashboard/Nobles.vue'
 import PublicOrder from '@/views/dashboard/PublicOrder.vue'
@@ -10,6 +11,7 @@ const nobles = ref([]);
 const regions = ref([]);
 const countries = ref([]);
 const technologies = ref([]);
+const pollInterval = ref(null);
 
 async function loadDashboards(){
   axios.get(`${import.meta.env.VITE_PROXY}/players.json`) 
@@ -33,6 +35,17 @@ async function loadDashboards(){
 
 onBeforeMount(async () => {
   loadDashboards();
+  
+  // Устанавливаем периодическое обновление каждые 10 секунд
+  pollInterval.value = setInterval(() => {
+    loadDashboards();
+  }, 10000);
+})
+
+onBeforeUnmount(() => {
+  if (pollInterval.value) {
+    clearInterval(pollInterval.value);
+  }
 })
 
 

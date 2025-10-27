@@ -219,6 +219,45 @@ const recalculatePercentage = (index) => {
   }
 }
 
+// Валидация и автоматический пересчет если порог меньше предыдущего
+const validateAndFixThresholds = (changedIndex) => {
+  if (changedIndex === 0) return
+  
+  const currentThreshold = editableThresholds.value[changedIndex].threshold
+  const prevThreshold = editableThresholds.value[changedIndex - 1].threshold
+  
+  // Если текущий порог меньше или равен предыдущему
+  if (currentThreshold <= prevThreshold) {
+    // Устанавливаем минимальное увеличение (например, +1000)
+    const minIncrease = 1000
+    editableThresholds.value[changedIndex].threshold = prevThreshold + minIncrease
+    
+    // Пересчитываем процент
+    recalculatePercentage(changedIndex)
+    
+    // Пересчитываем все последующие
+    recalculateAllFromIndex(changedIndex)
+  }
+  
+  // Проверяем, не нарушена ли последовательность в последующих уровнях
+  for (let i = changedIndex + 1; i < editableThresholds.value.length; i++) {
+    const current = editableThresholds.value[i].threshold
+    const previous = editableThresholds.value[i - 1].threshold
+    
+    if (current <= previous) {
+      // Если текущий режим - процент, пересчитываем от процента
+      if (inputMode.value === 'percentage') {
+        recalculateFromPercentage(i)
+      } else {
+        // В абсолютном режиме добавляем разницу
+        const diff = editableThresholds.value[changedIndex].threshold - prevThreshold
+        editableThresholds.value[i].threshold = editableThresholds.value[i - 1].threshold + Math.max(diff, 1000)
+        recalculatePercentage(i)
+      }
+    }
+  }
+}
+
 // Пересчет всех последующих порогов
 const recalculateAllFromIndex = (startIndex) => {
   for (let i = startIndex + 1; i < editableThresholds.value.length; i++) {
@@ -529,12 +568,12 @@ const cancelEdit = () => {
                   mandatory
                   divided
                 >
-                  <v-btn value="absolute" size="small">
-                    <v-icon icon="mdi-currency-usd" class="mr-1" />
+                  <v-btn value="absolute" min-width="220">
+                    <v-icon icon="mdi-currency-usd" class="mr-2" />
                     Абсолютная сумма
                   </v-btn>
-                  <v-btn value="percentage" size="small">
-                    <v-icon icon="mdi-percent" class="mr-1" />
+                  <v-btn value="percentage" min-width="220">
+                    <v-icon icon="mdi-percent" class="mr-2" />
                     Процент
                   </v-btn>
                 </v-btn-toggle>
@@ -583,7 +622,7 @@ const cancelEdit = () => {
                       variant="outlined"
                       hide-details
                       :disabled="index === 0"
-                      @input="recalculatePercentage(index)"
+                      @input="() => { recalculatePercentage(index); validateAndFixThresholds(index); }"
                       @blur="recalculateAllFromIndex(index)"
                     />
                   </td>
@@ -600,7 +639,7 @@ const cancelEdit = () => {
                       density="compact"
                       variant="outlined"
                       hide-details
-                      @input="recalculateFromPercentage(index)"
+                      @input="() => { recalculateFromPercentage(index); validateAndFixThresholds(index); }"
                       @blur="recalculateAllFromIndex(index)"
                     />
                     <span v-else class="text-body-2 text-medium-emphasis">—</span>
@@ -629,10 +668,14 @@ const cancelEdit = () => {
           <v-divider class="my-4" />
 
           <!-- Подсказка -->
-          <v-alert type="warning" variant="tonal" density="compact">
+          <v-alert type="info" variant="tonal" density="compact">
             <v-icon icon="mdi-information" class="mr-2" />
-            <strong>Совет:</strong> При изменении порога автоматически пересчитываются все последующие уровни. 
-            Используйте кнопку калькулятора для ручного пересчета.
+            <strong>Автоматическая валидация:</strong> 
+            <ul class="mt-2 mb-0">
+              <li>Каждый следующий порог должен быть больше предыдущего</li>
+              <li>Если вы укажете меньшее значение, оно автоматически исправится (+1000 минимум)</li>
+              <li>Все последующие уровни пересчитаются автоматически</li>
+            </ul>
           </v-alert>
         </v-card-text>
 
