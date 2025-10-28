@@ -5,6 +5,8 @@ export const useCaravanStore = defineStore('caravan', () => {
   // State
   const resources = ref({ off_market: [], to_market: [] }) // Ресурсы разделены по типам
   const countries = ref([]) // Все страны
+  const totalPurchaseCost = ref(0) // Стоимость покупаемых товаров
+  const totalSaleIncome = ref(0) // Выручка от продажи товаров
 
   // Getters
   const getResourceByIdentificator = computed(() => {
@@ -124,7 +126,7 @@ export const useCaravanStore = defineStore('caravan', () => {
    * @param {Array} resPlBuys - Ресурсы, которые игрок покупает [{identificator, count, name}]
    * @returns {Object} {res_to_player: [...]}
    */
-  function sendCaravan(countryId, resPlSells = [], resPlBuys = []) {
+  function calculateCaravan(countryId, resPlSells = [], resPlBuys = []) {
     // Валидация
     if (!countryId) {
       throw new Error('country_id is required')
@@ -139,6 +141,10 @@ export const useCaravanStore = defineStore('caravan', () => {
     // Извлекаем золото из ресурсов, которые игрок продает
     const goldItem = resPlSells.find(d => d.identificator === 'gold')
     let gold = goldItem?.count || 0
+    
+    // Отдельно считаем стоимость покупки и выручку от продажи
+    let purchaseCost = 0  // Стоимость покупаемых товаров
+    let saleIncome = 0    // Выручка от продажи товаров
 
     // Обрабатываем ресурсы, которые игрок продает рынку
     const eligibleSellResources = countryFilter(countryId, resPlSells)
@@ -157,6 +163,7 @@ export const useCaravanStore = defineStore('caravan', () => {
       const costResult = calculateCost('buy', res.count, resourceObj)
       if (costResult.cost) {
         gold += costResult.cost
+        saleIncome += costResult.cost  // Сохраняем выручку от продажи
       }
     })
 
@@ -178,6 +185,8 @@ export const useCaravanStore = defineStore('caravan', () => {
       if (!costResult.cost) return // Пропускаем ресурсы, которые нельзя купить
 
       gold -= costResult.cost
+      purchaseCost += costResult.cost  // Сохраняем стоимость покупки
+      
       resToPlayer.push({
         name: resourceObj.name,
         identificator: resourceObj.identificator,
@@ -196,13 +205,23 @@ export const useCaravanStore = defineStore('caravan', () => {
       })
     }
 
-    return { res_to_player: resToPlayer }
+    // Сохраняем стоимость покупки и выручку от продажи в state
+    totalPurchaseCost.value = purchaseCost
+    totalSaleIncome.value = saleIncome
+    
+    return { 
+      res_to_player: resToPlayer,
+      total_purchase_cost: purchaseCost,  // Стоимость покупаемых товаров
+      total_sale_income: saleIncome       // Выручка от продажи товаров
+    }
   }
 
   return {
     // State
     resources,
     countries,
+    totalPurchaseCost,
+    totalSaleIncome,
     
     // Getters
     getResourceByIdentificator,
@@ -213,7 +232,7 @@ export const useCaravanStore = defineStore('caravan', () => {
     setCountries,
     countryFilter,
     calculateCost,
-    sendCaravan
+    calculateCaravan
   }
 })
 
