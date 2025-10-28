@@ -146,6 +146,9 @@ const getProgressPercent = (countryId, tradeTurnover) => {
   
   if (!level || !thresholds || thresholds.length === 0) return 0
   
+  // Обрабатываем nil/undefined как 0
+  const safeTurnover = tradeTurnover || 0
+  
   const currentLevel = level.current_level
   const nextThreshold = level.threshold
   
@@ -160,7 +163,7 @@ const getProgressPercent = (countryId, tradeTurnover) => {
   
   // Вычисляем прогресс между предыдущим и следующим порогом
   const levelRange = nextThreshold - previousThreshold
-  const currentProgress = tradeTurnover - previousThreshold
+  const currentProgress = safeTurnover - previousThreshold
   
   if (levelRange <= 0) return 0
   
@@ -190,6 +193,10 @@ const openEditDialog = () => {
       threshold.percentage = Math.round((threshold.threshold / prevThreshold) * 100)
     } else {
       threshold.percentage = 100
+    }
+    // Убеждаемся что поле name существует
+    if (!threshold.name) {
+      threshold.name = ''
     }
   })
   editDialog.value = true
@@ -274,9 +281,10 @@ const saveThresholds = async () => {
   savingThresholds.value = true
   try {
     // Подготавливаем данные для отправки (удаляем поле percentage)
-    const thresholdsToSave = editableThresholds.value.map(({ level, threshold }) => ({
+    const thresholdsToSave = editableThresholds.value.map(({ level, threshold, name }) => ({
       level,
-      threshold
+      threshold,
+      name: name || ''
     }))
     
     const response = await axios.patch(
@@ -478,6 +486,7 @@ const cancelEdit = () => {
               <thead>
                 <tr>
                   <th class="text-center">Уровень</th>
+                  <th class="text-left">Название</th>
                   <th class="text-right">Порог товарооборота</th>
                 </tr>
               </thead>
@@ -494,6 +503,9 @@ const cancelEdit = () => {
                     >
                       {{ threshold.level }}
                     </v-chip>
+                  </td>
+                  <td class="text-left">
+                    <span class="font-weight-medium">{{ threshold.name || '—' }}</span>
                   </td>
                   <td class="text-right font-weight-bold">
                     {{ formatNumber(threshold.threshold) }} золота
@@ -594,6 +606,7 @@ const cancelEdit = () => {
             <thead>
               <tr>
                 <th class="text-center">Уровень</th>
+                <th class="text-center">Название</th>
                 <th class="text-center" v-if="inputMode === 'absolute'">Порог (золото)</th>
                 <th class="text-center" v-if="inputMode === 'percentage'">Процент от пред. уровня</th>
                 <th class="text-center" v-if="inputMode === 'percentage'">Порог (золото)</th>
@@ -610,6 +623,17 @@ const cancelEdit = () => {
                   <v-chip color="primary" size="small">
                     {{ threshold.level }}
                   </v-chip>
+                </td>
+
+                <!-- Название уровня -->
+                <td class="text-center">
+                  <v-text-field
+                    v-model="threshold.name"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    placeholder="Название"
+                  />
                 </td>
 
                 <!-- Режим абсолютной суммы -->

@@ -73,7 +73,8 @@ const fetchTradeLevels = async () => {
 
 // Форматирование товарооборота
 const formatTurnover = (turnover) => {
-  if (!turnover || turnover === 0) return '—'
+  // Если nil, undefined или 0 - возвращаем '0'
+  if (turnover == null || turnover === 0 || turnover === '') return '0'
   return turnover.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 }
 
@@ -83,6 +84,9 @@ const getProgressPercent = (countryId, tradeTurnover) => {
   const thresholds = allThresholds.value[countryId]
   
   if (!level || !thresholds || thresholds.length === 0) return 0
+  
+  // Обрабатываем nil/undefined как 0
+  const safeTurnover = tradeTurnover || 0
   
   const currentLevel = level.current_level
   const nextThreshold = level.threshold
@@ -98,13 +102,13 @@ const getProgressPercent = (countryId, tradeTurnover) => {
   
   // Вычисляем прогресс между предыдущим и следующим порогом
   const levelRange = nextThreshold - previousThreshold
-  const currentProgress = tradeTurnover - previousThreshold
+  const currentProgress = safeTurnover - previousThreshold
   
   if (levelRange <= 0) return 0
   
   const percent = (currentProgress / levelRange) * 100
   
-  console.log(`[${countryId}] Level: ${currentLevel}, Current: ${tradeTurnover}, Prev: ${previousThreshold}, Next: ${nextThreshold}, Progress: ${percent}%`)
+  console.log(`[${countryId}] Level: ${currentLevel}, Current: ${safeTurnover}, Prev: ${previousThreshold}, Next: ${nextThreshold}, Progress: ${percent}%`)
   
   return Math.min(Math.max(percent, 0), 100)
 }
@@ -117,6 +121,26 @@ const getProgressColor = (level) => {
   if (currentLevel >= 4) return '#2196F3' // primary blue
   if (currentLevel >= 2) return '#FF9800' // warning orange
   return '#00BCD4' // info cyan
+}
+
+// Получить название текущего уровня
+const getLevelName = (countryId) => {
+  const level = tradeLevels.value[countryId]
+  const thresholds = allThresholds.value[countryId]
+  
+  if (!level || !thresholds || thresholds.length === 0) return ''
+  
+  const currentLevel = level.current_level || 0
+  
+  // Для нулевого уровня возвращаем название первого уровня или пустую строку
+  if (currentLevel === 0) {
+    const firstLevel = thresholds.find(t => t.level === 1)
+    return firstLevel?.name || ''
+  }
+  
+  const levelData = thresholds.find(t => t.level === currentLevel)
+  
+  return levelData?.name || ''
 }
 
 // Функции для работы с полноэкранным режимом
@@ -700,6 +724,11 @@ onUnmounted(() => {
                     
                     <!-- Информация об уровне и товарообороте -->
                     <div v-if="tradeLevels[item.country_id]" class="turnover-info">
+                      <!-- Название уровня -->
+                      <div v-if="getLevelName(item.country_id)" class="level-name-badge">
+                        {{ getLevelName(item.country_id) }}
+                      </div>
+                      
                       <div class="turnover-amount">
                         {{ formatTurnover(item.trade_turnover) }}
                       </div>
@@ -2026,6 +2055,21 @@ onUnmounted(() => {
   gap: 12px;
 }
 
+.level-name-badge {
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.3), rgba(21, 101, 192, 0.3));
+  border: 2px solid rgba(33, 150, 243, 0.6);
+  padding: 8px 20px;
+  border-radius: 25px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #FFF;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
 .turnover-amount {
   font-size: 2.2rem;
   font-weight: bold;
@@ -2146,6 +2190,11 @@ onUnmounted(() => {
   .country-flag-large {
     width: 100px;
     height: 75px;
+  }
+  
+  .level-name-badge {
+    font-size: 1rem;
+    padding: 6px 14px;
   }
   
   .turnover-amount {
