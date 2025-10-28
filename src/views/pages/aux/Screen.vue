@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
 import axios from 'axios'
 import { useTimerStore } from '@/stores/timer'
 import { useEndGameResultsStore } from '@/stores/end_game_results.js'
@@ -20,6 +20,128 @@ const pollInterval = ref(null)
 const activeScreen = ref('merchPlaceholder')
 const currentMerchPlace = ref(0)
 const currentNoblePlace = ref(0)
+
+// Товарооборот
+const tradeTurnovers = ref([])
+const tradeLevels = ref({})
+const allThresholds = ref({})
+
+// Загружаем товарообороты
+const fetchTradeTurnovers = async () => {
+  try {
+    const response = await axios.get(`${import.meta.env.VITE_PROXY}/countries/show_trade_turnover.json`)
+    tradeTurnovers.value = response.data
+    
+    // Загружаем уровни торговли
+    await fetchTradeLevels()
+  } catch (error) {
+    console.error('Error fetching trade turnovers:', error)
+  }
+}
+
+// Загружаем текущие уровни торговли для всех стран
+const fetchTradeLevels = async () => {
+  try {
+    const promises = tradeTurnovers.value.map(async (item) => {
+      try {
+        const levelResponse = await axios.get(`${import.meta.env.VITE_PROXY}/countries/${item.country_id}/show_current_trade_level.json`)
+        const thresholdsResponse = await axios.get(`${import.meta.env.VITE_PROXY}/countries/${item.country_id}/show_trade_thresholds.json`)
+        return { 
+          countryId: item.country_id, 
+          level: levelResponse.data,
+          thresholds: thresholdsResponse.data
+        }
+      } catch (error) {
+        console.error(`Error fetching trade level for country ${item.country_id}:`, error)
+        return { countryId: item.country_id, level: null, thresholds: [] }
+      }
+    })
+    
+    const results = await Promise.all(promises)
+    results.forEach(result => {
+      if (result.level) {
+        tradeLevels.value[result.countryId] = result.level
+      }
+      if (result.thresholds && result.thresholds.length > 0) {
+        allThresholds.value[result.countryId] = result.thresholds
+      }
+    })
+  } catch (error) {
+    console.error('Error fetching trade levels:', error)
+  }
+}
+
+// Форматирование товарооборота
+const formatTurnover = (turnover) => {
+  // Если nil, undefined или 0 - возвращаем '0'
+  if (turnover == null || turnover === 0 || turnover === '') return '0'
+  return turnover.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
+// Вычисление процента прогресса до следующего уровня
+const getProgressPercent = (countryId, tradeTurnover) => {
+  const level = tradeLevels.value[countryId]
+  const thresholds = allThresholds.value[countryId]
+  
+  if (!level || !thresholds || thresholds.length === 0) return 0
+  
+  // Обрабатываем nil/undefined как 0
+  const safeTurnover = tradeTurnover || 0
+  
+  const currentLevel = level.current_level
+  const nextThreshold = level.threshold
+  
+  // Находим порог ПРЕДЫДУЩЕГО уровня (current_level - 1)
+  let previousThreshold = 0
+  if (currentLevel > 1) {
+    const previousLevelData = thresholds.find(t => t.level === (currentLevel - 1))
+    if (previousLevelData) {
+      previousThreshold = previousLevelData.threshold
+    }
+  }
+  
+  // Вычисляем прогресс между предыдущим и следующим порогом
+  const levelRange = nextThreshold - previousThreshold
+  const currentProgress = safeTurnover - previousThreshold
+  
+  if (levelRange <= 0) return 0
+  
+  const percent = (currentProgress / levelRange) * 100
+  
+  console.log(`[${countryId}] Level: ${currentLevel}, Current: ${safeTurnover}, Prev: ${previousThreshold}, Next: ${nextThreshold}, Progress: ${percent}%`)
+  
+  return Math.min(Math.max(percent, 0), 100)
+}
+
+// Определение цвета прогресс-бара
+const getProgressColor = (level) => {
+  if (!level) return '#808080'
+  const currentLevel = level.current_level
+  if (currentLevel >= 5) return '#4CAF50' // success green
+  if (currentLevel >= 4) return '#2196F3' // primary blue
+  if (currentLevel >= 2) return '#FF9800' // warning orange
+  return '#00BCD4' // info cyan
+}
+
+// Получить название текущего уровня
+const getLevelName = (countryId) => {
+  const level = tradeLevels.value[countryId]
+  const thresholds = allThresholds.value[countryId]
+  
+  if (!level || !thresholds || thresholds.length === 0) return ''
+  
+  const currentLevel = level.current_level || 0
+  
+  // Для нулевого уровня возвращаем название первого уровня или пустую строку
+  if (currentLevel === 0) {
+    const firstLevel = thresholds.find(t => t.level === 1)
+    return firstLevel?.name || ''
+  }
+  
+  const levelData = thresholds.find(t => t.level === currentLevel)
+  
+  return levelData?.name || ''
+}
 
 // Функции для работы с полноэкранным режимом
 const toggleFullscreen = () => {
@@ -151,7 +273,11 @@ const loadScreen = async () => {
 // Настройка polling
 const startPolling = () => {
   loadScreen()
-  pollInterval.value = setInterval(loadScreen, 5000)
+  fetchTradeTurnovers()  // Загружаем товарообороты сразу
+  pollInterval.value = setInterval(() => {
+    loadScreen()
+    fetchTradeTurnovers()  // Обновляем товарообороты каждые 5 сек
+  }, 5000)
 }
 
 // Смена экрана
@@ -251,6 +377,7 @@ onUnmounted(() => {
           v-for="screen in [         
             { id: 'placeholder', label: 'Заглушка' },
             { id: 'timer', label: 'Таймер' },
+            { id: 'trade_turnover', label: 'Товарооборот' },
             { id: 'merchant_results', label: 'Результаты купцов' },
             { id: 'noble_results', label: 'Результаты знати' }
           ]"
@@ -279,6 +406,12 @@ onUnmounted(() => {
               </div>
             </div>
 
+            <div v-else-if="screen.id === 'trade_turnover'" class="timer-preview">
+              <div class="preview-message">
+                <p style="font-size: 1.2rem; margin-bottom: 8px;">Товарооборот</p>
+                <p style="font-size: 0.9rem; opacity: 0.8;">Торговля с иностранными государствами</p>
+              </div>
+            </div>
 
             <div v-else-if="screen.id === 'noble_results'" class="results-preview">
               <div class="preview-message">
@@ -536,6 +669,98 @@ onUnmounted(() => {
               </div>
             </div>
           </Transition>
+        </template>
+
+        <template v-else-if="selectedScreen === 'trade_turnover'">
+          <div class="fullscreen-text-container">
+            <!-- Верхняя часть: таймер или "Эпоха перемен" -->
+            <Transition name="timer-fade" mode="out-in">
+              <div :key="timerStore.isOutOfRange ? 'out-of-range' : 'active'">
+                <!-- Если вне расписания - показываем "Эпоха перемен" -->
+                <div v-if="timerStore.isOutOfRange">
+                  <p class="fullscreen-timer-value">{{ timerStore.outOfRangeMessage }}</p>
+                </div>
+                
+                <!-- Если в расписании - показываем таймер -->
+                <div v-else>
+                  <Transition name="text-fade" mode="out-in">
+                    <p key="title" class="fullscreen-schedule-name">
+                      {{ timerStore.currentScheduleItemName }}
+                    </p>
+                  </Transition>
+                  <Transition name="text-fade" mode="out-in">
+                    <p key="timer" class="fullscreen-timer-value">
+                      {{ timerStore.formattedRemainingTime }}
+                    </p>
+                  </Transition>
+                </div>
+              </div>
+            </Transition>
+            
+            <!-- Товарооборот с флагами - ВСЕГДА показывается -->
+            <div class="trade-turnover-fullscreen">
+              <Transition name="text-fade" mode="out-in">
+                <div key="turnovers" class="countries-grid">
+                  <div 
+                    v-for="item in tradeTurnovers" 
+                    :key="item.country_id"
+                    class="country-turnover-card"
+                  >
+                    <!-- Иконка отношений в верхнем левом углу -->
+                    <div v-if="item.relations !== undefined" class="relations-badge">
+                      <img 
+                        :src="`/images/relations/${item.relations}.png`"
+                        class="relations-icon"
+                        :alt="`Отношения: ${item.relations}`"
+                        :title="`Отношения с Русью: ${item.relations}`"
+                      />
+                    </div>
+                    
+                    <img 
+                      :src="`/images/countries/${item.country_name}.png`"
+                      class="country-flag-large"
+                      :alt="item.country_name"
+                    />
+                    
+                    <!-- Информация об уровне и товарообороте -->
+                    <div v-if="tradeLevels[item.country_id]" class="turnover-info">
+                      <!-- Название уровня -->
+                      <div v-if="getLevelName(item.country_id)" class="level-name-badge">
+                        {{ getLevelName(item.country_id) }}
+                      </div>
+                      
+                      <div class="turnover-amount">
+                        {{ formatTurnover(item.trade_turnover) }}
+                      </div>
+                      
+                      <!-- Прогресс-бар -->
+                      <div class="progress-container">
+                        <div class="progress-track">
+                          <div 
+                            class="progress-fill"
+                            :style="{ 
+                              width: getProgressPercent(item.country_id, item.trade_turnover) + '%',
+                              backgroundColor: getProgressColor(tradeLevels[item.country_id])
+                            }"
+                          >
+                            <div class="progress-shine"></div>
+                          </div>
+                        </div>
+                        <div class="progress-text">
+                          До следующего уровня: {{ formatTurnover(tradeLevels[item.country_id].to_next_level) }}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- Если данные еще не загружены -->
+                    <div v-else class="turnover-amount">
+                      {{ formatTurnover(item.trade_turnover) }}
+                    </div>
+                  </div>
+                </div>
+              </Transition>
+            </div>
+          </div>
         </template>
 
 <template v-else-if="selectedScreen === 'merchant_results'">
@@ -1745,6 +1970,243 @@ onUnmounted(() => {
     font-size: 11px;
     min-width: 36px;
     height: 24px;
+  }
+}
+
+/* Стили для товарооборота */
+.trade-turnover-fullscreen {
+  margin-top: 30px;
+  width: 100%;
+  max-width: 1400px;
+}
+
+.countries-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 25px;
+  padding: 10px;
+}
+
+.country-turnover-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 25px;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+  min-height: 280px;
+  position: relative;
+}
+
+.country-turnover-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.relations-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 6px;
+  border-radius: 50%;
+  backdrop-filter: blur(5px);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition: all 0.3s ease;
+  z-index: 10;
+}
+
+.relations-badge:hover {
+  transform: scale(1.1);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+.relations-icon {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  display: block;
+}
+
+.country-flag-large {
+  width: 140px;
+  height: 105px;
+  object-fit: contain;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.turnover-info {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.level-name-badge {
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.3), rgba(21, 101, 192, 0.3));
+  border: 2px solid rgba(33, 150, 243, 0.6);
+  padding: 8px 20px;
+  border-radius: 25px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #FFF;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+.turnover-amount {
+  font-size: 2.2rem;
+  font-weight: bold;
+  color: #FFD700;
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.6),
+               0 0 40px rgba(255, 215, 0, 0.3);
+  letter-spacing: 1px;
+  font-family: 'Beryozki', 'Roboto Mono', monospace;
+}
+
+.progress-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-track {
+  width: 100%;
+  height: 30px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 15px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 13px;
+  transition: all 0.5s ease;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+.progress-shine {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: shine 2s infinite;
+}
+
+@keyframes shine {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+.progress-text {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+  font-weight: 500;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.3px;
+}
+
+/* Анимация появления карточек */
+.country-turnover-card {
+  animation: cardFadeIn 0.6s ease;
+}
+
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Адаптивность */
+@media (max-width: 1200px) {
+  .countries-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .trade-turnover-fullscreen {
+    margin-top: 20px;
+    max-width: 100%;
+  }
+  
+  .countries-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .country-turnover-card {
+    padding: 20px;
+    min-height: auto;
+  }
+  
+  .relations-badge {
+    top: 8px;
+    left: 8px;
+    padding: 4px;
+  }
+  
+  .relations-icon {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .country-flag-large {
+    width: 100px;
+    height: 75px;
+  }
+  
+  .level-name-badge {
+    font-size: 1rem;
+    padding: 6px 14px;
+  }
+  
+  .turnover-amount {
+    font-size: 1.8rem;
+  }
+  
+  .progress-track {
+    height: 25px;
+  }
+  
+  .progress-text {
+    font-size: 0.9rem;
   }
 }
 </style>
