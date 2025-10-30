@@ -39,11 +39,22 @@
  * ```
  */
 export const registerPlugins = app => {
+  // Регистрируем обычные плагины
   const imports = import.meta.glob(['../../plugins/*.{ts,js}', '../../plugins/*/index.{ts,js}'], { eager: true })
   const importPaths = Object.keys(imports).sort()
 
   importPaths.forEach(path => {
     const pluginImportModule = imports[path]
+
+    pluginImportModule.default?.(app)
+  })
+
+  // Регистрируем игровые плагины
+  const gamePluginImports = import.meta.glob(['../../plugins/game-plugins/*/index.{ts,js}'], { eager: true })
+  const gamePluginPaths = Object.keys(gamePluginImports).sort()
+
+  gamePluginPaths.forEach(path => {
+    const pluginImportModule = gamePluginImports[path]
 
     pluginImportModule.default?.(app)
   })

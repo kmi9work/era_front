@@ -21,6 +21,7 @@ export const useTimerStore = defineStore('timer', () => {
   const outOfRangeMessage = ref("Эпоха Перемен")
   const noScheduleInTheBase = ref(false)
   const noScheduleInTheBaseMessage = ref("В базе нет расписания")
+  const autoStartNextCycle = ref(false)
 
   // Проверка выхода за временные границы
   const checkIfOutOfRange = () => {
@@ -71,6 +72,7 @@ export const useTimerStore = defineStore('timer', () => {
       isPaused.value = !(parseInt(response.data.timer.ticking) > 0)
       presentTime.value = Math.floor(Date.now() / 1000)
       noScheduleInTheBase.value = schedule.value.length === 0
+      autoStartNextCycle.value = response.data.timer.auto_start_next_cycle || false
 
       if (schedule.value.length > 0) {
         range.value = {
@@ -85,7 +87,22 @@ export const useTimerStore = defineStore('timer', () => {
         remainingTime.value = Math.max(0, activeItem.value.unix_finish - presentTime.value)
       }
 
-      isPaused.value ? stopTimers() : startTimers()
+      // Если включён автоматический режим и таймер на паузе, запускаем его автоматически
+      if (autoStartNextCycle.value && isPaused.value && !isOutOfRange.value && activeItem.value) {
+        console.log('[Timer] Auto-start mode enabled, starting timer automatically...')
+        try {
+          await axios.patch(
+            `${import.meta.env.VITE_PROXY}/game_parameters/toggle_timer`,
+            { request: 1 }
+          )
+          isPaused.value = false
+          startTimers()
+        } catch (error) {
+          console.error('Ошибка при автоматическом запуске таймера:', error)
+        }
+      } else {
+        isPaused.value ? stopTimers() : startTimers()
+      }
     } catch (error) {
       if (!axios.isCancel(error)) {
         console.error("Ошибка при проверке состояния таймера:", error)
@@ -133,6 +150,33 @@ export const useTimerStore = defineStore('timer', () => {
   // Функция остановки таймера и уведомления бэка
   const stopAndNotifyBackend = async () => {
     stopTimers()
+    
+    // Если включён автоматический запуск следующего цикла
+    if (autoStartNextCycle.value) {
+      console.log('[Timer] Auto-start next cycle enabled, restarting timer...')
+      timeNotice.value = "Автоматический переход к следующему циклу..."
+      
+      // Перезагружаем расписание с бэка
+      await checkIfTimerRunning()
+      
+      // Если таймер остановлен на бэке, запускаем его
+      if (isPaused.value) {
+        try {
+          await axios.patch(
+            `${import.meta.env.VITE_PROXY}/game_parameters/toggle_timer`,
+            { request: 1 }
+          )
+          await checkIfTimerRunning()
+        } catch (error) {
+          if (!axios.isCancel(error)) {
+            console.error("Ошибка при автоматическом запуске таймера:", error)
+          }
+        }
+      }
+      return
+    }
+    
+    // Обычный режим - остановка таймера
     isPaused.value = true
     timeNotice.value = "Перерыв"
 
@@ -208,6 +252,7 @@ export const useTimerStore = defineStore('timer', () => {
     outOfRangeMessage,
     noScheduleInTheBase,
     noScheduleInTheBaseMessage,
+    autoStartNextCycle,
     fetchSchedule: checkIfTimerRunning,
     stopTimers,
     toggleTimer,
