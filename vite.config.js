@@ -54,6 +54,7 @@ export default defineConfig({
       '@images': fileURLToPath(new URL('./src/assets/images/', import.meta.url)),
       '@styles': fileURLToPath(new URL('./src/assets/styles/', import.meta.url)),
       '@configured-variables': fileURLToPath(new URL('./src/assets/styles/variables/_template.scss', import.meta.url)),
+      '@game-plugins': fileURLToPath(new URL('./src/plugins/game-plugins', import.meta.url)),
     },
   },
   build: {

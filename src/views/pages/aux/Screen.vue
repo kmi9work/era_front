@@ -609,7 +609,9 @@ onUnmounted(() => {
             class="preview-controls"
             @click.stop
           >
+            <!-- Кнопка показывается только если НЕ включён автоматический режим -->
             <button 
+              v-if="!timerStore.autoStartNextCycle"
               @click="timerStore.toggleTimer"
               :disabled="timerStore.isLoading"
               class="timer-button"
@@ -629,6 +631,12 @@ onUnmounted(() => {
                 Загрузка...
               </span>
             </button>
+            
+            <!-- Информация в автоматическом режиме -->
+            <div v-else class="auto-mode-info">
+              <span class="auto-mode-badge">🔄 Автоматический режим</span>
+              <span class="auto-mode-text">Следующий цикл запустится автоматически</span>
+            </div>
           </div>
         </div>
       </div>
@@ -1751,6 +1759,30 @@ onUnmounted(() => {
   background-color: #388E3C;
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.auto-mode-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.auto-mode-badge {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.auto-mode-text {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 400;
 }
 
 .fullscreen-control {
