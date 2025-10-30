@@ -743,7 +743,7 @@ const itemsToGivePlayer = computed(() => {
               style="display: flex; align-items: center; gap: 8px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; min-width: 200px;"
             >
               <v-img
-                :src="`/images/resources/${item.identificator}.png`"
+                :src="getResourceImageUrl(item.identificator)"
                 width="48"
                 height="48"
                 class="resource-icon"
@@ -810,14 +810,14 @@ const itemsToGivePlayer = computed(() => {
             >
               <v-img
                 v-if="!item.name?.toLowerCase()?.includes('золото')"
-                :src="`/images/resources/${item.identificator || 'unknown'}.png`"
+                :src="getResourceImageUrl(item.identificator || 'unknown')"
                 width="48"
                 height="48"
                 class="resource-icon"
               />
               <v-img
                 v-else
-                src="/images/resources/gold.png"
+                :src="getResourceImageUrl('gold')"
                 width="48"
                 height="48"
                 class="resource-icon"
