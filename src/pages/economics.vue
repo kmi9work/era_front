@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Guilds from '@/views/pages/economics/Guilds.vue'
 import Plants from '@/views/pages/economics/Plants.vue'
@@ -11,6 +11,14 @@ import TradeTurnover from '@/views/pages/economics/TradeTurnover.vue'
 
 const route = useRoute()
 const activeTab = ref(route.params.tab)
+const exchangeKey = ref(0) // Ключ для принудительного ре-маунта Exchange
+
+// При каждом показе вкладки Рынок - сбрасываем компонент
+watch(activeTab, (newTab) => {
+  if (newTab === 'exchange') {
+    exchangeKey.value += 1 // Принудительное пересоздание компонента
+  }
+})
 
 // tabs
 const tabs = [
@@ -82,7 +90,7 @@ const tabs = [
         <Plants />
       </VWindowItem> -->
 
-      <VWindowItem value="exchange">
+      <VWindowItem value="exchange" :key="exchangeKey">
         <Exchange />
       </VWindowItem>
 

@@ -4,6 +4,8 @@ import { useRoute } from 'vue-router'
 import Screen from '@/views/pages/aux/Screen.vue'
 import Schedule from '@/views/pages/aux/Schedule.vue'
 import MerchantResults from '@/views/pages/aux/MerchantResults.vue'
+import Settings from '@/views/pages/aux/Settings.vue'
+import CaravanRobbery from '@/views/pages/aux/CaravanRobbery.vue'
 
 const route = useRoute()
 const activeTab = ref(route.params.tab || 'test') // Значение по умолчанию
@@ -28,8 +30,17 @@ const tabs = [
     tab: 'merchant_results',
   },
 
+  {
+    title: 'Настройки',
+    icon: 'ri-settings-3-line',
+    tab: 'settings',
+  },
 
-
+  {
+    title: 'Грабить караваны',
+    icon: 'ri-skull-line',
+    tab: 'caravan_robbery',
+  },
 
 ]
 
@@ -84,8 +95,13 @@ watch(
         <MerchantResults /> 
       </VWindowItem>
 
+      <VWindowItem value="settings">
+        <Settings /> 
+      </VWindowItem>
 
-
+      <VWindowItem value="caravan_robbery">
+        <CaravanRobbery /> 
+      </VWindowItem>
 
     </VWindow>
   </div>

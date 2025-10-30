@@ -32,37 +32,21 @@ const fetchTradeTurnovers = async () => {
   }
 }
 
-// Загружаем текущие уровни торговли для всех стран
+// Загружаем текущие уровни торговли для всех стран (bulk)
 const fetchTradeLevels = async () => {
   try {
-    const promises = tradeTurnovers.value.map(async (item) => {
-      try {
-        // Загружаем текущий уровень
-        const levelResponse = await axios.get(`${import.meta.env.VITE_PROXY}/countries/${item.country_id}/show_current_trade_level.json`)
-        // Загружаем все пороги
-        const thresholdsResponse = await axios.get(`${import.meta.env.VITE_PROXY}/countries/${item.country_id}/show_trade_thresholds.json`)
-        return { 
-          countryId: item.country_id, 
-          level: levelResponse.data,
-          thresholds: thresholdsResponse.data
-        }
-      } catch (error) {
-        console.error(`Error fetching trade level for country ${item.country_id}:`, error)
-        return { countryId: item.country_id, level: null, thresholds: [] }
-      }
+    const ids = tradeTurnovers.value.map(i => i.country_id)
+    if (!ids.length) return
+    const response = await axios.get(`${import.meta.env.VITE_PROXY}/countries/trade_levels_and_thresholds.json`, {
+      params: { ids: ids.join(',') }
     })
-    
-    const results = await Promise.all(promises)
-    results.forEach(result => {
-      if (result.level) {
-        tradeLevels.value[result.countryId] = result.level
-      }
-      if (result.thresholds && result.thresholds.length > 0) {
-        allThresholds.value[result.countryId] = result.thresholds
-      }
+    const items = response.data?.data || []
+    items.forEach(({ country_id, level, thresholds }) => {
+      if (level) tradeLevels.value[country_id] = level
+      if (Array.isArray(thresholds) && thresholds.length > 0) allThresholds.value[country_id] = thresholds
     })
   } catch (error) {
-    console.error('Error fetching trade levels:', error)
+    console.error('Error fetching trade levels (bulk):', error)
   }
 }
 
