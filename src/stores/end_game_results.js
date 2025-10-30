@@ -11,104 +11,49 @@ export const useEndGameResultsStore = defineStore('merchant_results', () => {
   const currentDisplay = ref('merchPlaceholder')
 
   const pollTime = 5000
-  const pollTimeouts = {
-    merchants: null,
-    nobles: null,
-    screen: null,
+  const pollTimeout = {
+    bundle: null,
   }
 
-  // защита от гонки запросов
-  let lastMerchReqId = 0
-  let lastNobleReqId = 0
-  let lastScreenReqId = 0
+  // защита от гонки запросов (bundle)
+  let lastBundleReqId = 0
 
-  /** --- Купцы --- */
-  const fetchMerchantResults = async () => {
-    const reqId = ++lastMerchReqId
+  /** --- Bundle: экран + купцы + знать --- */
+  const fetchScreenBundle = async () => {
+    const reqId = ++lastBundleReqId
     isLoading.value = true
     try {
       const { data } = await axios.get(
-        `${import.meta.env.VITE_PROXY}/game_parameters/show_sorted_results`
+        `${import.meta.env.VITE_PROXY}/game_parameters/screen_bundle`
       )
-
-      if (reqId === lastMerchReqId && Array.isArray(data) && data.length > 0) {
-        merchantsList.value = data
+      if (reqId === lastBundleReqId && data) {
+        if (Array.isArray(data.merchants)) merchantsList.value = data.merchants
+        if (Array.isArray(data.nobles)) nobleInfList.value = data.nobles
+        if (data.display) currentDisplay.value = data.display
       }
     } catch (error) {
-      console.error('Ошибка загрузки игроков:', error)
-      errorMessage.value = 'Ошибка загрузки списка игроков'
+      console.error('Ошибка загрузки bundle экрана:', error)
+      errorMessage.value = error.message || 'Ошибка загрузки экрана'
     } finally {
       isLoading.value = false
     }
   }
 
-  /** --- Текущий экран merchants --- */
-  const fetchCurrDisplay = async () => {
-    const reqId = ++lastScreenReqId
-    try {
-      const { data } = await axios.get(
-        `${import.meta.env.VITE_PROXY}/game_parameters/display_results`
-      )
-
-      if (reqId === lastScreenReqId && data) {
-        currentDisplay.value = data
-      }
-      return data
-    } catch (error) {
-      console.error('Ошибка при загрузке данных экрана merchants:', error)
-      errorMessage.value = error.message || 'Ошибка загрузки экрана merchants'
-      throw error
-    }
-  }
-
-  /** --- Благородные --- */
-  const fetchNobleResults = async () => {
-    const reqId = ++lastNobleReqId
-    try {
-      const { data } = await axios.get(
-        `${import.meta.env.VITE_PROXY}/game_parameters/show_noble_results`
-      )
-      if (reqId === lastNobleReqId && Array.isArray(data) && data.length > 0) {
-        nobleInfList.value = data
-      }
-    } catch (error) {
-      console.error('Ошибка загрузки данных благородных:', error)
-    }
-  }
-
-  /** --- Polling --- */
+  /** --- Polling (bundle) --- */
   const startPolling = () => {
-    stopPolling() // сначала чистим
-
-    // merchants
-    const pollMerchants = async () => {
-      await fetchMerchantResults()
-      pollTimeouts.merchants = setTimeout(pollMerchants, pollTime)
+    stopPolling()
+    const loop = async () => {
+      await fetchScreenBundle()
+      pollTimeout.bundle = setTimeout(loop, pollTime)
     }
-    pollMerchants()
-
-    // nobles
-    const pollNobles = async () => {
-      await fetchNobleResults()
-      pollTimeouts.nobles = setTimeout(pollNobles, pollTime)
-    }
-    pollNobles()
-
-    // screen
-    const pollScreen = async () => {
-      await fetchCurrDisplay()
-      pollTimeouts.screen = setTimeout(pollScreen, pollTime)
-    }
-    pollScreen()
+    loop()
   }
 
   const stopPolling = () => {
-    Object.keys(pollTimeouts).forEach((key) => {
-      if (pollTimeouts[key]) {
-        clearTimeout(pollTimeouts[key])
-        pollTimeouts[key] = null
-      }
-    })
+    if (pollTimeout.bundle) {
+      clearTimeout(pollTimeout.bundle)
+      pollTimeout.bundle = null
+    }
   }
 
   const cleanup = () => {
@@ -125,9 +70,7 @@ export const useEndGameResultsStore = defineStore('merchant_results', () => {
     pollTime,
 
     // actions
-    fetchMerchantResults,
-    fetchNobleResults,
-    fetchCurrDisplay,
+    fetchScreenBundle,
     startPolling,
     stopPolling,
     cleanup,

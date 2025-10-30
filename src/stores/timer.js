@@ -2,6 +2,10 @@ import { defineStore } from 'pinia'
 import { ref, computed, onUnmounted } from 'vue'
 import axios from 'axios'
 
+// Singleton-предохранитель для поллинга (во время HMR/перемонтирования модулей)
+let pollingStartedSingleton = false
+let pollTimeoutHandle = null
+
 export const useTimerStore = defineStore('timer', () => {
   const isLoading = ref(false)
   const timerInterval = ref(null)
@@ -13,7 +17,7 @@ export const useTimerStore = defineStore('timer', () => {
   const range = ref({ start: 0, finish: 0 })
   const controller = new AbortController()
   const pollTime = 5000
-  const pollInterval = ref(null)
+  const pollInterval = ref(null) // оставляем для совместимости, фактически не используется
   const lastToggleTime = ref(0)
   const activeItem = ref(null)
 
@@ -110,17 +114,26 @@ export const useTimerStore = defineStore('timer', () => {
     }
   }
 
-  // Запуск фонового опроса
+  // Запуск фонового опроса (setTimeout-цикл, защищён синглтоном)
   const startPolling = () => {
-    if (pollInterval.value) return
-    pollInterval.value = setInterval(checkIfTimerRunning, pollTime)
+    if (pollingStartedSingleton) return
+    pollingStartedSingleton = true
+
+    const loop = async () => {
+      await checkIfTimerRunning()
+      pollTimeoutHandle = setTimeout(loop, pollTime)
+    }
+
+    if (!pollTimeoutHandle) loop()
   }
 
   const stopPolling = () => {
-    if (pollInterval.value) {
-      clearInterval(pollInterval.value)
-      pollInterval.value = null
+    if (pollTimeoutHandle) {
+      clearTimeout(pollTimeoutHandle)
+      pollTimeoutHandle = null
     }
+    pollInterval.value = null
+    pollingStartedSingleton = false
   }
 
   // Переключение таймера с кнопки
@@ -198,8 +211,11 @@ export const useTimerStore = defineStore('timer', () => {
     presentTime.value = Math.floor(Date.now() / 1000)
     activeItem.value = currentScheduleItem.value
 
-    if (!activeItem.value) {
-      stopAndNotifyBackend()
+    // Если нет активного элемента или текущее время вне расписания —
+    // не трогаем бэкенд и просто остаёмся в паузе
+    if (!activeItem.value || isOutOfRange.value) {
+      isPaused.value = true
+      timeNotice.value = "Перерыв"
       return
     }
 
@@ -235,6 +251,15 @@ export const useTimerStore = defineStore('timer', () => {
     stopPolling()
     controller.abort()
   })
+
+  // HMR: корректная очистка таймеров при перезагрузке модуля
+  if (import.meta && import.meta.hot) {
+    import.meta.hot.dispose(() => {
+      stopTimers()
+      stopPolling()
+      controller.abort()
+    })
+  }
 
   // Инициализация
   checkIfTimerRunning()

@@ -14,6 +14,14 @@
       <div class="d-flex gap-3">
         <VBtn
           color="primary"
+          variant="elevated"
+          @click="openCreatePlayer"
+        >
+          <VIcon start icon="ri-user-add-line" />
+          Новый игрок
+        </VBtn>
+        <VBtn
+          color="primary"
           @click="refreshPlayers"
           :loading="loading"
         >
@@ -136,7 +144,15 @@
       </VCardText>
     </VCard>
 
-    <!-- Players Grid -->
+    <!-- Tabs: Players | Guilds -->
+    <VTabs v-model="activeTab" class="mb-4">
+      <VTab value="players">Игроки</VTab>
+      <VTab value="guilds">Гильдии</VTab>
+    </VTabs>
+
+    <VWindow v-model="activeTab">
+      <VWindowItem value="players">
+        <!-- Players Grid -->
     <VRow>
       <VCol
         v-for="player in filteredPlayers"
@@ -149,30 +165,10 @@
         <VCard class="player-card" elevation="2">
           <VCardText class="text-center">
             <!-- Player Info -->
-            <div class="mb-4">
-              <VAvatar
-                :color="getPlayerColor(player)"
-                size="60"
-                class="mb-3"
-              >
-                <VIcon :icon="getPlayerIcon(player)" size="30" />
-              </VAvatar>
-              
-              <h3 class="text-h6 font-weight-bold mb-1">
+            <div>
+              <h3 class="text-h6 font-weight-bold mb-3">
                 {{ player.name }}
               </h3>
-              
-              <div class="text-body-2 text-medium-emphasis mb-2">
-                {{ player.player_type?.name || 'Игрок' }}
-              </div>
-              
-              <VChip
-                :color="getPlayerTypeColor(player)"
-                size="small"
-                class="mb-2"
-              >
-                {{ player.family?.name || 'Без семьи' }}
-              </VChip>
             </div>
 
             <!-- QR Code -->
@@ -188,46 +184,39 @@
               <div v-else ref="qrCodeRef" :id="`qr-${player.id}`" class="qr-code"></div>
             </div>
 
-            <!-- Identificator -->
+            <!-- Identificator (всегда показывается) -->
             <VTextField
               :model-value="player.identificator"
               readonly
               variant="outlined"
               density="compact"
-              class="mb-3"
+              class="mb-2"
               append-inner-icon="ri-copy-line"
               @click:append-inner="copyIdentificator(player.identificator)"
             />
 
             <!-- Actions -->
-            <div class="d-flex gap-2 justify-center">
-              <VBtn
-                size="small"
-                color="primary"
-                variant="outlined"
-                @click="copyIdentificator(player.identificator)"
-              >
-                <VIcon start icon="ri-copy-line" />
-                Копировать
+            <div class="d-flex gap-1 justify-center mt-2">
+              <VBtn icon size="small" color="primary" variant="text" @click="copyIdentificator(player.identificator)">
+                <VIcon icon="ri-copy-line" />
               </VBtn>
-              
-              <VBtn
-                size="small"
-                color="success"
-                variant="outlined"
-                @click="downloadQRCode(player)"
-              >
-                <VIcon start icon="ri-download-line" />
-                Скачать
+              <VBtn icon size="small" color="success" variant="text" @click="downloadQRCode(player)">
+                <VIcon icon="ri-download-line" />
+              </VBtn>
+              <VBtn icon size="small" color="info" variant="text" @click="openEditPlayer(player)">
+                <VIcon icon="ri-edit-line" />
+              </VBtn>
+              <VBtn icon size="small" color="error" variant="text" @click="confirmDeletePlayer(player)">
+                <VIcon icon="ri-delete-bin-line" />
               </VBtn>
             </div>
           </VCardText>
         </VCard>
       </VCol>
-    </VRow>
+        </VRow>
 
-    <!-- Empty State -->
-    <VCard v-if="filteredPlayers.length === 0" class="text-center pa-8">
+        <!-- Empty State -->
+        <VCard v-if="filteredPlayers.length === 0" class="text-center pa-8">
       <VIcon icon="ri-user-search-line" size="64" color="medium-emphasis" class="mb-4" />
       <h3 class="text-h6 mb-2">Игроки не найдены</h3>
       <p class="text-body-2 text-medium-emphasis mb-4">
@@ -237,22 +226,99 @@
         <VIcon start icon="ri-refresh-line" />
         Сбросить фильтры
       </VBtn>
-    </VCard>
+        </VCard>
+      </VWindowItem>
+
+      <VWindowItem value="guilds">
+        <Guilds />
+      </VWindowItem>
+    </VWindow>
   </div>
+
+  <!-- Диалог создания/редактирования игрока -->
+  <VDialog v-model="playerDialog" max-width="520">
+    <VCard>
+      <VCardTitle>{{ editingPlayer?.id ? 'Редактировать игрока' : 'Новый игрок' }}</VCardTitle>
+      <VCardText>
+        <VTextField
+          v-model="playerForm.name"
+          label="Имя"
+          variant="outlined"
+          density="compact"
+          :error="!!playerErrors.name"
+          :error-messages="playerErrors.name"
+        />
+        <VSelect
+          v-model="playerForm.player_type_id"
+          :items="playerTypeOptions"
+          item-title="title"
+          item-value="value"
+          label="Тип игрока"
+          variant="outlined"
+          density="compact"
+          clearable
+        />
+        <VSelect
+          v-model="playerForm.family_id"
+          :items="familyOptions"
+          item-title="title"
+          item-value="value"
+          label="Семья"
+          variant="outlined"
+          density="compact"
+          clearable
+        />
+      </VCardText>
+      <VCardActions>
+        <VSpacer />
+        <VBtn variant="text" @click="closePlayerDialog">Отмена</VBtn>
+        <VBtn color="primary" :loading="savingPlayer" @click="savePlayer">Сохранить</VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
+
+  <!-- Диалог удаления игрока -->
+  <VDialog v-model="deleteDialog" max-width="480">
+    <VCard>
+      <VCardTitle>Удалить игрока</VCardTitle>
+      <VCardText>
+        Вы действительно хотите удалить игрока «{{ deletingPlayer?.name }}»?
+      </VCardText>
+      <VCardActions>
+        <VSpacer />
+        <VBtn variant="text" @click="deleteDialog=false">Отмена</VBtn>
+        <VBtn color="error" :loading="deletingPlayerLoading" @click="deletePlayer">Удалить</VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import axios from 'axios'
 import QRCode from 'qrcode'
+import Guilds from '@/views/pages/players/Guilds.vue'
 
 // Reactive data
+const activeTab = ref('players')
 const players = ref([])
 const loading = ref(false)
 const generatingQR = ref(false)
 const searchQuery = ref('')
 const filterType = ref('')
 const sortBy = ref('name')
+
+// Player CRUD state
+const playerDialog = ref(false)
+const editingPlayer = ref(null)
+const savingPlayer = ref(false)
+const playerErrors = ref({ name: '' })
+const playerForm = ref({ name: '', player_type_id: null, family_id: null })
+const playerTypeOptions = ref([])
+const familyOptions = ref([])
+const deleteDialog = ref(false)
+const deletingPlayer = ref(null)
+const deletingPlayerLoading = ref(false)
 
 // Computed properties
 const noblesCount = computed(() => 
@@ -328,6 +394,95 @@ const loadPlayers = async () => {
     console.error('Error loading players:', error)
   } finally {
     loading.value = false
+  }
+}
+
+const loadPlayerTypes = async () => {
+  try {
+    const { data } = await axios.get(`${import.meta.env.VITE_PROXY}/player_types.json`)
+    playerTypeOptions.value = (data || []).map(pt => ({ title: pt.name || `#${pt.id}`, value: pt.id }))
+  } catch (e) {
+    playerTypeOptions.value = []
+  }
+}
+
+const loadFamilies = async () => {
+  try {
+    const { data } = await axios.get(`${import.meta.env.VITE_PROXY}/families.json`)
+    familyOptions.value = (data || []).map(f => ({ title: f.name || `#${f.id}`, value: f.id }))
+  } catch (e) {
+    familyOptions.value = []
+  }
+}
+
+const openCreatePlayer = async () => {
+  editingPlayer.value = null
+  playerForm.value = { name: '', player_type_id: null, family_id: null }
+  playerErrors.value = { name: '' }
+  await Promise.all([loadPlayerTypes(), loadFamilies()])
+  playerDialog.value = true
+}
+
+const openEditPlayer = async (player) => {
+  editingPlayer.value = player
+  playerForm.value = {
+    name: player.name || '',
+    player_type_id: player.player_type?.id || null,
+    family_id: player.family?.id || null,
+  }
+  playerErrors.value = { name: '' }
+  await Promise.all([loadPlayerTypes(), loadFamilies()])
+  playerDialog.value = true
+}
+
+const closePlayerDialog = () => {
+  playerDialog.value = false
+}
+
+const validatePlayer = () => {
+  let valid = true
+  playerErrors.value = { name: '' }
+  if (!playerForm.value.name || !playerForm.value.name.trim()) {
+    playerErrors.value.name = 'Имя обязательно'
+    valid = false
+  }
+  return valid
+}
+
+const savePlayer = async () => {
+  if (!validatePlayer()) return
+  savingPlayer.value = true
+  try {
+    if (editingPlayer.value?.id) {
+      await axios.patch(`${import.meta.env.VITE_PROXY}/players/${editingPlayer.value.id}.json`, { player: playerForm.value })
+    } else {
+      await axios.post(`${import.meta.env.VITE_PROXY}/players.json`, { player: playerForm.value })
+    }
+    playerDialog.value = false
+    await loadPlayers()
+  } catch (e) {
+    console.error('Ошибка сохранения игрока:', e)
+  } finally {
+    savingPlayer.value = false
+  }
+}
+
+const confirmDeletePlayer = (player) => {
+  deletingPlayer.value = player
+  deleteDialog.value = true
+}
+
+const deletePlayer = async () => {
+  if (!deletingPlayer.value) return
+  deletingPlayerLoading.value = true
+  try {
+    await axios.delete(`${import.meta.env.VITE_PROXY}/players/${deletingPlayer.value.id}.json`)
+    deleteDialog.value = false
+    await loadPlayers()
+  } catch (e) {
+    console.error('Ошибка удаления игрока:', e)
+  } finally {
+    deletingPlayerLoading.value = false
   }
 }
 

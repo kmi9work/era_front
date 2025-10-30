@@ -37,6 +37,13 @@ const isEmbargoActive = ref(false);
 const showConfirmDialog = ref(false);       // Модальное окно подтверждения после расчета
 const caravanPending = ref(false);          // Флаг, что караван ожидает регистрации
 
+// Новое: Гильдии и состояние ограбления
+const guilds = ref([])
+const selectedGuild = ref(null)             // Выбранная гильдия
+const showRobberyDialog = ref(false)        // Диалог ограбления каравана
+const showMarketForm = ref(false)           // Показать форму рынка или выбор гильдии
+const guildRobberyProbabilities = ref({})   // Храним вероятности ограбления для каждой гильдии
+
 const fetchCountries = async () => {
   try {
     const response = await axios.get(`${import.meta.env.VITE_PROXY}/countries/foreign_countries.json`);
@@ -60,6 +67,39 @@ const fetchCountries = async () => {
     countriesRelations.value = [];
   }
 };
+
+const fetchGuilds = async () => {
+  try {
+    const response = await axios.get(`${import.meta.env.VITE_PROXY}/guilds/list.json`);
+    guilds.value = response.data;
+    
+    // Загружаем вероятности ограбления для каждой гильдии
+    await loadRobberyProbabilities()
+  } catch (error) {
+    console.error('Error fetching guilds:', error);
+    guilds.value = [];
+  }
+};
+
+const loadRobberyProbabilities = async () => {
+  guildRobberyProbabilities.value = {}
+  
+  for (const guild of guilds.value) {
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_PROXY}/caravans/check_robbery.json`, {
+        params: { guild_id: guild.id }
+      })
+      // Храним только вероятность и флаг защиты
+      guildRobberyProbabilities.value[guild.id] = {
+        probability: response.data.probability || 0,
+        robbed: response.data.robbed || false
+      }
+    } catch (error) {
+      console.error(`Error loading robbery probability for guild ${guild.id}:`, error)
+      guildRobberyProbabilities.value[guild.id] = { probability: 0, robbed: false }
+    }
+  }
+}
 
 watch(
   () => countriesRelations.value.map(country => country.relations),
@@ -253,7 +293,7 @@ const handleBeforeUnload = (e) => {
 // Загружаем данные при монтировании
 onMounted(async () => {
   try {
-
+    await fetchGuilds()
     await fetchCountries()
     await fetchResources()  
 
@@ -372,7 +412,8 @@ const registerCaravan  = async () =>{
     const saleIncome = caravanStore.totalSaleIncome || 0;
     
     const request = {
-      country_id: selectedCountry.value, 
+      country_id: selectedCountry.value,
+      guild_id: selectedGuild.value,  // Добавляем guild_id
       incoming: enrichedIncoming, 
       outcoming: enrichedOutcoming,
       purchase_cost: purchaseCost,  // Стоимость покупки
@@ -392,6 +433,9 @@ const registerCaravan  = async () =>{
     // Очищаем форму после успешной регистрации
     resetForm();
     
+    // Возвращаемся к выбору гильдии
+    backToGuildSelection();
+    
   } catch (error) {
     console.error('Error registering caravan:', error);
     console.error('Error details:', error.response?.data);
@@ -403,6 +447,47 @@ const recalculate = () => {
   showConfirmDialog.value = false;
   caravanPending.value = false;
   // Оставляем результаты расчета, просто закрываем окно
+}
+
+// Выбор гильдии - проверяем ограбление и показываем форму рынка
+const selectGuild = async (guildId) => {
+  try {
+    // Проверяем, будет ли караван ограблен (с принятием решения)
+    const response = await axios.get(`${import.meta.env.VITE_PROXY}/caravans/check_robbery_with_decide.json`, {
+      params: { guild_id: guildId }
+    })
+    
+    // Если караван ограблен, показываем сообщение
+    if (response.data.robbed) {
+      showRobberyDialog.value = true
+      return
+    }
+    
+    // Иначе показываем форму
+    selectedGuild.value = guildId
+    showMarketForm.value = true
+  } catch (error) {
+    console.error('Ошибка при проверке ограбления:', error)
+    // В случае ошибки все равно показываем форму
+    selectedGuild.value = guildId
+    showMarketForm.value = true
+  }
+}
+
+// Возврат к выбору гильдии (после ограбления или после регистрации)
+const backToGuildSelection = () => {
+  selectedGuild.value = null
+  showMarketForm.value = false
+  resetForm()
+  // Перезагружаем вероятности при возврате
+  loadRobberyProbabilities()
+}
+
+// Получить вероятность ограбления для гильдии
+const getRobberyProbability = (guildId) => {
+  const prob = guildRobberyProbabilities.value[guildId]
+  if (!prob || prob.probability === 0) return 'Защищена'
+  return `${(prob.probability * 100).toFixed(1)}%`
 }
 
 // Получаем сколько игрок вложил золота
@@ -482,8 +567,49 @@ const itemsToGivePlayer = computed(() => {
 
 <template>
 
-
   <div v-if="!isLoading" class="main-container">
+
+    <!-- Выбор гильдии (показывается по умолчанию) -->
+    <div v-if="!showMarketForm" class="guild-selection">
+      <VCard>
+        <VCardTitle class="text-h5 text-center">
+          Новый караван
+        </VCardTitle>
+        <VCardText>
+          <div class="text-center mb-4">
+            Выберите гильдию для каравана:
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 16px; justify-content: center;">
+            <div
+              v-for="guild in guilds"
+              :key="guild.id"
+              style="display: flex; flex-direction: column; align-items: center; gap: 8px;"
+            >
+              <v-btn
+                @click="selectGuild(guild.id)"
+                color="primary"
+                variant="elevated"
+                size="large"
+              >
+                {{ guild.name }}
+              </v-btn>
+              <div 
+                class="text-caption"
+                :style="{ 
+                  color: guildRobberyProbabilities[guild.id]?.probability > 0 ? '#ff9800' : '#4caf50',
+                  fontWeight: 'bold'
+                }"
+              >
+                Риск: {{ getRobberyProbability(guild.id) }}
+              </div>
+            </div>
+          </div>
+        </VCardText>
+      </VCard>
+    </div>
+
+    <!-- Форма рынка (показывается после выбора гильдии) -->
+    <div v-if="showMarketForm">
 
     <!-- Кнопки стран с флагами -->
 
@@ -671,6 +797,7 @@ const itemsToGivePlayer = computed(() => {
           </div>
         </v-card-text>
       </VCard>
+    </div>
     </div>
 
   <div v-else class="loading-container">
@@ -868,6 +995,30 @@ const itemsToGivePlayer = computed(() => {
           :disabled="!hasEnoughGold"
         >
           Зарегистрировать караван
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <!-- Диалог ограбления каравана -->
+  <v-dialog v-model="showRobberyDialog" max-width="500">
+    <v-card color="error">
+      <v-card-title class="text-h5">
+        ⚠️ Караван был ограблен
+      </v-card-title>
+      <v-card-text>
+        <p class="text-body-1">
+          Ваш караван не дошел до места назначения. Все ресурсы и золото потеряны.
+        </p>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn 
+          color="primary" 
+          @click="showRobberyDialog = false; backToGuildSelection()"
+          size="large"
+        >
+          Понятно
         </v-btn>
       </v-card-actions>
     </v-card>
