@@ -10,6 +10,15 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 
+// Состояния для вассалов
+const vassalIncomes = ref({})
+const vassalCountries = ref([
+  { id: 12, name: 'Новгород' },
+  { id: 8, name: 'Пермь' },
+  { id: 11, name: 'Тверь' },
+  { id: 10, name: 'Рязань' }
+])
+
 // Состояния для типов союзов
 const alliancesEnabled = ref(false)
 const allianceTypes = ref([])
@@ -26,14 +35,20 @@ const allianceTypeError = ref('')
 const loadSettings = async () => {
   try {
     isLoading.value = true
-    const [yearsResponse, caravansResponse, statsResponse] = await Promise.all([
+    const [yearsResponse, caravansResponse, statsResponse, vassalResponse] = await Promise.all([
       axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/get_years_count.json`),
       axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/get_caravans_per_guild.json`),
-      axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/get_robbery_stats.json`)
+      axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/get_robbery_stats.json`),
+      axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/get_vassalage_settings.json`)
     ])
     yearsCount.value = yearsResponse.data.years_count || 1
     caravansPerGuild.value = caravansResponse.data.caravans_per_guild || 1
     robbedCount.value = statsResponse.data.robbed_count || 0
+    
+    // Загружаем доходы от вассалов
+    if (vassalResponse.data && vassalResponse.data.vassal_incomes) {
+      vassalIncomes.value = vassalResponse.data.vassal_incomes
+    }
   } catch (error) {
     console.error('Ошибка при загрузке настроек:', error)
     errorMessage.value = 'Не удалось загрузить настройки'
@@ -155,6 +170,9 @@ const saveSettings = async () => {
       }),
       axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/update_caravans_per_guild.json`, {
         caravans_per_guild: caravansPerGuild.value
+      }),
+      axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/update_vassalage_settings.json`, {
+        vassal_incomes: vassalIncomes.value
       })
     ])
     
@@ -262,6 +280,34 @@ onMounted(() => {
             </VCardText>
           </VCard>
         </div>
+
+        <!-- Настройка доходов от вассалов -->
+        <div class="setting-item">
+          <VLabel class="mb-3">
+            Доходы от вассальной зависимости (руб.):
+          </VLabel>
+          
+          <VRow dense>
+            <VCol
+              v-for="country in vassalCountries"
+              :key="country.id"
+              cols="12"
+              md="6"
+            >
+              <VTextField
+                v-model.number="vassalIncomes[country.id]"
+                :label="country.name"
+                type="number"
+                min="0"
+                variant="outlined"
+                density="compact"
+                :disabled="isLoading"
+                hint="Доход Казначея от вассала"
+                persistent-hint
+              />
+            </VCol>
+          </VRow>
+        </div>
           
         <VBtn
           color="primary"
@@ -312,19 +358,17 @@ onMounted(() => {
               <td>{{ type.name }}</td>
               <td>{{ type.min_relations_level }}</td>
               <td>
-                <VBtn
-                  icon="mdi-pencil"
-                  variant="text"
-                  size="small"
+                <IconBtn
+                  icon="ri-pencil-line"
                   color="primary"
                   @click="openAllianceTypeForm(type)"
+                  title="Редактировать"
                 />
-                <VBtn
-                  icon="mdi-delete"
-                  variant="text"
-                  size="small"
+                <IconBtn
+                  icon="ri-delete-bin-line"
                   color="error"
                   @click="deleteAllianceType(type.id)"
+                  title="Удалить"
                 />
               </td>
             </tr>
@@ -352,9 +396,8 @@ onMounted(() => {
           <span class="text-white">
             {{ editingAllianceType ? 'Редактировать тип союза' : 'Добавить тип союза' }}
           </span>
-          <v-btn
-            icon="mdi-close"
-            variant="text"
+          <IconBtn
+            icon="ri-close-line"
             color="white"
             @click="closeAllianceTypeForm"
           />
