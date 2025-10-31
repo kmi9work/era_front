@@ -592,12 +592,11 @@
                 {{ alliance.alliance_type.name }} с {{ alliance.partner_country.name }}
               </v-list-item-title>
               <template v-slot:append>
-                <v-btn
-                  icon="mdi-delete"
-                  variant="text"
-                  size="small"
+                <IconBtn
+                  icon="ri-delete-bin-line"
                   color="error"
                   @click="deleteAlliance(alliance.id)"
+                  title="Удалить союз"
                 />
               </template>
             </v-list-item>
