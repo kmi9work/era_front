@@ -10,6 +10,18 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 
+// Состояния для типов союзов
+const alliancesEnabled = ref(false)
+const allianceTypes = ref([])
+const isAllianceTypesLoading = ref(false)
+const showAllianceTypeForm = ref(false)
+const editingAllianceType = ref(null)
+const allianceTypeForm = ref({
+  name: '',
+  min_relations_level: 0
+})
+const allianceTypeError = ref('')
+
 // Загружаем текущее значение years_count
 const loadSettings = async () => {
   try {
@@ -27,6 +39,106 @@ const loadSettings = async () => {
     errorMessage.value = 'Не удалось загрузить настройки'
   } finally {
     isLoading.value = false
+  }
+}
+
+// Загружаем флаг включения функционала союзов
+const loadAlliancesEnabled = async () => {
+  try {
+    const response = await axios.get(`${import.meta.env.VITE_PROXY}/countries/1.json`)
+    alliancesEnabled.value = response.data.alliances_enabled || false
+    if (alliancesEnabled.value) {
+      await loadAllianceTypes()
+    }
+  } catch (error) {
+    console.error('Ошибка при загрузке флага союзов:', error)
+    alliancesEnabled.value = false
+  }
+}
+
+// Функции для управления типами союзов
+const loadAllianceTypes = async () => {
+  try {
+    isAllianceTypesLoading.value = true
+    const response = await axios.get(`${import.meta.env.VITE_PROXY}/alliance_types.json`)
+    allianceTypes.value = response.data
+  } catch (error) {
+    console.error('Ошибка при загрузке типов союзов:', error)
+    allianceTypeError.value = 'Не удалось загрузить типы союзов'
+  } finally {
+    isAllianceTypesLoading.value = false
+  }
+}
+
+const openAllianceTypeForm = (type = null) => {
+  editingAllianceType.value = type
+  if (type) {
+    allianceTypeForm.value = {
+      name: type.name,
+      min_relations_level: type.min_relations_level
+    }
+  } else {
+    allianceTypeForm.value = {
+      name: '',
+      min_relations_level: 0
+    }
+  }
+  showAllianceTypeForm.value = true
+  allianceTypeError.value = ''
+}
+
+const closeAllianceTypeForm = () => {
+  showAllianceTypeForm.value = false
+  editingAllianceType.value = null
+  allianceTypeForm.value = {
+    name: '',
+    min_relations_level: 0
+  }
+  allianceTypeError.value = ''
+}
+
+const saveAllianceType = async () => {
+  try {
+    allianceTypeError.value = ''
+    
+    if (!allianceTypeForm.value.name.trim()) {
+      allianceTypeError.value = 'Название обязательно'
+      return
+    }
+
+    if (editingAllianceType.value) {
+      await axios.patch(
+        `${import.meta.env.VITE_PROXY}/alliance_types/${editingAllianceType.value.id}.json`,
+        {
+          alliance_type: allianceTypeForm.value
+        }
+      )
+    } else {
+      await axios.post(
+        `${import.meta.env.VITE_PROXY}/alliance_types.json`,
+        {
+          alliance_type: allianceTypeForm.value
+        }
+      )
+    }
+    
+    await loadAllianceTypes()
+    closeAllianceTypeForm()
+  } catch (error) {
+    const errorMsg = error.response?.data?.error || error.message
+    allianceTypeError.value = errorMsg
+  }
+}
+
+const deleteAllianceType = async (typeId) => {
+  if (!confirm('Точно удалить тип союза?')) return
+  
+  try {
+    await axios.delete(`${import.meta.env.VITE_PROXY}/alliance_types/${typeId}.json`)
+    await loadAllianceTypes()
+  } catch (error) {
+    const errorMsg = error.response?.data?.error || error.message
+    alert(`Ошибка: ${errorMsg}`)
   }
 }
 
@@ -62,6 +174,7 @@ const saveSettings = async () => {
 
 onMounted(() => {
   loadSettings()
+  loadAlliancesEnabled()
 })
 </script>
 
@@ -161,6 +274,148 @@ onMounted(() => {
         </VBtn>
       </VCardText>
     </VCard>
+
+    <!-- Секция "Типы союзов" -->
+    <VCard v-if="alliancesEnabled" class="mt-4">
+      <VCardTitle class="text-h5 mb-4">
+        <VIcon icon="ri-group-line" class="me-2" />
+        Типы союзов
+      </VCardTitle>
+      
+      <VDivider />
+      
+      <VCardText>
+        <div class="d-flex justify-space-between align-center mb-4">
+          <VBtn
+            color="primary"
+            @click="openAllianceTypeForm(null)"
+          >
+            <VIcon icon="ri-add-line" class="me-2" />
+            Добавить тип союза
+          </VBtn>
+        </div>
+
+        <!-- Таблица типов союзов -->
+        <v-table v-if="!isAllianceTypesLoading" density="compact">
+          <thead>
+            <tr>
+              <th class="text-left">Название</th>
+              <th class="text-left">Минимальный уровень отношений</th>
+              <th class="text-left">Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="type in allianceTypes"
+              :key="type.id"
+            >
+              <td>{{ type.name }}</td>
+              <td>{{ type.min_relations_level }}</td>
+              <td>
+                <VBtn
+                  icon="mdi-pencil"
+                  variant="text"
+                  size="small"
+                  color="primary"
+                  @click="openAllianceTypeForm(type)"
+                />
+                <VBtn
+                  icon="mdi-delete"
+                  variant="text"
+                  size="small"
+                  color="error"
+                  @click="deleteAllianceType(type.id)"
+                />
+              </td>
+            </tr>
+            <tr v-if="allianceTypes.length === 0">
+              <td colspan="3" class="text-center text-medium-emphasis">
+                Нет типов союзов
+              </td>
+            </tr>
+          </tbody>
+        </v-table>
+
+        <div v-else class="text-center pa-4">
+          <VProgressCircular indeterminate color="primary" />
+        </div>
+      </VCardText>
+    </VCard>
+
+    <!-- Диалог добавления/редактирования типа союза -->
+    <v-dialog
+      v-model="showAllianceTypeForm"
+      max-width="500"
+    >
+      <v-card>
+        <v-card-title class="d-flex justify-space-between align-center bg-primary">
+          <span class="text-white">
+            {{ editingAllianceType ? 'Редактировать тип союза' : 'Добавить тип союза' }}
+          </span>
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            color="white"
+            @click="closeAllianceTypeForm"
+          />
+        </v-card-title>
+        
+        <v-divider />
+        
+        <v-card-text class="pa-4">
+          <VAlert
+            v-if="allianceTypeError"
+            type="error"
+            variant="tonal"
+            class="mb-4"
+            dismissible
+            @click:close="allianceTypeError = ''"
+          >
+            {{ allianceTypeError }}
+          </VAlert>
+
+          <VTextField
+            v-model="allianceTypeForm.name"
+            label="Название"
+            variant="outlined"
+            density="compact"
+            class="mb-3"
+          />
+
+          <VTextField
+            v-model.number="allianceTypeForm.min_relations_level"
+            type="number"
+            label="Минимальный уровень отношений"
+            variant="outlined"
+            density="compact"
+            min="0"
+            max="2"
+            hint="От 0 до 2"
+            persistent-hint
+          />
+        </v-card-text>
+        
+        <v-divider />
+        
+        <v-card-actions class="pa-4">
+          <v-spacer />
+          <v-btn
+            color="primary"
+            variant="text"
+            @click="closeAllianceTypeForm"
+          >
+            Отмена
+          </v-btn>
+          <v-btn
+            color="primary"
+            variant="elevated"
+            @click="saveAllianceType"
+          >
+            Сохранить
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
