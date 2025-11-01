@@ -12,7 +12,8 @@ const schedule = ref([]) // Локальное состояние для рас�
 const newItem = ref({
   identificator: '',
   start: '',
-  finish: ''
+  finish: '',
+  type: 'play'
 })
 const newItemDuration = computed(() => {
   const dur = getItemDuration({ start: newItem.value.start, finish: newItem.value.finish })
@@ -53,7 +54,8 @@ const editItem = ref({
   id: null,
   identificator: '',
   start: '',
-  finish: ''
+  finish: '',
+  type: 'play'
 })
 
 // Вычисляем время окончания последнего цикла
@@ -124,7 +126,8 @@ const addNewItem = async () => {
         request: {
           identificator: newItem.value.identificator,
           start: newItem.value.start,
-          finish: newItem.value.finish
+          finish: newItem.value.finish,
+          type: newItem.value.type
         }
       }
     )
@@ -146,7 +149,8 @@ const resetForm = () => {
   newItem.value = {
     identificator: '',
     start: '',
-    finish: ''
+    finish: '',
+    type: 'play'
   }
   error.value = null
 }
@@ -158,7 +162,8 @@ const openEdit = (item) => {
     id: item.id,
     identificator: item.identificator,
     start: item.start,
-    finish: item.finish
+    finish: item.finish,
+    type: item.type || 'play'
   }
   showEditModal.value = true
 }
@@ -198,7 +203,8 @@ const saveEdit = async () => {
           id: editItem.value.id,
           identificator: editItem.value.identificator,
           start: editItem.value.start,
-          finish: editItem.value.finish
+          finish: editItem.value.finish,
+          type: editItem.value.type
         }
       }
     )
@@ -270,11 +276,12 @@ onUnmounted(() => {
     <div class="table-container">
       <table class="schedule-table">
         <colgroup>
-          <col style="width: 40%;">
-          <col style="width: 15%;">
-          <col style="width: 15%;">
-          <col style="width: 15%;">
-          <col style="width: 15%;">
+          <col style="width: 35%;">
+          <col style="width: 12%;">
+          <col style="width: 12%;">
+          <col style="width: 12%;">
+          <col style="width: 12%;">
+          <col style="width: 17%;">
         </colgroup>
         <thead>
           <tr>
@@ -282,6 +289,7 @@ onUnmounted(() => {
             <th class="time-cell">Начало</th>
             <th class="time-cell">Окончание</th>
             <th class="duration-cell">Длительность</th>
+            <th class="type-cell">Тип</th>
             <th class="actions-col">Действия</th>
           </tr>
         </thead>
@@ -291,6 +299,11 @@ onUnmounted(() => {
             <td class="time-cell">{{ item.start }}</td>
             <td class="time-cell">{{ item.finish }}</td>
             <td class="duration-cell"><span class="duration-badge" :class="{ 'duration-badge--active': isItemActive(item) }">{{ getItemDuration(item) }}</span></td>
+            <td class="type-cell">
+              <span class="type-badge" :class="{ 'type-play': item.type === 'play', 'type-pause': item.type === 'pause' }">
+                {{ item.type === 'pause' ? 'Пауза' : 'Игра' }}
+              </span>
+            </td>
             <td class="actions-cell">
               <button class="edit-button" @click="openEdit(item)" :disabled="isLoading || isDeleting">
                 Редактировать
@@ -358,6 +371,18 @@ onUnmounted(() => {
         <div class="form-group">
           <label>Длительность:</label>
           <div>{{ newItemDuration }}</div>
+        </div>
+
+        <div class="form-group">
+          <label for="cycle-type">Тип:</label>
+          <select 
+            id="cycle-type" 
+            v-model="newItem.type" 
+            :disabled="isLoading"
+          >
+            <option value="play">Игра (play)</option>
+            <option value="pause">Пауза (pause)</option>
+          </select>
         </div>
         
         <div class="modal-actions">
@@ -452,6 +477,18 @@ onUnmounted(() => {
             placeholder="HH:MM"
             :disabled="isLoading || isDeleting"
           >
+        </div>
+
+        <div class="form-group">
+          <label for="edit-type">Тип:</label>
+          <select 
+            id="edit-type" 
+            v-model="editItem.type" 
+            :disabled="isLoading || isDeleting"
+          >
+            <option value="play">Игра (play)</option>
+            <option value="pause">Пауза (pause)</option>
+          </select>
         </div>
 
         <div class="modal-actions">
@@ -690,6 +727,30 @@ onUnmounted(() => {
 .schedule-table .ident-cell { font-weight: 600; color: #111827; }
 .schedule-table .actions-col { text-align: right; }
 .schedule-table .actions-cell { text-align: right; }
+
+.type-cell {
+  text-align: center;
+}
+
+.type-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.type-badge.type-play {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.type-badge.type-pause {
+  background-color: #FF9800;
+  color: white;
+}
 
 .duration-badge {
   display: inline-block;

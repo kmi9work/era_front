@@ -43,6 +43,7 @@ const selectedGuild = ref(null)             // Выбранная гильдия
 const showRobberyDialog = ref(false)        // Диалог ограбления каравана
 const showMarketForm = ref(false)           // Показать форму рынка или выбор гильдии
 const guildRobberyProbabilities = ref({})   // Храним вероятности ограбления для каждой гильдии
+const viaVyatka = ref(false)                // Галочка "Караван идёт через Вятку"
 
 const fetchCountries = async () => {
   try {
@@ -175,17 +176,10 @@ const filteredResOffMark = computed(() => {
   return filtered
 })
 
-const getShortName = (name) => {
-  const shortNames = {
-    'Большая Орда': 'Орда',
-    'Ливонский орден': 'Ливония',
-    'Королевство Швеция': 'Швеция',
-    'Великое княжество Литовское': 'Литва',
-    'Казанское ханство': 'Казань',
-    'Крымское ханство': 'Крым',
-  };
-  return shortNames[name] || name.substring(0, 3);
-};
+// Получение короткого названия страны (fallback для обратной совместимости)
+const getShortName = (name, shortName) => {
+  return shortName || name
+}
 
 const filteredResToMark = computed(() => {
   if (!resources.value["to_market"]) return []
@@ -360,6 +354,7 @@ function resetForm() {
   // Сбрасываем флаг ожидания каравана
   showConfirmDialog.value = false;
   caravanPending.value = false;
+  viaVyatka.value = false;
 }
 
 const registerCaravan  = async () =>{
@@ -417,7 +412,8 @@ const registerCaravan  = async () =>{
       incoming: enrichedIncoming, 
       outcoming: enrichedOutcoming,
       purchase_cost: purchaseCost,  // Стоимость покупки
-      sale_income: saleIncome      // Выручка от продажи
+      sale_income: saleIncome,      // Выручка от продажи
+      via_vyatka: viaVyatka.value   // Караван идёт через Вятку
     }
     
     console.log('Отправка караван-запроса:', request);
@@ -425,6 +421,14 @@ const registerCaravan  = async () =>{
     const response = await axios.post(`${import.meta.env.VITE_PROXY}/caravans/register_caravan`, request)
     
     console.log('Караван зарегистрирован:', response.data);
+    
+    // Проверяем, был ли караван ограблен
+    if (response.data.robbed) {
+      showRobberyDialog.value = true
+      showConfirmDialog.value = false
+      caravanPending.value = false
+      return
+    }
     
     // Закрываем модальное окно и сбрасываем флаг
     showConfirmDialog.value = false;
@@ -439,6 +443,13 @@ const registerCaravan  = async () =>{
   } catch (error) {
     console.error('Error registering caravan:', error);
     console.error('Error details:', error.response?.data);
+    
+    // Проверяем, была ли ошибка из-за ограбления
+    if (error.response?.data?.robbed) {
+      showRobberyDialog.value = true
+      showConfirmDialog.value = false
+      caravanPending.value = false
+    }
   }
 }
 
@@ -452,15 +463,18 @@ const recalculate = () => {
 // Выбор гильдии - проверяем ограбление и показываем форму рынка
 const selectGuild = async (guildId) => {
   try {
-    // Проверяем, будет ли караван ограблен (с принятием решения)
-    const response = await axios.get(`${import.meta.env.VITE_PROXY}/caravans/check_robbery_with_decide.json`, {
-      params: { guild_id: guildId }
-    })
-    
-    // Если караван ограблен, показываем сообщение
-    if (response.data.robbed) {
-      showRobberyDialog.value = true
-      return
+    // Проверяем ограбление только если галочка "через Вятку" не включена
+    if (!viaVyatka.value) {
+      // Проверяем, будет ли караван ограблен (с принятием решения)
+      const response = await axios.get(`${import.meta.env.VITE_PROXY}/caravans/check_robbery_with_decide.json`, {
+        params: { guild_id: guildId }
+      })
+      
+      // Если караван ограблен, показываем сообщение
+      if (response.data.robbed) {
+        showRobberyDialog.value = true
+        return
+      }
     }
     
     // Иначе показываем форму
@@ -474,10 +488,11 @@ const selectGuild = async (guildId) => {
   }
 }
 
-// Возврат к выбору гильдии (после ограбления или после регистрации)
+  // Возврат к выбору гильдии (после ограбления или после регистрации)
 const backToGuildSelection = () => {
   selectedGuild.value = null
   showMarketForm.value = false
+  viaVyatka.value = false
   resetForm()
   // Перезагружаем вероятности при возврате
   loadRobberyProbabilities()
@@ -579,6 +594,24 @@ const itemsToGivePlayer = computed(() => {
           <div class="text-center mb-4">
             Выберите гильдию для каравана:
           </div>
+          
+          <!-- Галочка "Караван идёт через Вятку" -->
+          <div class="mb-4" style="display: flex; flex-direction: column; align-items: center;">
+            <VCheckbox
+              v-model="viaVyatka"
+              label="Караван идёт через Вятку"
+              color="primary"
+              hide-details
+            >
+              <template v-slot:label>
+                <span>Караван идёт через Вятку</span>
+              </template>
+            </VCheckbox>
+            <div v-if="viaVyatka" class="text-caption text-grey-darken-1 mt-2" style="text-align: center;">
+              Караван не может быть ограблен. Отправка каравана не изменяет товарооборот.
+            </div>
+          </div>
+          
           <div style="display: flex; flex-wrap: wrap; gap: 16px; justify-content: center;">
             <div
               v-for="guild in guilds"
@@ -612,24 +645,27 @@ const itemsToGivePlayer = computed(() => {
     <div v-if="showMarketForm">
 
     <!-- Кнопки стран с флагами -->
-
-<v-btn
-  v-for="country in countries"
-  :key="country.id"
-  @click="selectedCountry = country.id"
-  class="compact-combined"
-  :color="getButtonColor(country)"
-  :class="{ 'embargo-border': hasEmbargo(country) }"
->
-  <v-img
-    :src="`/images/countries/${country.name}.png`"
-    width="32"
-    height="24"
-  />
-  <span class="short-name">{{ getShortName(country.name) }}</span>
-  
-  <span v-if="hasEmbargo(country)" class="embargo-label">Эмбарго</span>
-</v-btn>
+    <div class="country-buttons-container mb-4">
+      <div class="country-buttons">
+        <v-btn
+          v-for="country in countries"
+          :key="country.id"
+          @click="selectedCountry = country.id"
+          class="compact-combined"
+          :color="getButtonColor(country)"
+          :class="{ 'embargo-border': hasEmbargo(country) }"
+        >
+          <v-img
+            :src="`/images/countries/${country.flag_image_name || country.name}.png`"
+            width="32"
+            height="24"
+          />
+          <span class="short-name">{{ country.short_name || country.name }}</span>
+          
+          <span v-if="hasEmbargo(country)" class="embargo-label">Эмбарго</span>
+        </v-btn>
+      </div>
+    </div>
  
 <div style="display: flex; flex-direction: column; gap: 24px;">
   <!-- Форма "Игрок продает" -->
@@ -1015,7 +1051,7 @@ const itemsToGivePlayer = computed(() => {
         <v-spacer></v-spacer>
         <v-btn 
           color="primary" 
-          @click="showRobberyDialog = false; backToGuildSelection()"
+          @click="showRobberyDialog = false; backToGuildSelection(); resetForm()"
           size="large"
         >
           Понятно
@@ -1139,7 +1175,7 @@ const itemsToGivePlayer = computed(() => {
 .compact-combined {
   min-width: 80px !important;
   padding: 2px 4px !important;
-  font-size: 0.7rem;
+  font-size: 1rem;
 }
 .short-name {
   margin-left: 4px;

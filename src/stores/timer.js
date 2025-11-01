@@ -228,7 +228,18 @@ export const useTimerStore = defineStore('timer', () => {
 
     timerInterval.value = setInterval(async () => {
       presentTime.value = Math.floor(Date.now() / 1000)
-      remainingTime.value = Math.max(0, activeItem.value.unix_finish - presentTime.value)
+      
+      // Обновляем activeItem при изменении времени (для переключения между элементами расписания)
+      const newActiveItem = currentScheduleItem.value
+      if (newActiveItem !== activeItem.value) {
+        activeItem.value = newActiveItem
+        // Если активный элемент изменился, обновляем оставшееся время
+        if (activeItem.value) {
+          remainingTime.value = Math.max(0, activeItem.value.unix_finish - presentTime.value)
+        }
+      } else if (activeItem.value) {
+        remainingTime.value = Math.max(0, activeItem.value.unix_finish - presentTime.value)
+      }
 
       if (remainingTime.value <= 0) {
         await stopAndNotifyBackend()
@@ -278,6 +289,7 @@ export const useTimerStore = defineStore('timer', () => {
     noScheduleInTheBase,
     noScheduleInTheBaseMessage,
     autoStartNextCycle,
+    activeItem,
     fetchSchedule: checkIfTimerRunning,
     stopTimers,
     toggleTimer,

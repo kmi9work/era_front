@@ -3,20 +3,11 @@ import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { useEndGameResultsStore } from '@/stores/end_game_results'
 
-// Состояния формы
-const formData = ref({
-  player: '',
-  capital: 0,
-  number_of_players: 1,
-  boyar_favor: 0,
-});
-
 // Состояния UI
 const isLoading = ref(false);
-const isFormVisible = ref(false);
 const errorMessage = ref(null);
 const successMessage = ref(null);
-const editingMerchant = ref(null);
+const editingGuild = ref(null);
 const endGameResultsStore = useEndGameResultsStore()
 
 const merchants = computed(() => {
@@ -26,25 +17,28 @@ const merchants = computed(() => {
 // Функция для обновления данных
 const refreshData = async () => {
   try {
-    await endGameResultsStore.fetchMerchantResults()
+    await endGameResultsStore.fetchScreenBundle()
   } catch (error) {
     errorMessage.value = 'Ошибка обновления данных'
   }
 }
 
-const editPlayer = (player) => {
-  editingMerchant.value = { ...player };
-  if (editingMerchant.value.boyar_favor == null || !Number.isFinite(Number(editingMerchant.value.boyar_favor))) {
-    editingMerchant.value.boyar_favor = 0;
+const editGuild = (guild) => {
+  editingGuild.value = { ...guild };
+  if (editingGuild.value.boyar_favor == null || !Number.isFinite(Number(editingGuild.value.boyar_favor))) {
+    editingGuild.value.boyar_favor = 0;
+  }
+  if (editingGuild.value.money == null || !Number.isFinite(Number(editingGuild.value.money))) {
+    editingGuild.value.money = 0;
   }
 };
 
 const cancelEdit = () => {
-  editingMerchant.value = null;
+  editingGuild.value = null;
 };
 
-const updatePlayer = async () => {
-  if (!editingMerchant.value) return;
+const updateGuild = async () => {
+  if (!editingGuild.value) return;
   
   isLoading.value = true;
   errorMessage.value = null;
@@ -52,11 +46,9 @@ const updatePlayer = async () => {
   
   try {
     const requestData = {
-      player_id: editingMerchant.value.player_id,
-      player: editingMerchant.value.player,
-      capital: editingMerchant.value.capital,
-      number_of_players: editingMerchant.value.number_of_players,
-      boyar_favor: Number.isFinite(Number(editingMerchant.value.boyar_favor)) ? Number(editingMerchant.value.boyar_favor) : 0,
+      guild_id: editingGuild.value.guild_id,
+      money: editingGuild.value.money || 0,
+      boyar_favor: Number.isFinite(Number(editingGuild.value.boyar_favor)) ? Number(editingGuild.value.boyar_favor) : 0,
     };
 
     await axios.patch(
@@ -64,8 +56,8 @@ const updatePlayer = async () => {
       { request: requestData }
     );
     
-    successMessage.value = 'Данные игрока обновлены!';
-    editingMerchant.value = null;
+    successMessage.value = 'Данные гильдии обновлены!';
+    editingGuild.value = null;
     await refreshData(); // Обновляем данные после успеха
   } catch (error) {
     errorMessage.value = error.response?.data?.message || 'Ошибка при обновлении данных';
@@ -74,59 +66,29 @@ const updatePlayer = async () => {
   }
 };
 
-const deleteResult = async (player) => {
-  if (!confirm(`Удалить игрока ${player.player}?`)) return;
+const clearGuildData = async (guild) => {
+  if (!confirm(`Обнулить деньги и боярскую милость для гильдии ${guild.player}?`)) return;
   
   isLoading.value = true;
   errorMessage.value = null;
   
   try {
     const requestData = {
-      player_id: player.player_id
+      guild_id: guild.guild_id
     };
 
     await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/delete_result`, { request: requestData });
     
-    successMessage.value = 'Игрок удален!';
+    successMessage.value = 'Данные гильдии обнулены!';
     await refreshData(); // Обновляем данные после удаления
   } catch (error) {
-    errorMessage.value = error.response?.data?.message || 'Ошибка при удалении игрока';
+    errorMessage.value = error.response?.data?.message || 'Ошибка при обнулении данных';
   } finally {
     isLoading.value = false;
   }
 };
 
-const addResult = async () => {
-  errorMessage.value = null;
-  successMessage.value = null;
-  isLoading.value = true;
-  
-  try {
-    const requestData = {
-      player: formData.value.player,
-      capital: formData.value.capital,
-      number_of_players: formData.value.number_of_players,
-      boyar_favor: Number.isFinite(Number(formData.value.boyar_favor)) ? Number(formData.value.boyar_favor) : 0,
-    };
-    
-    await axios.patch(
-      `${import.meta.env.VITE_PROXY}/game_parameters/save_sorted_results`, 
-      { request: requestData }
-    );
-    
-    successMessage.value = 'Данные успешно сохранены!';
-    formData.value = { player: '', capital: 0, number_of_players: 1, boyar_favor: 0 };
-    isFormVisible.value = false;
-    await refreshData(); // Обновляем данные после добавления
-    
-  } catch (error) {
-    errorMessage.value = error.response?.data?.message || 'Произошла ошибка при отправке данных';
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-// Загружаем игроков при монтировании
+// Загружаем данные при монтировании
 onMounted(() => {
   refreshData();
   endGameResultsStore.startPolling(); // Запускаем polling если нужно
@@ -150,113 +112,40 @@ const formatNumber = (val) => {
     <div class="card main-card">
       <h3 class="card-title">Результаты торговцев</h3>
       
-      <button 
-        @click="isFormVisible = !isFormVisible"
-        class="toggle-form-btn"
-        :disabled="isLoading"
-      >
-        {{ isFormVisible ? 'Скрыть форму' : 'Добавить результат' }}
-      </button>
-      
-      <!-- Форма добавления игрока -->
-      <div v-if="isFormVisible" class="card form-card">
-        <h4 class="form-title">Данные игрока</h4>
-        
-        <form @submit.prevent="addResult" class="form">
-          <div v-if="errorMessage" class="message error">
-            {{ errorMessage }}
-          </div>
-          <div v-if="successMessage" class="message success">
-            {{ successMessage }}
-          </div>
-          
-          <div class="form-group">
-            <label for="player">Имя игрока:</label>
-            <input
-              id="player"
-              v-model="formData.player"
-              type="text"
-              class="form-input"
-              required
-              :disabled="isLoading"
-            >
-          </div>
-         
-          <div class="form-group">
-            <label for="capital">Капитал:</label>
-            <input
-              id="capital"
-              v-model.number="formData.capital"
-              type="number"
-              class="form-input"
-              required
-              min="0"
-              :disabled="isLoading"
-            >
-          </div>
-          
-          <div class="form-group">
-            <label for="number_of_players">Количество игроков:</label>
-            <input
-              id="number_of_players"
-              v-model.number="formData.number_of_players"
-              type="number"
-              class="form-input"
-              required
-              min="1"
-              :disabled="isLoading"
-            >
-          </div>
-          
-          <div class="form-group">
-            <label for="boyar_favor">Боярская милость:</label>
-            <input
-              id="boyar_favor"
-              v-model.number="formData.boyar_favor"
-              type="number"
-              class="form-input"
-              min="0"
-              :disabled="isLoading"
-            >
-          </div>
-
-          <button 
-            type="submit" 
-            class="submit-btn"
-            :disabled="isLoading"
-          >
-            <span v-if="!isLoading">Сохранить</span>
-            <span v-else class="loader">Сохранение...</span>
-          </button>
-        </form>
+      <div v-if="errorMessage" class="message error">
+        {{ errorMessage }}
+      </div>
+      <div v-if="successMessage" class="message success">
+        {{ successMessage }}
       </div>
 
-      
-      <!-- Список игроков -->
+      <!-- Список гильдий -->
       <div class="players-list">
-        <h4>Список игроков</h4>
+        <h4>Список гильдий</h4>
         
         <div v-if="merchants.length === 0" class="empty-list">
-          Нет данных об игроках
+          Нет данных о гильдиях
         </div>
 
         <div v-else class="player-items">
-          <div v-for="(player, index) in merchants" :key="player.player_id || index" class="player-item">
+          <div v-for="(guild, index) in merchants" :key="guild.guild_id || index" class="player-item">
             <div class="player-info">
-              <span class="place-badge" :class="{ 'place-1': player.place === 1, 'place-2': player.place === 2, 'place-3': player.place === 3 }">
-                {{ player.place || '—' }}
+              <span class="place-badge" :class="{ 'place-1': guild.place === 1, 'place-2': guild.place === 2, 'place-3': guild.place === 3 }">
+                {{ guild.place || '—' }}
               </span>
               <div class="player-meta">
-                <div class="player-name">{{ player.player }}</div>
+                <div class="player-name">{{ guild.player }}</div>
                 <div class="player-stats">
-                  <span class="stat">Капитал: <strong>{{ formatNumber(player.capital) }}</strong></span>
-                  <span class="stat" v-if="player.cap_per_pl">Капитал на игрока: <strong>{{ formatNumber(player.cap_per_pl) }}</strong></span>
-                  <span class="stat">Игроков: <strong>{{ player.number_of_players }}</strong></span>
-                  <span class="stat">Боярская милость: <strong>{{ formatNumber(player.boyar_favor ?? 0) }}</strong></span>
+                  <span class="stat">Итоговый капитал: <strong>{{ formatNumber(guild.capital) }}</strong>💰</span>
+                  <span class="stat">Стоимость предприятий: <strong>{{ formatNumber(guild.plants_value) }}</strong>💰</span>
+                  <span class="stat">Деньги: <strong>{{ formatNumber(guild.money || 0) }}</strong>💰</span>
+                  <span class="stat" v-if="guild.cap_per_pl">Капитал на игрока: <strong>{{ formatNumber(guild.cap_per_pl) }}</strong>💰</span>
+                  <span class="stat">Игроков: <strong>{{ guild.number_of_players }}</strong>👥</span>
+                  <span class="stat">Боярская милость: <strong>{{ formatNumber(guild.boyar_favor ?? 0) }}</strong>⚜️</span>
                 </div>
               </div>
               <button 
-                @click="editPlayer(player)"
+                @click="editGuild(guild)"
                 class="edit-btn"
                 :disabled="isLoading"
               >
@@ -265,32 +154,37 @@ const formatNumber = (val) => {
             </div>
 
             <!-- Форма редактирования -->
-            <div v-if="editingMerchant && editingMerchant.player_id === player.player_id" class="edit-form">
+            <div v-if="editingGuild && editingGuild.guild_id === guild.guild_id" class="edit-form">
               <div class="form-group">
-                <label>Имя:</label>
-                <input v-model="editingMerchant.player" type="text" required>
+                <label>Гильдия:</label>
+                <input :value="guild.player" type="text" disabled class="disabled-input">
               </div>
               <div class="form-group">
-                <label>Капитал:</label>
-                <input v-model.number="editingMerchant.capital" type="number" min="0" required>
+                <label>Стоимость предприятий (вычисляется автоматически):</label>
+                <input :value="formatNumber(guild.plants_value)" type="text" disabled class="disabled-input">
               </div>
               <div class="form-group">
-                <label>Игроков:</label>
-                <input v-model.number="editingMerchant.number_of_players" type="number" min="1" required>
+                <label>Количество игроков (вычисляется автоматически):</label>
+                <input :value="guild.number_of_players" type="text" disabled class="disabled-input">
+              </div>
+              <div class="form-group">
+                <label>Деньги:</label>
+                <input v-model.number="editingGuild.money" type="number" min="0" required>
+                <small class="form-hint">Добавляются к стоимости предприятий для расчета итогового капитала</small>
               </div>
               <div class="form-group">
                 <label>Боярская милость:</label>
-                <input v-model.number="editingMerchant.boyar_favor" type="number" min="0">
+                <input v-model.number="editingGuild.boyar_favor" type="number" min="0">
               </div>
               <div class="form-actions">
-                <button @click="updatePlayer" class="save-btn" :disabled="isLoading">
+                <button @click="updateGuild" class="save-btn" :disabled="isLoading">
                   Сохранить
                 </button>
                 <button @click="cancelEdit" class="cancel-btn" :disabled="isLoading">
                   Отмена
                 </button>
-                <button @click="deleteResult(player)" class="delete-btn" :disabled="isLoading">
-                  Удалить
+                <button @click="clearGuildData(guild)" class="delete-btn" :disabled="isLoading">
+                  Обнулить
                 </button>
               </div>
             </div>
@@ -323,70 +217,6 @@ const formatNumber = (val) => {
   text-align: center;
 }
 
-.toggle-form-btn {
-  display: block;
-  width: 100%;
-  padding: 12px;
-  margin-bottom: 20px;
-  background-color: #42b983;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.toggle-form-btn:hover {
-  background-color: #3aa876;
-}
-
-.form-card {
-  margin-bottom: 25px;
-  padding: 20px;
-  background-color: #f9f9f9;
-}
-
-.form-title {
-  margin-top: 0;
-  margin-bottom: 15px;
-  color: #2c3e50;
-}
-
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.form-input {
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  font-size: 16px;
-}
-
-.submit-btn {
-  padding: 12px;
-  background-color: #2196F3;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.submit-btn:hover:not(:disabled) {
-  background-color: #0b7dda;
-}
-
 .players-list { margin-top: 25px; }
 
 .players-list h4 {
@@ -400,14 +230,6 @@ const formatNumber = (val) => {
   color: #666;
   background-color: #f5f5f5;
   border-radius: 6px;
-}
-
-.debug-box {
-  margin-top: 16px;
-  padding: 12px;
-  border: 1px dashed #aaa;
-  border-radius: 8px;
-  background: #fcfcfc;
 }
 
 .player-items {
@@ -476,32 +298,6 @@ const formatNumber = (val) => {
   border: 1px solid #a5d6a7;
 }
 
-.loader {
-  display: inline-flex;
-  align-items: center;
-}
-
-.loader::after {
-  content: "";
-  width: 16px;
-  height: 16px;
-  border: 2px solid #fff;
-  border-bottom-color: transparent;
-  border-radius: 50%;
-  display: inline-block;
-  animation: rotation 1s linear infinite;
-  margin-left: 8px;
-}
-
-@keyframes rotation {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
 .edit-btn {
   padding: 5px 10px;
   background-color: #ffc107;
@@ -543,6 +339,19 @@ const formatNumber = (val) => {
   padding: 8px;
   border: 1px solid #ddd;
   border-radius: 4px;
+}
+
+.form-group input.disabled-input {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+}
+
+.form-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
 }
 
 .form-actions {

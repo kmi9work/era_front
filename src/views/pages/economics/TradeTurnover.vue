@@ -12,6 +12,7 @@ const selectedCountry = ref(null)
 const countryThresholds = ref([])
 const loadingThresholds = ref(false)
 
+
 // Редактирование порогов
 const editDialog = ref(false)
 const editableThresholds = ref([])
@@ -110,17 +111,9 @@ const formatNumber = (num) => {
   return num?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') || '0'
 }
 
-// Получение короткого названия страны
-const getShortName = (name) => {
-  const shortNames = {
-    'Большая Орда': 'Орда',
-    'Ливонский орден': 'Ливония',
-    'Королевство Швеция': 'Швеция',
-    'Великое княжество Литовское': 'Литва',
-    'Казанское ханство': 'Казань',
-    'Крымское ханство': 'Крым',
-  }
-  return shortNames[name] || name
+// Получение короткого названия страны (fallback для обратной совместимости)
+const getShortName = (name, shortName) => {
+  return shortName || name
 }
 
 // Вычисление процента прогресса до следующего уровня
@@ -136,18 +129,21 @@ const getProgressPercent = (countryId, tradeTurnover) => {
   const currentLevel = level.current_level
   const nextThreshold = level.threshold
   
-  // Находим порог ПРЕДЫДУЩЕГО уровня (current_level - 1)
-  let previousThreshold = 0
-  if (currentLevel > 1) {
-    const previousLevelData = thresholds.find(t => t.level === (currentLevel - 1))
-    if (previousLevelData) {
-      previousThreshold = previousLevelData.threshold
+  // Находим порог ТЕКУЩЕГО уровня
+  let currentThreshold = 0
+  if (currentLevel > 0) {
+    const currentLevelData = thresholds.find(t => t.level === currentLevel)
+    if (currentLevelData) {
+      currentThreshold = currentLevelData.threshold
     }
   }
   
-  // Вычисляем прогресс между предыдущим и следующим порогом
-  const levelRange = nextThreshold - previousThreshold
-  const currentProgress = safeTurnover - previousThreshold
+  // Если достигнут максимальный уровень или следующего уровня нет
+  if (nextThreshold <= currentThreshold) return 100
+  
+  // Вычисляем прогресс от текущего уровня до следующего
+  const levelRange = nextThreshold - currentThreshold
+  const currentProgress = safeTurnover - currentThreshold
   
   if (levelRange <= 0) return 0
   
@@ -329,7 +325,6 @@ const cancelEdit = () => {
           <thead>
             <tr>
               <th class="text-left">Страна</th>
-              <th class="text-center">Флаг</th>
               <th class="text-left" style="min-width: 350px;">Прогресс до следующего уровня</th>
               <th class="text-center">Действия</th>
             </tr>
@@ -339,47 +334,57 @@ const cancelEdit = () => {
               v-for="item in tradeTurnovers" 
               :key="item.country_id"
             >
-              <!-- Название страны -->
+              <!-- Название страны с флагом -->
               <td class="text-left">
-                <span class="font-weight-bold text-h6">{{ getShortName(item.country_name) }}</span>
-              </td>
-              
-              <!-- Флаг -->
-              <td class="text-center">
-                <div style="position: relative; display: inline-block;">
-                  <!-- Иконка отношений -->
-                  <div 
-                    v-if="item.relations !== undefined"
-                    style="
-                      position: absolute;
-                      top: -5px;
-                      left: -5px;
-                      background: rgba(255, 255, 255, 0.95);
-                      padding: 3px;
-                      border-radius: 50%;
-                      border: 2px solid #1976d2;
-                      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-                      z-index: 1;
-                    "
-                  >
-                    <v-img
-                      :src="`/images/relations/${item.relations}.png`"
-                      width="24"
-                      height="24"
-                      :alt="`Отношения: ${item.relations}`"
+                <div class="d-flex align-center gap-3" style="position: relative;">
+                  <!-- Маленький флаг страны -->
+                  <div style="position: relative; display: inline-block; flex-shrink: 0;">
+                    <!-- Иконка отношений -->
+                    <div 
+                      v-if="item.relations !== undefined"
+                      style="
+                        position: absolute;
+                        top: -4px;
+                        left: -4px;
+                        background: rgba(255, 255, 255, 0.95);
+                        padding: 2px;
+                        border-radius: 50%;
+                        border: 2px solid #1976d2;
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                        z-index: 1;
+                      "
                     >
-                      <v-tooltip activator="parent" location="top">
-                        Отношения с Русью: {{ item.relations }}
-                      </v-tooltip>
-                    </v-img>
+                      <v-img
+                        :src="`/images/relations/${item.relations}.png`"
+                        width="16"
+                        height="16"
+                        :alt="`Отношения: ${item.relations}`"
+                      >
+                        <v-tooltip activator="parent" location="top">
+                          Отношения с Русью: {{ item.relations }}
+                        </v-tooltip>
+                      </v-img>
+                    </div>
+                    
+                    <v-img
+                      v-if="item.flag_image_name"
+                      :src="`/images/countries/${item.flag_image_name}.png`"
+                      width="48"
+                      height="36"
+                      contain
+                      style="border-radius: 4px;"
+                    />
+                    <div 
+                      v-else
+                      style="width: 48px; height: 36px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(120, 120, 140, 0.5), rgba(80, 80, 100, 0.5)); border: 1px solid #ddd; border-radius: 4px; color: rgba(255, 255, 255, 1); font-weight: bold; font-size: 1.2rem;"
+                      :title="item.country_name"
+                    >
+                      {{ (item.short_name || item.country_name)?.charAt(0)?.toUpperCase() || '?' }}
+                    </div>
                   </div>
                   
-                  <v-img
-                    :src="`/images/countries/${item.country_name}.png`"
-                    width="80"
-                    height="60"
-                    style="border: 1px solid #ddd; border-radius: 4px;"
-                  />
+                  <!-- Название страны -->
+                  <span class="font-weight-bold text-h6">{{ item.short_name || item.country_name }}</span>
                 </div>
               </td>
               
@@ -452,7 +457,7 @@ const cancelEdit = () => {
     >
       <v-card>
         <v-card-title class="d-flex justify-space-between align-center">
-          <span>Уровни торговли: {{ selectedCountry ? getShortName(selectedCountry.country_name) : '' }}</span>
+          <span>Уровни торговли: {{ selectedCountry ? (selectedCountry.short_name || selectedCountry.country_name) : '' }}</span>
           <v-btn
             icon="mdi-close"
             variant="text"
@@ -544,7 +549,7 @@ const cancelEdit = () => {
     >
       <v-card>
         <v-card-title class="d-flex justify-space-between align-center">
-          <span>Редактирование порогов: {{ selectedCountry ? getShortName(selectedCountry.country_name) : '' }}</span>
+          <span>Редактирование порогов: {{ selectedCountry ? (selectedCountry.short_name || selectedCountry.country_name) : '' }}</span>
           <v-btn
             icon="mdi-close"
             variant="text"
