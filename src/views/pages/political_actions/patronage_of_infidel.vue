@@ -23,10 +23,9 @@
       })
   })
 
-  async function runAction(noble_job_id, action_id, success){
+  async function runAction(noble_job_id, action_id){
     await axios.post(`${import.meta.env.VITE_PROXY}/political_actions.json`, {
         political_action_type_id: action_id,
-        success: success,
         job_id: noble_job_id,
         params: {technology_id: chosen_tech.value}
       })
@@ -37,44 +36,30 @@
 <template>
   <v-list>
     <v-list-subheader>Описание</v-list-subheader>
-    <v-list-item>{{action.description}}</v-list-item>
 
     <v-list-item
-      subtitle="Успех"
-    >{{action.success}}</v-list-item>
-
-    <v-list-item
-      subtitle="Неудача"
-    >{{action.failure}}</v-list-item>
+      subtitle="Эффект"
+    >Открывает выбранную технологию. Общественный порядок во всех регионах Руси снижается на 1.</v-list-item>
 
     <v-list-item
       subtitle="Стоимость"
     >{{action.cost}}</v-list-item>
-
-    <v-list-item
-      subtitle="Вероятность"
-    >{{action.probability}}</v-list-item>
 
     <v-divider></v-divider>
 
     <v-list-subheader>Параметры</v-list-subheader>
 
     <v-list-item>
-      <template v-slot:prepend>
-        <v-list-item-action start>
-          <v-select
-            label="Игрок"
-            :items="technologies"
-            v-model="chosen_tech"
-            item-title="name"
-            item-value="id"
-          ></v-select>
-        </v-list-item-action>
-      </template>
+      <v-select
+        label="Выберите технологию"
+        :items="technologies"
+        v-model="chosen_tech"
+        item-title="name"
+        item-value="id"
+      ></v-select>
     </v-list-item>
   </v-list>
   <v-card-text>
-    <v-btn text="Успех" variant="text" @click="runAction(noble_job.id, action.id, true)"></v-btn>
-    <v-btn text="Неудача" variant="text" @click="runAction(noble_job.id, action.id, false)"></v-btn>
+    <v-btn text="Выполнить" variant="tonal" color="primary" @click="runAction(noble_job.id, action.id)"></v-btn>
   </v-card-text>
 </template>
