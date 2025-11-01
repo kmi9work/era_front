@@ -13,15 +13,15 @@
 
   const emit = defineEmits(['close-dialog']);
 
-  const countries = ref([]);
-  const country_id = ref(0);
+  const regions = ref([]);
+  const region_id = ref(0);
   
   onBeforeMount(async () => {
-    await axios.get(`${import.meta.env.VITE_PROXY}/countries.json?russian=1`) 
+    await axios.get(`${import.meta.env.VITE_PROXY}/regions.json`) 
       .then(response => {
-        countries.value = response.data;
-        if (countries.value.length > 0) {
-          country_id.value = countries.value[0].id;
+        regions.value = response.data;
+        if (regions.value.length > 0) {
+          region_id.value = regions.value[0].id;
         }
       })
   })
@@ -30,7 +30,7 @@
     await axios.post(`${import.meta.env.VITE_PROXY}/political_actions.json`, {
         political_action_type_id: action_id,
         job_id: noble_job_id,
-        params: {country_id: country_id.value}
+        params: {region_id: region_id.value}
       })
     emit('close-dialog')
   }
@@ -42,7 +42,7 @@
 
     <v-list-item
       subtitle="Эффект"
-    >Отношения с выбранным русским княжеством улучшаются на 1 пункт.</v-list-item>
+    >Тайный советник убирает со стратегической карты одну из армий мятежников по своему выбору или повышает общественный порядок в регионе на 5, если он ниже 0.</v-list-item>
 
     <v-list-item
       subtitle="Стоимость"
@@ -54,9 +54,9 @@
 
     <v-list-item>
       <v-select
-        label="Выберите княжество"
-        :items="countries"
-        v-model="country_id"
+        label="Выберите регион"
+        :items="regions"
+        v-model="region_id"
         item-title="name"
         item-value="id"
       ></v-select>
@@ -66,3 +66,4 @@
     <v-btn text="Выполнить" variant="tonal" color="primary" @click="runAction(noble_job.id, action.id)"></v-btn>
   </v-card-text>
 </template>
+

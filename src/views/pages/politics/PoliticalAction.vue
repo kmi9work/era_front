@@ -25,8 +25,24 @@
   import dev_the_economy from '@/views/pages/political_actions/dev_the_economy.vue'
   import confused_mine from '@/views/pages/political_actions/confused_mine.vue'
   import patronage_of_infidel from '@/views/pages/political_actions/patronage_of_infidel.vue'
+  
+  // Новые политические действия из плагина vassals-and-robbers
+  import support_export from '@/views/pages/political_actions/support_export.vue'
+  import make_a_trip from '@/views/pages/political_actions/make_a_trip.vue'
+  import transfere_army from '@/views/pages/political_actions/transfere_army.vue'
+  import build_fort from '@/views/pages/political_actions/build_fort.vue'
+  import invest from '@/views/pages/political_actions/invest.vue'
+  import lease_cattle from '@/views/pages/political_actions/lease_cattle.vue'
+  import boost_innovation from '@/views/pages/political_actions/boost_innovation.vue'
+  import make_alliance from '@/views/pages/political_actions/make_alliance.vue'
+  import bring_gifts_to_foreign_countries from '@/views/pages/political_actions/bring_gifts_to_foreign_countries.vue'
+  import bring_gifts_to_russian_countries from '@/views/pages/political_actions/bring_gifts_to_russian_countries.vue'
+  import protect_caravan from '@/views/pages/political_actions/protect_caravan.vue'
+  import spy_away_mutiny from '@/views/pages/political_actions/spy_away_mutiny.vue'
+  import infiltrate_army from '@/views/pages/political_actions/infiltrate_army.vue'
 
   const compMap = new Map();
+  // Старые действия ядра игры
   compMap.set("ceremonial", ceremonial);
   compMap.set("defective_coin", defective_coin);
   compMap.set("call_a_meeting", call_a_meeting);
@@ -51,6 +67,21 @@
   compMap.set("dev_the_economy", dev_the_economy);
   compMap.set("confused_mine", confused_mine);
   compMap.set("patronage_of_infidel", patronage_of_infidel);
+  
+  // Новые действия плагина vassals-and-robbers
+  compMap.set("support_export", support_export);
+  compMap.set("make_a_trip", make_a_trip);
+  compMap.set("transfere_army", transfere_army);
+  compMap.set("build_fort", build_fort);
+  compMap.set("invest", invest);
+  compMap.set("lease_cattle", lease_cattle);
+  compMap.set("boost_innovation", boost_innovation);
+  compMap.set("make_alliance", make_alliance);
+  compMap.set("bring_gifts_to_foreign_countries", bring_gifts_to_foreign_countries);
+  compMap.set("bring_gifts_to_russian_countries", bring_gifts_to_russian_countries);
+  compMap.set("protect_caravan", protect_caravan);
+  compMap.set("spy_away_mutiny", spy_away_mutiny);
+  compMap.set("infiltrate_army", infiltrate_army);
 
   const props = defineProps({
     noble_job: {

@@ -42,7 +42,7 @@
 
     <v-list-item
       subtitle="Эффект"
-    >Отношения с выбранным русским княжеством улучшаются на 1 пункт.</v-list-item>
+    >Отношения с русским княжеством улучшаются на 1 пункт.</v-list-item>
 
     <v-list-item
       subtitle="Стоимость"
@@ -66,3 +66,4 @@
     <v-btn text="Выполнить" variant="tonal" color="primary" @click="runAction(noble_job.id, action.id)"></v-btn>
   </v-card-text>
 </template>
+

@@ -25,10 +25,9 @@
       })
   })
 
-  async function runAction(noble_job_id, action_id, success){
+  async function runAction(noble_job_id, action_id){
     await axios.post(`${import.meta.env.VITE_PROXY}/political_actions.json`, {
         political_action_type_id: action_id,
-        success: success,
         job_id: noble_job_id,
         params: {country_ids: [country1.value, country2.value]}
       })
@@ -41,55 +40,38 @@
     <v-list-subheader>Описание</v-list-subheader>
 
     <v-list-item
-      subtitle="Успех"
-    >{{action.success}}</v-list-item>
-
-    <v-list-item
-      subtitle="Неудача"
-    >{{action.failure}}</v-list-item>
+      subtitle="Эффект"
+    >Отношения с выбранными странами улучшаются на 1 пункт.</v-list-item>
 
     <v-list-item
       subtitle="Стоимость"
     >{{action.cost}}</v-list-item>
-
-    <v-list-item
-      subtitle="Вероятность"
-    >{{action.probability}}</v-list-item>
 
     <v-divider></v-divider>
 
     <v-list-subheader>Параметры</v-list-subheader>
 
     <v-list-item>
-      <template v-slot:prepend>
-        <v-list-item-action start>
-          <v-select
-            label="Страна 1"
-            :items="countries"
-            v-model="country1"
-            item-title="name"
-            item-value="id"
-          ></v-select>
-        </v-list-item-action>
-      </template>
+      <v-select
+        label="Страна 1"
+        :items="countries"
+        v-model="country1"
+        item-title="name"
+        item-value="id"
+      ></v-select>
     </v-list-item>
 
     <v-list-item>
-      <template v-slot:prepend>
-        <v-list-item-action start>
-          <v-select
-            label="Страна 2"
-            :items="countries"
-            v-model="country2"
-            item-title="name"
-            item-value="id"
-          ></v-select>
-        </v-list-item-action>
-      </template>
+      <v-select
+        label="Страна 2"
+        :items="countries"
+        v-model="country2"
+        item-title="name"
+        item-value="id"
+      ></v-select>
     </v-list-item>
   </v-list>
   <v-card-text>
-    <v-btn text="Успех" variant="text" @click="runAction(noble_job.id, action.id, true)"></v-btn>
-    <v-btn text="Неудача" variant="text" @click="runAction(noble_job.id, action.id, false)"></v-btn>
+    <v-btn text="Выполнить" variant="tonal" color="primary" @click="runAction(noble_job.id, action.id)"></v-btn>
   </v-card-text>
 </template>
