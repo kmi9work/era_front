@@ -43,7 +43,11 @@ async function loadDashboards(){
     })
   axios.get(`${import.meta.env.VITE_PROXY}/countries.json?foreign=1`) 
       .then(response => {
-        countries.value = response.data;
+        // Принудительно создаем новый массив для реактивности Vue
+        countries.value = response.data.map(country => ({
+          ...country,
+          alliances: country.alliances ? [...country.alliances] : []
+        }));
       })
   axios.get(`${import.meta.env.VITE_PROXY}/technologies.json`) 
       .then(response => {

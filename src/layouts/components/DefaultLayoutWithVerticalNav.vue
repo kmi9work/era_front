@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, onBeforeMount } from 'vue'
+  import { ref, onBeforeMount, computed } from 'vue'
   import axios from 'axios'
   import NavItems from '@/layouts/components/NavItems.vue'
   import logo from '@images/logo.svg?raw'
@@ -11,6 +11,13 @@
   import UserProfile from '@/layouts/components/UserProfile.vue'
   import Notifications from '@/layouts/components/Notifications.vue'
   import { setNotificationsRef, setupNotificationInterceptor } from '@/composables/useNotifications'
+  import { useGameConfig } from '@/config/game'
+
+  // Конфигурация игры
+  const { isGameActive, activeGame } = useGameConfig()
+  
+  // Проверяем, активна ли игра vassals-and-robbers
+  const isVassalsAndRobbers = computed(() => isGameActive('vassals-and-robbers'))
 
   const se_paid = ref(false);
   const game_parameters = ref([]);
@@ -87,9 +94,10 @@
           <VIcon icon="ri-menu-line" />
         </IconBtn>
 
-          <div>
-
-  </div>
+        <!-- Название игры если активен плагин vassals-and-robbers -->
+        <div v-if="isVassalsAndRobbers" class="game-title">
+          <span class="text-body-1 font-weight-bold text-primary">Эпоха перемен: вассалы и разбойники</span>
+        </div>
 
         <VSpacer />
 
@@ -168,6 +176,17 @@
   line-height: 1.3125rem;
   padding-block: 0.125rem;
   padding-inline: 0.25rem;
+}
+
+.game-title {
+  margin-left: 12px;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  
+  span {
+    white-space: nowrap;
+  }
 }
 
 .app-logo {

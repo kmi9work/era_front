@@ -253,7 +253,10 @@
         alliance_type_id: selectedAllianceType.value.id
       })
       await loadAlliances(selectedCountryForAlliances.value.id)
+      // Перезагружаем дашборд для обновления списка стран с союзами
       emit('reload-dashboard')
+      // Небольшая задержка для гарантии обновления данных
+      await new Promise(resolve => setTimeout(resolve, 100))
       selectedAllianceType.value = null
     } catch (error) {
       const errorMsg = error.response?.data?.error || error.message
@@ -267,7 +270,10 @@
     try {
       await axios.delete(`${import.meta.env.VITE_PROXY}/alliances/${allianceId}.json`)
       await loadAlliances(selectedCountryForAlliances.value.id)
+      // Перезагружаем дашборд для обновления списка стран с союзами
       emit('reload-dashboard')
+      // Небольшая задержка для гарантии обновления данных
+      await new Promise(resolve => setTimeout(resolve, 100))
     } catch (error) {
       const errorMsg = error.response?.data?.error || error.message
       alert(`Ошибка: ${errorMsg}`)
@@ -358,11 +364,12 @@
                 :model-value="(country.alliances || []).length > 0"
               >
                 <IconBtn 
-                  icon="ri-group-line" 
                   color="primary"
                   @click="openAlliancesDialog(country)" 
                   title="Управление союзами"
-                ></IconBtn>
+                >
+                  <VIcon icon="ri-group-line" />
+                </IconBtn>
               </VBadge>
               <IconBtn 
                   icon="ri-store-line" 
