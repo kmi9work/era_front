@@ -1,5 +1,6 @@
 <script setup>
   import axios from 'axios'
+  import { ref, computed, watch, onBeforeMount } from 'vue'
   import ArmyDialog from './ArmyDialog.vue' // Добавьте этот импорт
 
   const getResourceImageUrl = (identificator) => {
@@ -129,6 +130,34 @@
     return props.army?.params?.additional?.leased_to || '';
   });
   const enemy = ref(null);
+  
+  // Активные эффекты для проверки блокировки движения армии
+  const activeEffects = ref([]);
+  
+  // Проверка, является ли владелец армии Великим князем
+  const isGrandPrince = computed(() => {
+    if (!props.army?.owner?.jobs) return false;
+    return props.army.owner.jobs.some((job) => job.name === 'Великий князь');
+  });
+  
+  // Проверка эффекта NO_ARMY_MOVEMENT для Великого князя
+  const hasNoArmyMovementEffect = computed(() => {
+    if (!isGrandPrince.value) return false;
+    return activeEffects.value.some((effect) => 
+      effect.effect === 'no_army_movement'
+    );
+  });
+  
+  // Загрузка активных эффектов
+  async function loadActiveEffects() {
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/get_active_lingering_effects.json`);
+      activeEffects.value = response.data.effects || [];
+    } catch (error) {
+      console.error('Ошибка при загрузке активных эффектов:', error);
+      activeEffects.value = [];
+    }
+  }
 
   const tt_counts = ref([]);
 
@@ -279,8 +308,14 @@
       initializeCounts();
     }
   }, { deep: true });
+  
+  // Следим за изменениями армии для обновления эффектов
+  watch(() => props.army, async () => {
+    await loadActiveEffects();
+  }, { deep: true });
 
   onBeforeMount(async () => {
+    await loadActiveEffects();
   })
 
   const maxBuyCostLength = computed(() => 
@@ -326,6 +361,10 @@
         goto_dialog.value = false;
         emit('update-armies');
       })
+      .catch((error) => {
+        const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Не удалось переместить армию';
+        alert(errorMessage);
+      });
   };
 
   async function armyAttack(army_id, enemy_id) {
@@ -588,6 +627,19 @@
         density="compact"
       >
         <strong>Армия передана стране:</strong> {{ leasedTo }}
+      </VAlert>
+    </VCardText>
+    
+    <!-- Показываем предупреждение о блокировке движения для Великого князя -->
+    <VCardText v-if="hasNoArmyMovementEffect">
+      <VAlert 
+        type="error" 
+        variant="tonal"
+        density="compact"
+        prepend-icon="ri-error-warning-line"
+      >
+        <strong>⚠️ Армию нельзя перемещать</strong><br>
+        Великий князь не может командовать армией (эффект "Личный визит")
       </VAlert>
     </VCardText>
 

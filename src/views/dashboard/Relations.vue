@@ -1,6 +1,6 @@
 <script setup>
   import axios from 'axios'
-  import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+  import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
   import AlliancesDialog from '@/components/AlliancesDialog.vue'
 
   const props = defineProps({
@@ -31,12 +31,51 @@
   const showAlliancesDialog = ref(false)
   const selectedCountryForAlliances = ref(null)
   
+  // Активные эффекты для проверки блокировки улучшения отношений
+  const activeEffects = ref([])
+  const hasNoRelationImprovement = computed(() => {
+    return activeEffects.value.some((effect) => 
+      effect.effect === 'no_relation_improvement'
+    )
+  })
+  
+  // Загрузка активных эффектов
+  async function loadActiveEffects() {
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/get_active_lingering_effects.json`)
+      activeEffects.value = response.data.effects || []
+    } catch (error) {
+      console.error('Ошибка при загрузке активных эффектов:', error)
+      activeEffects.value = []
+    }
+  }
+  
   async function addItem(country_id){
     let new_value = prompt("Новое значение");
+    if (new_value === null) return; // Пользователь отменил
+    
     let comment = prompt("Комментарий");
-    axios.patch(`${import.meta.env.VITE_PROXY}/countries/${country_id}/add_relation_item.json`, {value: new_value, comment: comment}) 
+    if (comment === null) return; // Пользователь отменил
+    
+    const value = parseInt(new_value)
+    
+    // Предупреждение при попытке улучшить отношения, если эффект активен
+    if (value > 0 && hasNoRelationImprovement.value) {
+      if (!confirm('⚠️ Внимание: Действует эффект "Поддержать экспорт". Отношения не будут улучшены автоматически, но изменение будет применено вручную. Продолжить?')) {
+        return
+      }
+    }
+    
+    axios.patch(`${import.meta.env.VITE_PROXY}/countries/${country_id}/add_relation_item.json`, {value: value, comment: comment}) 
       .then(response => {
-        emit('reload-dashboard');
+        if (response.data.warning) {
+          alert(response.data.warning)
+        }
+        emit('reload-dashboard')
+      })
+      .catch(error => {
+        console.error('Ошибка при добавлении правки отношений:', error)
+        alert('Не удалось изменить отношения')
       })
   }
 
@@ -51,9 +90,23 @@
   }
 
   async function relationsChange(country_id, value){
-    axios.patch(`${import.meta.env.VITE_PROXY}/countries/${country_id}/add_relation_item.json?value=${value}`) 
+    // Предупреждение при попытке улучшить отношения, если эффект активен
+    if (value > 0 && hasNoRelationImprovement.value) {
+      if (!confirm('⚠️ Внимание: Действует эффект "Поддержать экспорт". Отношения не будут улучшены автоматически, но изменение будет применено вручную. Продолжить?')) {
+        return
+      }
+    }
+    
+    axios.patch(`${import.meta.env.VITE_PROXY}/countries/${country_id}/add_relation_item.json`, {value: value, comment: 'Ручная правка'}) 
       .then(response => {
+        if (response.data.warning) {
+          alert(response.data.warning)
+        }
         emit('reload-dashboard');
+      })
+      .catch(error => {
+        console.error('Ошибка при изменении отношений:', error)
+        alert('Не удалось изменить отношения')
       })
   }
 
@@ -100,6 +153,13 @@
       return
     }
     
+    // Предупреждение при попытке улучшить отношения, если эффект активен
+    if (hasNoRelationImprovement.value) {
+      if (!confirm('⚠️ Внимание: Действует эффект "Поддержать экспорт". Отношения не будут улучшены автоматически, но изменение будет применено вручную. Продолжить?')) {
+        return
+      }
+    }
+    
     isImproving.value = true
     
     // СРАЗУ обновляем UI (оптимистичное обновление)
@@ -117,25 +177,46 @@
     
     // Отправляем запрос на сервер в фоне
     try {
-      await axios.patch(
+      const response = await axios.patch(
         `${import.meta.env.VITE_PROXY}/countries/${selectedCountryForImprove.value.id}/improve_relations_via_trade.json`
       );
+      
+      // Если есть предупреждение, показываем его
+      if (response.data.warning) {
+        alert(response.data.warning)
+      }
       
       // Обновляем dashboard для синхронизации с сервером
       emit('reload-dashboard');
       
     } catch (error) {
-      const errorMsg = error.response?.data?.error || error.message;
-      alert(`❌ Ошибка: ${errorMsg}`);
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message;
       
-      // В случае ошибки откатываем изменения
-      selectedCountryForImprove.value = {
-        ...selectedCountryForImprove.value,
-        relations: selectedCountryForImprove.value.relations - 1,
-        relation_points: selectedCountryForImprove.value.relation_points + 1
+      // Если это предупреждение, а не ошибка - просто показываем предупреждение
+      if (errorMsg.includes('Поддержать экспорт') || errorMsg.includes('не были улучшены')) {
+        alert(`⚠️ ${errorMsg}`)
+        // Откатываем оптимистичное обновление
+        selectedCountryForImprove.value = {
+          ...selectedCountryForImprove.value,
+          relations: selectedCountryForImprove.value.relations - 1,
+          relation_points: selectedCountryForImprove.value.relation_points + 1
+        }
+        await nextTick()
+        updateCounter.value++
+        // Но обновляем dashboard для синхронизации с сервером
+        emit('reload-dashboard')
+      } else {
+        alert(`❌ Ошибка: ${errorMsg}`);
+        
+        // В случае ошибки откатываем изменения
+        selectedCountryForImprove.value = {
+          ...selectedCountryForImprove.value,
+          relations: selectedCountryForImprove.value.relations - 1,
+          relation_points: selectedCountryForImprove.value.relation_points + 1
+        }
+        await nextTick()
+        updateCounter.value++
       }
-      await nextTick()
-      updateCounter.value++
     } finally {
       isImproving.value = false
     }
@@ -187,9 +268,11 @@
   )
 
   // Lifecycle hooks
-  onMounted(() => {
+  onMounted(async () => {
     // Инициализируем начальные значения
     initializePreviousPoints()
+    // Загружаем активные эффекты
+    await loadActiveEffects()
   })
 
   onBeforeUnmount(() => {
@@ -217,6 +300,20 @@
     <VCardItem>
       <VCardTitle>Отношения</VCardTitle>
     </VCardItem>
+
+    <!-- Уведомление о блокировке улучшения отношений -->
+    <VCardText v-if="hasNoRelationImprovement">
+      <VAlert 
+        type="warning" 
+        variant="tonal"
+        density="compact"
+        prepend-icon="ri-error-warning-line"
+      >
+        <strong>⚠️ Действует эффект "Поддержать экспорт"</strong><br>
+        В текущем году нельзя улучшить отношения со странами-импортерами автоматически. 
+        Мастер может изменять отношения вручную, но при улучшении будет показано предупреждение.
+      </VAlert>
+    </VCardText>
 
     <VCardText>
       <v-table density="compact">
