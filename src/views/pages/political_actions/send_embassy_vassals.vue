@@ -14,14 +14,15 @@
   const emit = defineEmits(['close-dialog']);
 
   const countries = ref([]);
-  const country1 = ref(0);
-  const country2 = ref(0);
+  const country_id = ref(0);
+  
   onBeforeMount(async () => {
-    await axios.get(`${import.meta.env.VITE_PROXY}/countries.json?foreign=1`) 
+    await axios.get(`${import.meta.env.VITE_PROXY}/countries.json?vyanka_free=1`) 
       .then(response => {
         countries.value = response.data;
-        country1.value = countries.value[0].id;
-        country2.value = countries.value[0].id;
+        if (countries.value.length > 0) {
+          country_id.value = countries.value[0].id;
+        }
       })
   })
 
@@ -29,7 +30,7 @@
     await axios.post(`${import.meta.env.VITE_PROXY}/political_actions.json`, {
         political_action_type_id: action_id,
         job_id: noble_job_id,
-        params: {country_ids: [country1.value, country2.value]}
+        params: {country_id: country_id.value}
       })
     emit('close-dialog')
   }
@@ -41,7 +42,7 @@
 
     <v-list-item
       subtitle="Эффект"
-    >Отношения с выбранными странами улучшаются на 1 пункт.</v-list-item>
+    >Отношения с выбранной страной улучшаются на 1 пункт.</v-list-item>
 
     <v-list-item
       subtitle="Стоимость"
@@ -53,19 +54,9 @@
 
     <v-list-item>
       <v-select
-        label="Страна 1"
+        label="Выберите страну"
         :items="countries"
-        v-model="country1"
-        item-title="name"
-        item-value="id"
-      ></v-select>
-    </v-list-item>
-
-    <v-list-item>
-      <v-select
-        label="Страна 2"
-        :items="countries"
-        v-model="country2"
+        v-model="country_id"
         item-title="name"
         item-value="id"
       ></v-select>

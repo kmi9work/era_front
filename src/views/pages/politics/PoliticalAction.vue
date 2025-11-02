@@ -4,7 +4,7 @@
   import ceremonial from '@/views/pages/political_actions/ceremonial.vue'
   import defective_coin from '@/views/pages/political_actions/defective_coin.vue'
   import call_a_meeting from '@/views/pages/political_actions/call_a_meeting.vue'
-  import send_embassy from '@/views/pages/political_actions/send_embassy.vue'
+  import send_embassy_vassals from '@/views/pages/political_actions/send_embassy_vassals.vue'
   import take_bribe from '@/views/pages/political_actions/take_bribe.vue'
   import equip_caravan from '@/views/pages/political_actions/equip_caravan.vue'
   import conduct_audit from '@/views/pages/political_actions/conduct_audit.vue'
@@ -12,13 +12,13 @@
   import disperse_bribery from '@/views/pages/political_actions/disperse_bribery.vue'
   import implement_sabotage from '@/views/pages/political_actions/implement_sabotage.vue'
   import name_of_grand_prince from '@/views/pages/political_actions/name_of_grand_prince.vue'
-  import recruiting from '@/views/pages/political_actions/recruiting.vue'
+  import recruiting_vassals from '@/views/pages/political_actions/recruiting_vassals.vue'
   import drain_the_swamps from '@/views/pages/political_actions/drain_the_swamps.vue'
   import contract_to_cousin from '@/views/pages/political_actions/contract_to_cousin.vue'
   import improving_the_city from '@/views/pages/political_actions/improving_the_city.vue'
-  import sermon from '@/views/pages/political_actions/sermon.vue'
+  import sermon_vassals from '@/views/pages/political_actions/sermon_vassals.vue'
   import root_out_heresies from '@/views/pages/political_actions/root_out_heresies.vue'
-  import call_for_unity from '@/views/pages/political_actions/call_for_unity.vue'
+  import call_for_unity_vassals from '@/views/pages/political_actions/call_for_unity_vassals.vue'
   import counterintelligence from '@/views/pages/political_actions/counterintelligence.vue'
   import fabricate_a_denunciation from '@/views/pages/political_actions/fabricate_a_denunciation.vue'
   import favoritism from '@/views/pages/political_actions/favoritism.vue'
@@ -46,7 +46,7 @@
   compMap.set("ceremonial", ceremonial);
   compMap.set("defective_coin", defective_coin);
   compMap.set("call_a_meeting", call_a_meeting);
-  compMap.set("send_embassy", send_embassy);
+  compMap.set("send_embassy_vassals", send_embassy_vassals);
   compMap.set("take_bribe", take_bribe);
   compMap.set("equip_caravan", equip_caravan);
   compMap.set("conduct_audit", conduct_audit);
@@ -54,13 +54,13 @@
   compMap.set("disperse_bribery", disperse_bribery);
   compMap.set("implement_sabotage", implement_sabotage);
   compMap.set("name_of_grand_prince", name_of_grand_prince);
-  compMap.set("recruiting", recruiting);
+  compMap.set("recruiting_vassals", recruiting_vassals);
   compMap.set("drain_the_swamps", drain_the_swamps);
   compMap.set("contract_to_cousin", contract_to_cousin);
   compMap.set("improving_the_city", improving_the_city);
-  compMap.set("sermon", sermon);
+  compMap.set("sermon_vassals", sermon_vassals);
   compMap.set("root_out_heresies", root_out_heresies);
-  compMap.set("call_for_unity", call_for_unity);
+  compMap.set("call_for_unity_vassals", call_for_unity_vassals);
   compMap.set("counterintelligence", counterintelligence);
   compMap.set("fabricate_a_denunciation", fabricate_a_denunciation);
   compMap.set("favoritism", favoritism);
@@ -93,11 +93,19 @@
   const emit = defineEmits(['reload-actions']);
 
   const pat_settings = ref([]);
+  const dialogStates = ref({});
 
   function closeDialog(i){
     pat_settings.value[i] = false; 
     emit('reload-actions');
   }
+  
+  // Отслеживаем состояние каждого диалога
+  watch(pat_settings, (newVal, oldVal) => {
+    newVal.forEach((isOpen, index) => {
+      dialogStates.value[index] = isOpen;
+    });
+  }, { deep: true });
 
 </script>
 
@@ -134,6 +142,7 @@
         @close-dialog="closeDialog(i)"
         :action="action"
         :noble_job="noble_job"
+        :dialog-open="pat_settings[i]"
       />
 
     </v-card>

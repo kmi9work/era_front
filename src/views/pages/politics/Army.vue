@@ -119,6 +119,15 @@
 
   const goto_dialog = ref(false);
   const settle = ref(null);
+  
+  // Проверка: передана ли армия другой стране
+  const isLeased = computed(() => {
+    return props.army?.params?.additional?.active === true;
+  });
+  
+  const leasedTo = computed(() => {
+    return props.army?.params?.additional?.leased_to || '';
+  });
   const enemy = ref(null);
 
   const tt_counts = ref([]);
@@ -361,6 +370,22 @@
         });
     }
   };
+  
+  // Вернуть армию из аренды
+  async function unleaseArmy(army_id) {
+    if (confirm(`Вернуть армию из аренды (${leasedTo.value})?`)) {
+      try {
+        await axios.patch(`${import.meta.env.VITE_PROXY}/armies/${army_id}/unlease.json`)
+          .then(async (response) => {
+            alert('Армия возвращена!');
+            emit('update-armies');
+          })
+      } catch (error) {
+        console.error('Ошибка при возврате армии:', error);
+        alert('Не удалось вернуть армию');
+      }
+    }
+  };
 
   // Обработчик сохранения изменений
   const handleSubmit = async (armyData) => {
@@ -436,12 +461,13 @@
                 icon="ri-delete-bin-line"
                 color="error"
                 @click="removeTroop(troop.id)"
+                v-if="!isLeased"
               />
             </td>
           </tr>
         </tbody>
       </v-table>
-      <div class="text-center pa-4">
+      <div class="text-center pa-4" v-if="!isLeased">
         <IconBtn
             icon="ri-add-circle-line"
             class="me-1"
@@ -532,7 +558,7 @@
     <VCardText>
       Город: {{army.settlement?.name}}
     </VCardText>
-    <VCardText>
+    <VCardText v-if="!isLeased">
       Разведана: 
       <template v-if="army.hidden">
         <VBtn 
@@ -553,89 +579,115 @@
         </VBtn>
       </template>
     </VCardText>
+    
+    <!-- Показываем информацию о передаче армии -->
+    <VCardText v-if="isLeased">
+      <VAlert 
+        type="warning" 
+        variant="tonal"
+        density="compact"
+      >
+        <strong>Армия передана стране:</strong> {{ leasedTo }}
+      </VAlert>
+    </VCardText>
 
     <VCardActions>
-      <VBtn @click="attack_dialog = true">Атаковать</VBtn>
-      <VDialog
-        v-model="attack_dialog"
-        width="auto"
-      >
-        <VCard
-          width="400"
-          title="Кого?"
+      <!-- Если армия передана - показываем только кнопку возврата -->
+      <template v-if="isLeased">
+        <VBtn 
+          color="success"
+          prepend-icon="ri-arrow-go-back-line"
+          @click="unleaseArmy(army.id)"
+          block
         >
-          <VCardText>
-            <v-autocomplete
-              v-model="enemy"
-              :items="armies"
-              label="Армия"
-              :item-title="item => `${item.name}(${item.settlement?.name})`"
-              item-value="id"
-              clearable
-              persistent-hint
-            ></v-autocomplete>
-          </VCardText>
-          <template v-slot:actions>
-            <VBtn
-              class="ms-auto"
-              text="Атаковать"
-              @click="armyAttack(army.id, enemy)"
-            ></VBtn>
-            <VBtn
-              class="ms-auto"
-              text="Отмена"
-              @click="attack_dialog = false"
-            ></VBtn>
-          </template>
-        </VCard>
-      </VDialog>
+          Вернуть армию
+        </VBtn>
+      </template>
+      
+      <!-- Если армия НЕ передана - показываем все обычные действия -->
+      <template v-else>
+        <VBtn @click="attack_dialog = true">Атаковать</VBtn>
+        <VDialog
+          v-model="attack_dialog"
+          width="auto"
+        >
+          <VCard
+            width="400"
+            title="Кого?"
+          >
+            <VCardText>
+              <v-autocomplete
+                v-model="enemy"
+                :items="armies"
+                label="Армия"
+                :item-title="item => `${item.name}(${item.settlement?.name})`"
+                item-value="id"
+                clearable
+                persistent-hint
+              ></v-autocomplete>
+            </VCardText>
+            <template v-slot:actions>
+              <VBtn
+                class="ms-auto"
+                text="Атаковать"
+                @click="armyAttack(army.id, enemy)"
+              ></VBtn>
+              <VBtn
+                class="ms-auto"
+                text="Отмена"
+                @click="attack_dialog = false"
+              ></VBtn>
+            </template>
+          </VCard>
+        </VDialog>
 
-      <VBtn @click="goto_dialog = true">Перейти</VBtn>
-      <VDialog
-        v-model="goto_dialog"
-        width="auto"
-      >
-        <VCard
-          width="400"
-          title="Куда?"
+        <VBtn @click="goto_dialog = true">Перейти</VBtn>
+        <VDialog
+          v-model="goto_dialog"
+          width="auto"
         >
-          <VCardText>
-            <v-autocomplete
-              v-model="settle"
-              :items="settlements"
-              label="Город"
-              item-title="name"
-              item-value="id"
-              clearable
-              persistent-hint
-            ></v-autocomplete>
-          </VCardText>
-          <template v-slot:actions>
-            <VBtn
-              class="ms-auto"
-              text="Перейти"
-              @click="armyGoto(army.id, settle)"
-            ></VBtn>
-            <VBtn
-              class="ms-auto"
-              text="Отмена"
-              @click="goto_dialog = false"
-            ></VBtn>
-          </template>
-        </VCard>
-      </VDialog>
-      <VSpacer />
-      <IconBtn
-        icon="ri-pencil-line"
-        color="primary"
-        @click="editArmyDialog = true"
-        class="mr-2"
-      />
-      <IconBtn
-        icon="ri-delete-bin-line"
-        color="error"
-        @click="removeArmy(army.id)"
-      />
+          <VCard
+            width="400"
+            title="Куда?"
+          >
+            <VCardText>
+              <v-autocomplete
+                v-model="settle"
+                :items="settlements"
+                label="Город"
+                item-title="name"
+                item-value="id"
+                clearable
+                persistent-hint
+              ></v-autocomplete>
+            </VCardText>
+            <template v-slot:actions>
+              <VBtn
+                class="ms-auto"
+                text="Перейти"
+                @click="armyGoto(army.id, settle)"
+              ></VBtn>
+              <VBtn
+                class="ms-auto"
+                text="Отмена"
+                @click="goto_dialog = false"
+              ></VBtn>
+            </template>
+          </VCard>
+        </VDialog>
+        <VSpacer />
+        <IconBtn
+          icon="ri-pencil-line"
+          color="primary"
+          @click="editArmyDialog = true"
+          class="mr-2"
+        />
+        <IconBtn
+          icon="ri-delete-bin-line"
+          color="error"
+          @click="removeArmy(army.id)"
+        />
+      </template>
     </VCardActions>
   </VCard>
   <ArmyDialog

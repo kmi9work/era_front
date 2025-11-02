@@ -17,7 +17,7 @@
   const country_id = ref(0);
   
   onBeforeMount(async () => {
-    await axios.get(`${import.meta.env.VITE_PROXY}/countries.json?foreign=1`) 
+    await axios.get(`${import.meta.env.VITE_PROXY}/countries.json?only_foreign=1`) 
       .then(response => {
         countries.value = response.data;
         if (countries.value.length > 0) {
