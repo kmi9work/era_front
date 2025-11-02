@@ -1,6 +1,7 @@
 <script setup>
   import axios from 'axios'
   import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+  import AlliancesDialog from '@/components/AlliancesDialog.vue'
 
   const props = defineProps({
     countries: {
@@ -29,10 +30,6 @@
   // Модальное окно для управления союзами
   const showAlliancesDialog = ref(false)
   const selectedCountryForAlliances = ref(null)
-  const alliances = ref([])
-  const allianceTypes = ref([])
-  const selectedAllianceType = ref(null)
-  const isLoadingAlliances = ref(false)
   
   async function addItem(country_id){
     let new_value = prompt("Новое значение");
@@ -202,87 +199,14 @@
   })
 
   // Функции для управления союзами
-  async function openAlliancesDialog(country) {
+  function openAlliancesDialog(country) {
     if (!country.alliances_enabled) return
     selectedCountryForAlliances.value = country
     showAlliancesDialog.value = true
-    await loadAlliances(country.id)
-    await loadAllianceTypes()
   }
 
-  function closeAlliancesDialog() {
-    showAlliancesDialog.value = false
-    selectedCountryForAlliances.value = null
-    alliances.value = []
-    allianceTypes.value = []
-    selectedAllianceType.value = null
-  }
-
-  async function loadAlliances(partnerCountryId) {
-    try {
-      isLoadingAlliances.value = true
-      // Загружаем союзы Руси (id=1) с выбранной страной
-      const response = await axios.get(`${import.meta.env.VITE_PROXY}/countries/1/alliances.json`)
-      // Фильтруем только союзы с выбранной страной
-      alliances.value = response.data.filter(a => a.partner_country.id === partnerCountryId)
-    } catch (error) {
-      console.error('Ошибка при загрузке союзов:', error)
-      alert('Не удалось загрузить союзы')
-    } finally {
-      isLoadingAlliances.value = false
-    }
-  }
-
-  async function loadAllianceTypes() {
-    try {
-      const response = await axios.get(`${import.meta.env.VITE_PROXY}/alliance_types.json`)
-      allianceTypes.value = response.data
-    } catch (error) {
-      console.error('Ошибка при загрузке типов союзов:', error)
-    }
-  }
-
-  async function createAlliance() {
-    if (!selectedCountryForAlliances.value || !selectedAllianceType.value) return
-    
-    try {
-      // Союз создается от Руси (id=1) с выбранной страной
-      await axios.post(`${import.meta.env.VITE_PROXY}/alliances.json`, {
-        country_id: 1, // Русь
-        partner_country_id: selectedCountryForAlliances.value.id,
-        alliance_type_id: selectedAllianceType.value.id
-      })
-      await loadAlliances(selectedCountryForAlliances.value.id)
-      // Перезагружаем дашборд для обновления списка стран с союзами
-      emit('reload-dashboard')
-      // Небольшая задержка для гарантии обновления данных
-      await new Promise(resolve => setTimeout(resolve, 100))
-      selectedAllianceType.value = null
-    } catch (error) {
-      const errorMsg = error.response?.data?.error || error.message
-      alert(`Ошибка: ${errorMsg}`)
-    }
-  }
-
-  async function deleteAlliance(allianceId) {
-    if (!confirm('Точно удалить союз?')) return
-    
-    try {
-      await axios.delete(`${import.meta.env.VITE_PROXY}/alliances/${allianceId}.json`)
-      await loadAlliances(selectedCountryForAlliances.value.id)
-      // Перезагружаем дашборд для обновления списка стран с союзами
-      emit('reload-dashboard')
-      // Небольшая задержка для гарантии обновления данных
-      await new Promise(resolve => setTimeout(resolve, 100))
-    } catch (error) {
-      const errorMsg = error.response?.data?.error || error.message
-      alert(`Ошибка: ${errorMsg}`)
-    }
-  }
-
-  function isAllianceTypeAvailable(allianceType) {
-    if (!selectedCountryForAlliances.value) return false
-    return selectedCountryForAlliances.value.relations >= allianceType.min_relations_level
+  function onAllianceChanged() {
+    emit('reload-dashboard')
   }
 
 </script>
@@ -364,12 +288,11 @@
                 :model-value="(country.alliances || []).length > 0"
               >
                 <IconBtn 
+                  icon="ri-group-line" 
                   color="primary"
                   @click="openAlliancesDialog(country)" 
                   title="Управление союзами"
-                >
-                  <VIcon icon="ri-group-line" />
-                </IconBtn>
+                ></IconBtn>
               </VBadge>
               <IconBtn 
                   icon="ri-store-line" 
@@ -567,122 +490,13 @@
     </template>
   </v-snackbar>
 
-  <!-- Модальное окно управления союзами -->
-  <v-dialog
+  <!-- Используем компонент AlliancesDialog -->
+  <AlliancesDialog
     v-model="showAlliancesDialog"
-    max-width="600"
-  >
-    <v-card v-if="selectedCountryForAlliances">
-      <v-card-title class="d-flex justify-space-between align-center bg-primary">
-        <span class="text-white">Союзы: {{ selectedCountryForAlliances.name }}</span>
-        <v-btn
-          icon="mdi-close"
-          variant="text"
-          color="white"
-          @click="closeAlliancesDialog"
-        />
-      </v-card-title>
-      
-      <v-divider />
-      
-      <v-card-text class="pa-4">
-        <!-- Текущие союзы -->
-        <div class="mb-4">
-          <h3 class="mb-2">Текущие союзы:</h3>
-          <v-list v-if="alliances.length > 0" density="compact">
-            <v-list-item
-              v-for="alliance in alliances"
-              :key="alliance.id"
-              class="px-0"
-            >
-              <v-list-item-title>
-                {{ alliance.alliance_type.name }} с {{ alliance.partner_country.name }}
-              </v-list-item-title>
-              <template v-slot:append>
-                <IconBtn
-                  icon="ri-delete-bin-line"
-                  color="error"
-                  @click="deleteAlliance(alliance.id)"
-                  title="Удалить союз"
-                />
-              </template>
-            </v-list-item>
-          </v-list>
-          <v-alert v-else type="info" variant="tonal" density="compact">
-            Нет активных союзов
-          </v-alert>
-        </div>
-
-        <v-divider class="my-4" />
-
-        <!-- Добавление нового союза -->
-        <div>
-          <h3 class="mb-3">Добавить союз:</h3>
-          <v-select
-            v-model="selectedAllianceType"
-            :items="allianceTypes"
-            item-title="name"
-            item-value="id"
-            label="Тип союза"
-            variant="outlined"
-            density="compact"
-            return-object
-            :disabled="isLoadingAlliances"
-          >
-            <template v-slot:item="{ props, item }">
-              <v-list-item
-                v-bind="props"
-                :subtitle="`Минимальный уровень отношений: ${item.raw.min_relations_level}`"
-                :class="{ 'text-disabled': !isAllianceTypeAvailable(item.raw) }"
-              >
-                <template v-slot:prepend>
-                  <v-icon
-                    :color="isAllianceTypeAvailable(item.raw) ? 'success' : 'disabled'"
-                    icon="ri-group-line"
-                  />
-                </template>
-              </v-list-item>
-            </template>
-          </v-select>
-
-          <v-alert
-            v-if="selectedAllianceType && !isAllianceTypeAvailable(selectedAllianceType)"
-            type="warning"
-            variant="tonal"
-            density="compact"
-            class="mt-2"
-          >
-            Требуется уровень отношений: {{ selectedAllianceType.min_relations_level }},
-            текущий: {{ selectedCountryForAlliances.relations }}
-          </v-alert>
-
-          <v-btn
-            :color="selectedAllianceType && !isAllianceTypeAvailable(selectedAllianceType) ? 'warning' : 'primary'"
-            variant="elevated"
-            class="mt-3"
-            :disabled="!selectedAllianceType || isLoadingAlliances"
-            @click="createAlliance"
-          >
-            <v-icon icon="ri-add-line" class="mr-2" />
-            Добавить союз
-          </v-btn>
-        </div>
-      </v-card-text>
-      
-      <v-divider />
-      
-      <v-card-actions class="pa-4">
-        <v-spacer />
-        <v-btn
-          color="primary"
-          variant="text"
-          @click="closeAlliancesDialog"
-        >
-          Закрыть
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+    :country="selectedCountryForAlliances"
+    @alliance-created="onAllianceChanged"
+    @alliance-deleted="onAllianceChanged"
+  />
 </template>
 
 <style scoped>
