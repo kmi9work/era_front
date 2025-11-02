@@ -6,8 +6,11 @@ import { useCaravanStore } from '@/stores/caravan'
 const caravanStore = useCaravanStore()
 
 // URL для загрузки изображений ресурсов с бэкенда
-const baseURL = import.meta.env.VITE_PROXY
-const getResourceImageUrl = (identificator) => `${baseURL}/images/resources/${identificator}.png`
+const baseURL = import.meta.env.VITE_PROXY || ''
+const getResourceImageUrl = (identificator) => {
+  if (!identificator) return `${baseURL}/images/resources/unknown.png`
+  return `${baseURL}/images/resources/${identificator}.png`
+}
 
 //Основной функционал
 const isLoading = ref(true) // Добавляем флаг 
@@ -807,14 +810,14 @@ const itemsToGivePlayer = computed(() => {
             >
               <v-img
                 v-if="!item.name?.toLowerCase()?.includes('золото')"
-                :src="`/images/resources/${item.identificator || 'unknown'}.png`"
+                :src="getResourceImageUrl(item.identificator || 'unknown')"
                 width="48"
                 height="48"
                 class="resource-icon"
               />
               <v-img
                 v-else
-                src="/images/resources/gold.png"
+                :src="getResourceImageUrl('gold')"
                 width="48"
                 height="48"
                 class="resource-icon"
