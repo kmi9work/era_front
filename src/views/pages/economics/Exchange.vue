@@ -6,10 +6,20 @@ import { useCaravanStore } from '@/stores/caravan'
 const caravanStore = useCaravanStore()
 
 // URL для загрузки изображений ресурсов с бэкенда
-const baseURL = import.meta.env.VITE_PROXY || ''
+// В продакшене файлы находятся в eraofchange/public/images/resources/
+// Используем тот же baseURL, что и для API запросов, чтобы работать и локально, и на сервере
 const getResourceImageUrl = (identificator) => {
-  if (!identificator) return `${baseURL}/images/resources/unknown.png`
-  return `${baseURL}/images/resources/${identificator}.png`
+  if (!identificator) {
+    identificator = 'unknown'
+  }
+  const baseURL = import.meta.env.VITE_PROXY || ''
+  // Если VITE_PROXY установлен, используем его (для локальной разработки)
+  // Иначе используем относительный путь (для продакшена, где статика обслуживается веб-сервером)
+  if (baseURL) {
+    return `${baseURL}/images/resources/${identificator}.png`
+  }
+  // На сервере используем относительный путь, который должен проксироваться к бэкенду
+  return `/images/resources/${identificator}.png`
 }
 
 //Основной функционал
@@ -698,12 +708,13 @@ const itemsToGivePlayer = computed(() => {
               </div>
               <v-text-field
                 v-model.number="resourcesPlSells[index].count"
-                :label="nameChecker(item.sell_price)"
+                :label="`${item.name || ''} ${nameChecker(item.sell_price)}`.trim()"
                 type="number"
                 variant="outlined"
                 density="compact"
                 hide-details
                 style="flex: 1;"
+                class="resource-input"
               />
             </div>
 
@@ -738,12 +749,13 @@ const itemsToGivePlayer = computed(() => {
               </div>
               <v-text-field
                 v-model.number="resourcesPlBuys[index].count"
-                :label="nameChecker(item.buy_price)"
+                :label="`${item.name || ''} ${nameChecker(item.buy_price)}`.trim()"
                 type="number"
                 variant="outlined"
                 density="compact"
                 hide-details
                 style="flex: 1;"
+                class="resource-input"
               />
             </div>
           </div>
@@ -1215,5 +1227,15 @@ const itemsToGivePlayer = computed(() => {
   z-index: 2;
 }
 
+/* Подсветка названия ресурса при фокусе */
+.resource-input :deep(.v-field--focused .v-field-label) {
+  color: rgb(var(--v-theme-primary)) !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease-in-out;
+}
+
+.resource-input :deep(.v-field--focused) {
+  border-color: rgb(var(--v-theme-primary)) !important;
+}
 
 </style>
