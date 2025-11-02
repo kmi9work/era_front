@@ -24,7 +24,7 @@
   import favoritism from '@/views/pages/political_actions/favoritism.vue'
   import dev_the_economy from '@/views/pages/political_actions/dev_the_economy.vue'
   import confused_mine from '@/views/pages/political_actions/confused_mine.vue'
-  import patronage_of_infidel from '@/views/pages/political_actions/patronage_of_infidel.vue'
+  import patronage_of_infidel_vassals from '@/views/pages/political_actions/patronage_of_infidel_vassals.vue'
   
   // Новые политические действия из плагина vassals-and-robbers
   import support_export from '@/views/pages/political_actions/support_export.vue'
@@ -66,7 +66,7 @@
   compMap.set("favoritism", favoritism);
   compMap.set("dev_the_economy", dev_the_economy);
   compMap.set("confused_mine", confused_mine);
-  compMap.set("patronage_of_infidel", patronage_of_infidel);
+  compMap.set("patronage_of_infidel_vassals", patronage_of_infidel_vassals);
   
   // Новые действия плагина vassals-and-robbers
   compMap.set("support_export", support_export);
