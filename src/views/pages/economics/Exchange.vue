@@ -7,18 +7,14 @@ const caravanStore = useCaravanStore()
 
 // URL для загрузки изображений ресурсов с бэкенда
 // В продакшене файлы находятся в eraofchange/public/images/resources/
-// Используем тот же baseURL, что и для API запросов, чтобы работать и локально, и на сервере
+// Статические файлы обслуживаются веб-сервером напрямую, поэтому не используем VITE_PROXY
 const getResourceImageUrl = (identificator) => {
   if (!identificator) {
     identificator = 'unknown'
   }
-  const baseURL = import.meta.env.VITE_PROXY || ''
-  // Если VITE_PROXY установлен, используем его (для локальной разработки)
-  // Иначе используем относительный путь (для продакшена, где статика обслуживается веб-сервером)
-  if (baseURL) {
-    return `${baseURL}/images/resources/${identificator}.png`
-  }
-  // На сервере используем относительный путь, который должен проксироваться к бэкенду
+  // Всегда используем относительный путь без префикса /backend
+  // В продакшене веб-сервер должен обслуживать /images/resources/ напрямую
+  // В разработке vite proxy должен проксировать этот путь к бэкенду
   return `/images/resources/${identificator}.png`
 }
 
