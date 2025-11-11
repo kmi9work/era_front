@@ -366,6 +366,11 @@ function resetForm() {
   viaVyatka.value = false;
 }
 
+const vyatka = computed(() => {
+  return viaVyatka.value ? 'через Вятку' : ""
+});
+
+
 const registerCaravan  = async () =>{
   try {
     // Проверяем, что есть результаты расчета
@@ -681,7 +686,7 @@ const itemsToGivePlayer = computed(() => {
   <VCard>
     <v-card-title class="text-center">
       <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-        <span>Игрок отправляет с караваном</span>
+        <span>Игрок отправляет с караваном {{vyatka}} </span>
       </div>
     </v-card-title>
 
@@ -723,7 +728,7 @@ const itemsToGivePlayer = computed(() => {
   <VCard>
     <v-card-title >
 
-      <span>Игрок заказал</span>
+      <span>Игрок заказал {{vyatka}} </span>
     </v-card-title>
 
     <v-card-text>
