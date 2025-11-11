@@ -1,9 +1,14 @@
 <script setup>
 import { ref, onBeforeMount } from 'vue'
+import { useRoute } from 'vue-router'
 import axios from 'axios'
 import RegionsTable from '@/views/pages/general/RegionsTable.vue'
 import PlayersTable from '@/views/pages/general/PlayersTable.vue'
 import DetailedYearlyStats from '@/views/pages/general/DetailedYearlyStats.vue'
+import NobleActionsCharts from '@/views/pages/general/NobleActionsCharts.vue'
+
+const route = useRoute()
+const activeTab = ref(route.params?.tab || 'summary')
 
 const regions = ref([])
 const players = ref([])
@@ -46,39 +51,84 @@ async function loadGeneralData() {
 onBeforeMount(() => {
   loadGeneralData()
 })
+
+const tabs = [
+  {
+    title: 'Сводка событий',
+    icon: 'ri-bar-chart-2-line',
+    tab: 'summary',
+  },
+  {
+    title: 'Графики',
+    icon: 'ri-line-chart-line',
+    tab: 'charts',
+  },
+]
 </script>
 
 <template>
   <div>
-    <VRow class="match-height">
-      <VCol cols="12">
-        <DetailedYearlyStats />
-      </VCol>
-    </VRow>
-
-    <VRow class="match-height mt-4">
-      <VCol cols="12">
-        <RegionsTable 
-          :regions="regions" 
-          :buildings="buildings"
-          :building-types="buildingTypes"
-          :armies="armies"
-          @reload-data="loadGeneralData"
+    <VTabs
+      v-model="activeTab"
+      show-arrows
+      class="v-tabs-pill"
+    >
+      <VTab
+        v-for="item in tabs"
+        :key="item.tab"
+        :value="item.tab"
+      >
+        <VIcon
+          size="20"
+          start
+          :icon="item.icon"
         />
-      </VCol>
-    </VRow>
+        {{ item.title }}
+      </VTab>
+    </VTabs>
 
-    <VRow class="match-height mt-4">
-      <VCol cols="12">
-        <PlayersTable 
-          :players="players" 
-          :buildings="buildings"
-          :building-types="buildingTypes"
-          :armies="armies"
-          @reload-data="loadGeneralData"
-        />
-      </VCol>
-    </VRow>
+    <VWindow
+      v-model="activeTab"
+      class="mt-5 disable-tab-transition"
+      :touch="false"
+    >
+      <VWindowItem value="summary">
+        <div>
+          <VRow class="match-height">
+            <VCol cols="12">
+              <DetailedYearlyStats />
+            </VCol>
+          </VRow>
+
+          <VRow class="match-height mt-4">
+            <VCol cols="12">
+              <RegionsTable 
+                :regions="regions" 
+                :buildings="buildings"
+                :building-types="buildingTypes"
+                :armies="armies"
+                @reload-data="loadGeneralData"
+              />
+            </VCol>
+          </VRow>
+
+          <VRow class="match-height mt-4">
+            <VCol cols="12">
+              <PlayersTable 
+                :players="players" 
+                :buildings="buildings"
+                :building-types="buildingTypes"
+                :armies="armies"
+                @reload-data="loadGeneralData"
+              />
+            </VCol>
+          </VRow>
+        </div>
+      </VWindowItem>
+
+      <VWindowItem value="charts">
+        <NobleActionsCharts />
+      </VWindowItem>
+    </VWindow>
   </div>
 </template>
-
