@@ -159,14 +159,14 @@
     }
   }
 
-const armyProtectingCaravan = computed(() => {
-  if (!props.army?.name) return false;
-  
-  return activeEffects.value.some(effect => 
-    effect.effect === "single_army_complete_block" && 
-    effect.targets?.includes(props.army.name)
-  );
-});
+  const armyProtectingCaravan = computed(() => {
+    if (!props.army?.name) return false;
+    
+    return activeEffects.value.some(effect => 
+      effect.effect === "single_army_complete_block" && 
+      effect.targets?.includes(props.army.name)
+    );
+  });
 
 
   const tt_counts = ref([]);
