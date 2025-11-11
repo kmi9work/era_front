@@ -206,44 +206,6 @@ const recalculatePercentage = (index) => {
   }
 }
 
-// Валидация и автоматический пересчет если порог меньше предыдущего
-// const validateAndFixThresholds = (changedIndex) => {
-//   if (changedIndex === 0) return
-  
-//   const currentThreshold = editableThresholds.value[changedIndex].threshold
-//   const prevThreshold = editableThresholds.value[changedIndex - 1].threshold
-  
-//   // Если текущий порог меньше или равен предыдущему
-//   if (currentThreshold <= prevThreshold) {
-//     // Устанавливаем минимальное увеличение (например, +1000)
-//     const minIncrease = 1000
-//     editableThresholds.value[changedIndex].threshold = prevThreshold + minIncrease
-    
-//     // Пересчитываем процент
-//     recalculatePercentage(changedIndex)
-    
-//     // Пересчитываем все последующие
-//     recalculateAllFromIndex(changedIndex)
-//   }
-  
-//   // Проверяем, не нарушена ли последовательность в последующих уровнях
-//   for (let i = changedIndex + 1; i < editableThresholds.value.length; i++) {
-//     const current = editableThresholds.value[i].threshold
-//     const previous = editableThresholds.value[i - 1].threshold
-    
-//     if (current <= previous) {
-//       // Если текущий режим - процент, пересчитываем от процента
-//       if (inputMode.value === 'percentage') {
-//         recalculateFromPercentage(i)
-//       } else {
-//         // В абсолютном режиме добавляем разницу
-//         const diff = editableThresholds.value[changedIndex].threshold - prevThreshold
-//         editableThresholds.value[i].threshold = editableThresholds.value[i - 1].threshold + Math.max(diff, 1000)
-//         recalculatePercentage(i)
-//       }
-//     }
-//   }
-// }
 
 // Пересчет всех последующих порогов
 const recalculateAllFromIndex = (startIndex) => {
