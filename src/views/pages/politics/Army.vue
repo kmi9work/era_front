@@ -159,6 +159,16 @@
     }
   }
 
+  const armyProtectingCaravan = computed(() => {
+    if (!props.army?.name) return false;
+    
+    return activeEffects.value.some(effect => 
+      effect.effect === "single_army_complete_block" && 
+      effect.targets?.includes(props.army.name)
+    );
+  });
+
+
   const tt_counts = ref([]);
 
   const selected_troop_types = ref([]); // Массив выбранных типов отрядов
@@ -464,6 +474,7 @@
 </script>
 
 <template>
+  {{armyProtectingCaravan}}
   <VCard :title="`${army.name} - ${army.power}`" width="400">
     <VCardText>
       <v-table>
@@ -630,6 +641,18 @@
       </VAlert>
     </VCardText>
     
+        <!-- Показываем информацию о том, что Волоцкий (Воевода) не может двигать армию армии -->
+    <VCardText v-if="armyProtectingCaravan">
+      <VAlert 
+        type="warning" 
+        variant="tonal"
+        density="compact"
+      >
+        <strong>Армии воеводы нельзя передвигать:</strong> 
+      </VAlert>
+    </VCardText>
+
+
     <!-- Показываем предупреждение о блокировке движения для Великого князя -->
     <VCardText v-if="hasNoArmyMovementEffect">
       <VAlert 
