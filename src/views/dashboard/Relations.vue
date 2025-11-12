@@ -38,6 +38,12 @@
       effect.effect === 'no_relation_improvement'
     )
   })
+// Нельзя опускать отношения
+  const nonNegativeRelations = computed(() => {
+    return activeEffects.value.some((effect) => 
+      effect.effect === 'non_negative_relations'
+    )
+  })
   
   // Загрузка активных эффектов
   async function loadActiveEffects() {
@@ -93,6 +99,12 @@
     // Предупреждение при попытке улучшить отношения, если эффект активен
     if (value > 0 && hasNoRelationImprovement.value) {
       if (!confirm('⚠️ Внимание: Действует эффект "Поддержать экспорт". Отношения не будут улучшены автоматически, но изменение будет применено вручную. Продолжить?')) {
+        return
+      }
+    }
+
+    if (value < 0 && nonNegativeRelations.value) {
+      if (!confirm('⚠️ Внимание: Действует эффект "Передача армии". Отношения  автоматически не падают ниже нейтральных, но изменение будет применено вручную. Продолжить?')) {
         return
       }
     }
@@ -296,10 +308,12 @@
 
 
 <template>
+
   <VCard width="600">
     <VCardItem>
       <VCardTitle>Отношения</VCardTitle>
     </VCardItem>
+     {{nonNegativeRelations}}
 
     <!-- Уведомление о блокировке улучшения отношений -->
     <VCardText v-if="hasNoRelationImprovement">
