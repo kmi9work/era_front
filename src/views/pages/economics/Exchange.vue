@@ -595,7 +595,6 @@ const itemsToGivePlayer = computed(() => {
 </script>
 
 <template>
-
   <div v-if="!isLoading" class="main-container">
 
     <!-- Выбор гильдии (показывается по умолчанию) -->
@@ -680,6 +679,8 @@ const itemsToGivePlayer = computed(() => {
         </v-btn>
       </div>
     </div>
+}
+}
  
 <div style="display: flex; flex-direction: column; gap: 24px;">
   <!-- Форма "Игрок продает" -->
