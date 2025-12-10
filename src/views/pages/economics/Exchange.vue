@@ -53,6 +53,8 @@ const showRobberyDialog = ref(false)        // Диалог ограбления
 const showMarketForm = ref(false)           // Показать форму рынка или выбор гильдии
 const guildRobberyProbabilities = ref({})   // Храним вероятности ограбления для каждой гильдии
 const viaVyatka = ref(false)                // Галочка "Караван идёт через Вятку"
+const isCarProtected = ref(false)           // Галочка "Караван идёт под защитой"
+
 
 const fetchCountries = async () => {
   try {
@@ -364,6 +366,7 @@ function resetForm() {
   showConfirmDialog.value = false;
   caravanPending.value = false;
   viaVyatka.value = false;
+  isCarProtected.value = false;
 }
 
 const vyatka = computed(() => {
@@ -427,7 +430,8 @@ const registerCaravan  = async () =>{
       outcoming: enrichedOutcoming,
       purchase_cost: purchaseCost,  // Стоимость покупки
       sale_income: saleIncome,      // Выручка от продажи
-      via_vyatka: viaVyatka.value   // Караван идёт через Вятку
+      via_vyatka: viaVyatka.value,   // Караван идёт через Вятку
+      is_protected: isCarProtected.value  // Караван идёт под охраной
     }
     
     console.log('Отправка караван-запроса:', request);
@@ -478,7 +482,7 @@ const recalculate = () => {
 const selectGuild = async (guildId) => {
   try {
     // Проверяем ограбление только если галочка "через Вятку" не включена
-    if (!viaVyatka.value) {
+    if (!viaVyatka.value && !isCarProtected.value) {
       // Проверяем, будет ли караван ограблен (с принятием решения)
       const response = await axios.get(`${import.meta.env.VITE_PROXY}/caravans/check_robbery_with_decide.json`, {
         params: { guild_id: guildId }
@@ -609,22 +613,40 @@ const itemsToGivePlayer = computed(() => {
             Выберите гильдию для каравана:
           </div>
           
-          <!-- Галочка "Караван идёт через Вятку" -->
-          <div class="mb-4" style="display: flex; flex-direction: column; align-items: center;">
+        <div class="mb-4" style="display: flex; justify-content: center; align-items: center; gap: 40px;">
+          
+          <!-- Вятка -->
+          <div style="min-width: 200px; display: flex; flex-direction: column; align-items: center; text-align: center;">
             <VCheckbox
               v-model="viaVyatka"
               label="Караван идёт через Вятку"
               color="primary"
               hide-details
+              class="mb-1"
             >
               <template v-slot:label>
                 <span>Караван идёт через Вятку</span>
               </template>
             </VCheckbox>
-            <div v-if="viaVyatka" class="text-caption text-grey-darken-1 mt-2" style="text-align: center;">
+            <div v-if="viaVyatka" class="text-caption text-grey-darken-1" style="max-width: 200px;">
               Караван не может быть ограблен. Отправка каравана не изменяет товарооборот.
             </div>
           </div>
+          
+          <!-- Охрана -->
+          <div style="min-width: 200px; display: flex; flex-direction: column; align-items: center; text-align: center;">
+            <VCheckbox
+              v-model="isCarProtected"
+              label="Караван идёт под охраной"
+              color="primary"
+              hide-details
+            >
+              <template v-slot:label>
+                <span>Караван идёт под охраной</span>
+              </template>
+            </VCheckbox>
+          </div>
+        </div>
           
           <div style="display: flex; flex-wrap: wrap; gap: 16px; justify-content: center;">
             <div
