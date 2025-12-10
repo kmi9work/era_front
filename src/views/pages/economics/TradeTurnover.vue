@@ -206,7 +206,6 @@ const recalculatePercentage = (index) => {
   }
 }
 
-
 // Пересчет всех последующих порогов
 const recalculateAllFromIndex = (startIndex) => {
   for (let i = startIndex + 1; i < editableThresholds.value.length; i++) {
