@@ -38,6 +38,11 @@ const tabs = [
     tab: 'exchange',
   },
   {
+    title: 'Рынок (📱)',
+    icon: 'ri-smartphone-line',
+    tab: 'exchange_mobile',
+  },
+  {
     title: 'Товарооборот',
     icon: 'ri-arrow-left-right-line',
     tab: 'trade_turnover',
@@ -94,9 +99,10 @@ const tabs = [
         <Exchange />
       </VWindowItem>
 
-      <VWindowItem value="trade_turnover">
-        <TradeTurnover />
+      <VWindowItem value="exchange_mobile">
+        <MobileLink />
       </VWindowItem>
+
 
       <VWindowItem value="production_front">
         <ProductionFront />

@@ -59,6 +59,12 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 5000,
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        mobile: resolve(__dirname, 'merchant_mobile_helper.html'),
+      },
+    },
   },
   optimizeDeps: {
     exclude: ['vuetify'],
