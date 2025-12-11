@@ -1,13 +1,57 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import axios from 'axios'
 
 export const useProductionStore = defineStore('production', () => {
   // State
   const plantLevelsInfo = ref([]) // Информация о всех предприятиях
+  const selectedPlantTypeIndex = ref(null)
+  const selectedPlantLevelIndex = ref(null)
+  const calculationMode = ref('from') // 'from' или 'to'
+  const inputResources = ref([])
+  const result = ref({ from: [], to: [], change: [] })
+  const isLoading = ref(false)
 
-  // Getters
+  // Computed
   const uniquePlantTypes = computed(() => {
     return [...new Set(plantLevelsInfo.value.map(plant => plant.name))]
+  })
+
+  const filteredPlantsByType = computed(() => {
+    if (selectedPlantTypeIndex.value === null) return []
+    const selectedType = uniquePlantTypes.value[selectedPlantTypeIndex.value]
+    return plantLevelsInfo.value.filter(plant => plant.name === selectedType)
+  })
+
+  const selectedPlantId = computed(() => {
+    if (selectedPlantLevelIndex.value === null) return null
+    return filteredPlantsByType.value[selectedPlantLevelIndex.value]?.id || null
+  })
+
+  const selectedPlantLevel = computed(() => {
+    return plantLevelsInfo.value.find(p => p.id === selectedPlantId.value)
+  })
+
+  const availableResources = computed(() => {
+    if (!selectedPlantLevel.value) return []
+    
+    if (calculationMode.value === 'from') {
+      return selectedPlantLevel.value.formula_from || []
+    } else {
+      return selectedPlantLevel.value.formula_to || []
+    }
+  })
+
+  const resultDisplay = computed(() => {
+    if (calculationMode.value === 'from') {
+      return result.value.to.filter(r => r.count > 0)
+    } else {
+      return result.value.from.filter(r => r.count > 0)
+    }
+  })
+
+  const changeDisplay = computed(() => {
+    return result.value.change.filter(r => r.count !== 0)
   })
 
   /**
@@ -19,7 +63,10 @@ export const useProductionStore = defineStore('production', () => {
     return plantLevelsInfo.value.find(p => p.id === plantLevelId)
   }
 
-  // Actions
+  /**
+   * Установить данные о предприятиях
+   * @param {Array} newPlantLevels - Массив предприятий
+   */
   function setPlantLevels(newPlantLevels) {
     plantLevelsInfo.value = newPlantLevels
   }
@@ -129,23 +176,15 @@ export const useProductionStore = defineStore('production', () => {
   }
 
   /**
-   * Главная функция расчета производства
-   * @param {number} plantLevelId - ID предприятия
+   * Главная функция расчета производства (вариант с объектом plantLevel)
+   * @param {Object} plantLevel - Объект предприятия
    * @param {Array} request - Запрос на ресурсы [{identificator, count}]
    * @param {string} way - Направление ('from' - из ресурсов, 'to' - сколько надо)
    * @returns {Object} {from, to, change}
    */
-  function feedToPlant(plantLevelId, request, way = 'from') {
-    // Находим предприятие
-    const plantLevel = plantLevelsInfo.value.find(p => p.id === plantLevelId)
-    if (!plantLevel) {
-      throw new Error(`PlantLevel with id ${plantLevelId} not found`)
-    }
-
-    // Проверяем, открыта ли технология "Школы" для коэффициента
+  function feedToPlantDirect(plantLevel, request, way = 'from') {
     const coof = plantLevel.tech_schools_open ? 1.5 : 1
 
-    // Преобразуем request
     const requestCopy = request.map(req => ({
       identificator: req.identificator.toString(),
       count: way === 'to' ? Math.ceil(parseInt(req.count || 0) / coof) : parseInt(req.count || 0),
@@ -183,6 +222,23 @@ export const useProductionStore = defineStore('production', () => {
   }
 
   /**
+   * Главная функция расчета производства (вариант с ID)
+   * @param {number} plantLevelId - ID предприятия
+   * @param {Array} request - Запрос на ресурсы [{identificator, count}]
+   * @param {string} way - Направление ('from' - из ресурсов, 'to' - сколько надо)
+   * @returns {Object} {from, to, change}
+   */
+  function feedToPlant(plantLevelId, request, way = 'from') {
+    // Находим предприятие
+    const plantLevel = plantLevelsInfo.value.find(p => p.id === plantLevelId)
+    if (!plantLevel) {
+      throw new Error(`PlantLevel with id ${plantLevelId} not found`)
+    }
+
+    return feedToPlantDirect(plantLevel, request, way)
+  }
+
+  /**
    * Получить отфильтрованные предприятия по типу
    * @param {string} plantType - Тип предприятия
    * @returns {Array}
@@ -191,24 +247,123 @@ export const useProductionStore = defineStore('production', () => {
     return plantLevelsInfo.value.filter(plant => plant.name === plantType)
   }
 
+  /**
+   * Загрузить данные о предприятиях с сервера
+   */
+  async function fetchPlantLevels() {
+    isLoading.value = true
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_PROXY}/plant_levels/prod_info_full.json`)
+      plantLevelsInfo.value = response.data
+    } catch (error) {
+      console.error('Error fetching plant levels:', error)
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * Инициализировать массив входных ресурсов
+   */
+  function initializeInputResources() {
+    if (!selectedPlantLevel.value) return
+    
+    inputResources.value = availableResources.value.map(res => ({
+      identificator: res.identificator,
+      name: res.name,
+      count: 0
+    }))
+  }
+
+  /**
+   * Рассчитать производство на основе введенных ресурсов
+   */
+  function calculateProduction() {
+    if (!selectedPlantLevel.value) {
+      throw new Error('Предприятие не выбрано')
+    }
+    
+    const hasInput = inputResources.value.some(res => res.count > 0)
+    if (!hasInput) {
+      throw new Error('Введите количество ресурсов')
+    }
+
+    result.value = feedToPlantDirect(
+      selectedPlantLevel.value, 
+      inputResources.value, 
+      calculationMode.value
+    )
+
+    return result.value
+  }
+
+  /**
+   * Очистить все введенные данные и результаты
+   */
+  function clearProduction() {
+    inputResources.value.forEach(res => res.count = 0)
+    result.value = { from: [], to: [], change: [] }
+  }
+
+  /**
+   * Установить количество ресурса по индексу
+   * @param {number} index - Индекс ресурса в массиве inputResources
+   * @param {number} count - Новое количество
+   */
+  function setResourceCount(index, count) {
+    if (inputResources.value[index]) {
+      inputResources.value[index].count = count
+    }
+  }
+
+  /**
+   * Сбросить выбор предприятия и все данные
+   */
+  function resetSelection() {
+    selectedPlantTypeIndex.value = null
+    selectedPlantLevelIndex.value = null
+    inputResources.value = []
+    result.value = { from: [], to: [], change: [] }
+  }
+
   return {
     // State
     plantLevelsInfo,
-    
+    selectedPlantTypeIndex,
+    selectedPlantLevelIndex,
+    calculationMode,
+    inputResources,
+    result,
+    isLoading,
+
+    // Computed
+    uniquePlantTypes,
+    filteredPlantsByType,
+    selectedPlantId,
+    selectedPlantLevel,
+    availableResources,
+    resultDisplay,
+    changeDisplay,
+
     // Getters
     getPlantLevelById,
-    uniquePlantTypes,
-    
+
     // Actions
     setPlantLevels,
+    fetchPlantLevels,
+    initializeInputResources,
+    calculateProduction,
+    clearProduction,
+    setResourceCount,
+    resetSelection,
     feedToPlant,
     getPlantsByType,
     
-    // Helper functions (можно экспортировать, если нужны снаружи)
+    // Helper functions
     isResArrayLess,
     resArrayMult,
     resArraySum,
     lookUpRes
   }
 })
-
