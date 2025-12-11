@@ -1,6 +1,9 @@
 <script setup>
 import axios from 'axios'
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue'
+import { useCaravanStore } from '@/stores/caravan'
+
+const caravanStore = useCaravanStore()
 
 // Props
 const props = defineProps({
@@ -54,6 +57,9 @@ const fetchCountries = async () => {
     const response = await axios.get(`${import.meta.env.VITE_PROXY}/countries/foreign_countries.json`)
     countries.value = response.data
     
+    // Сохраняем страны в store
+    caravanStore.setCountries(response.data)
+    
     countriesRelations.value = countries.value.map(item => ({
         name: item.name,
         relations: item.relations,
@@ -68,6 +74,13 @@ const fetchResources = async () => {
   try {
     const response = await axios.get(`${import.meta.env.VITE_PROXY}/resources/show_prices.json`)
     resources.value = response.data.prices
+    
+    // Сохраняем ресурсы в store для калькулятора
+    caravanStore.setResources({
+      off_market: response.data.prices.off_market || [],
+      to_market: response.data.prices.to_market || []
+    })
+    
     newRelations.value = false
   } catch (error) {
     console.error('Error fetching resources:', error)
@@ -81,6 +94,7 @@ const filteredResOffMark = computed(() => {
 
   resourcesPlBuys.value = filtered.map(item => ({
     identificator: item.identificator,
+    name: item.name,
     count: null
   }))
 
@@ -96,10 +110,16 @@ const filteredResToMark = computed(() => {
   
   resourcesPlSells.value = filtered.map(item => ({
     identificator: item.identificator,
+    name: item.name,
     count: null
   }))
   
-  const goldItem = { identificator: "gold", count: null }
+  // Добавляем золото
+  const goldItem = { 
+    identificator: "gold",
+    name: "Золото",
+    count: null 
+  }
   resourcesPlSells.value.push({...goldItem})
   
   return [...filtered, {...goldItem}]
@@ -150,20 +170,26 @@ const backToCountrySelection = () => {
   resetForm()
 }
 
-const sendCaravanRequest = async (isContraband = false) => {
+// Функция расчета каравана через store (без отправки на сервер)
+const calculateCaravanRequest = async (isContraband = false) => {
   try {
     showEmbargoDialog.value = false
     
-    const response = await axios.post(`${import.meta.env.VITE_PROXY}/resources/send_caravan`, {
-      country_id: selectedCountry.value,
-      res_pl_sells: resourcesPlSells.value.filter(r => r.count),
-      res_pl_buys: resourcesPlBuys.value.filter(r => r.count)
-    })
+    // Используем store для расчета вместо запроса на сервер
+    const result = caravanStore.calculateCaravan(
+      selectedCountry.value,
+      resourcesPlSells.value.filter(r => r.count && r.count > 0),
+      resourcesPlBuys.value.filter(r => r.count && r.count > 0)
+    )
     
-    resToPlayer.value = response.data.res_to_player || []
+    // Сохраняем результаты
+    resToPlayer.value = result.res_to_player || []
     showResultSheet.value = true
+    
+    return { data: result }
   } catch (e) {
     console.error('Ошибка расчета:', e)
+    throw e
   }
 }
 
@@ -173,13 +199,13 @@ const submit = async () => {
     return
   }
   
-  await sendCaravanRequest()
+  await calculateCaravanRequest()
 }
 
 const confirmContraband = async () => {
   showEmbargoDialog.value = false
   try {
-    await sendCaravanRequest(true)
+    await calculateCaravanRequest(true)
   } catch (error) {
     console.error("Ошибка при отправке контрабанды:", error)
   }
@@ -249,13 +275,23 @@ const cancelKeyboard = () => {
 const resetForm = () => {
   resourcesPlBuys.value = filteredResOffMark.value.map(item => ({
     identificator: item.identificator,
+    name: item.name,
     count: null
   }))
   
   resourcesPlSells.value = filteredResToMark.value.map(item => ({
     identificator: item.identificator,
+    name: item.name,
     count: null
   }))
+  
+  // Удаляем последний элемент (золото) из resourcesPlSells и добавляем заново
+  const goldItem = resourcesPlSells.value.find(item => item.identificator === 'gold')
+  resourcesPlSells.value = resourcesPlSells.value.filter(item => item.identificator !== 'gold')
+  if (goldItem) {
+    goldItem.count = null
+    resourcesPlSells.value.push(goldItem)
+  }
   
   resToPlayer.value = []
   showResultSheet.value = false
@@ -391,9 +427,9 @@ watch(
                 <VChip color="primary" size="large">
                   {{ keyboardResource.price }}
                 </VChip>
-        </div>
-      </VCardText>
-    </VCard>
+              </div>
+            </VCardText>
+          </VCard>
 
           <!-- Дисплей введенного значения -->
           <div class="quantity-display-mobile">
@@ -403,53 +439,49 @@ watch(
           <!-- Кастомная клавиатура -->
           <div class="keyboard-container">
             <div class="keyboard-row">
-        <VBtn 
-  v-for="num in [1, 2, 3]" 
-  :key="num"
-  class="keyboard-btn"
-  size="x-large"
-  variant="flat"
-  :ripple="true"
-  @click="pressNumber(num)"
-  @touchstart.passive
-  style="background-color: white !important; color: #333 !important;"
->
-  {{ num }}
-</VBtn>
-
-
+              <VBtn 
+                v-for="num in [1, 2, 3]" 
+                :key="num"
+                class="keyboard-btn"
+                size="x-large"
+                variant="flat"
+                :ripple="true"
+                @click="pressNumber(num)"
+                @touchstart.passive
+                style="background-color: white !important; color: #333 !important;"
+              >
+                {{ num }}
+              </VBtn>
             </div>
             <div class="keyboard-row">
-                 <VBtn 
-  v-for="num in [4, 5, 6]" 
-  :key="num"
-  class="keyboard-btn"
-  size="x-large"
-  variant="flat"
-  :ripple="true"
-  @click="pressNumber(num)"
-  @touchstart.passive
-  style="background-color: white !important; color: #333 !important;"
->
-  {{ num }}
-</VBtn>
-
-
+              <VBtn 
+                v-for="num in [4, 5, 6]" 
+                :key="num"
+                class="keyboard-btn"
+                size="x-large"
+                variant="flat"
+                :ripple="true"
+                @click="pressNumber(num)"
+                @touchstart.passive
+                style="background-color: white !important; color: #333 !important;"
+              >
+                {{ num }}
+              </VBtn>
             </div>
             <div class="keyboard-row">
-    <VBtn 
-  v-for="num in [7, 8, 9]" 
-  :key="num"
-  class="keyboard-btn"
-  size="x-large"
-  variant="flat"
-  :ripple="true"
-  @click="pressNumber(num)"
-  @touchstart.passive
-  style="background-color: white !important; color: #333 !important;"
->
-  {{ num }}
-</VBtn>
+              <VBtn 
+                v-for="num in [7, 8, 9]" 
+                :key="num"
+                class="keyboard-btn"
+                size="x-large"
+                variant="flat"
+                :ripple="true"
+                @click="pressNumber(num)"
+                @touchstart.passive
+                style="background-color: white !important; color: #333 !important;"
+              >
+                {{ num }}
+              </VBtn>
             </div>
             <div class="keyboard-row">
               <VBtn 
@@ -485,7 +517,7 @@ watch(
             </div>
             <div class="keyboard-row mt-2">
               <VBtn 
-          block
+                block
                 size="x-large"
                 variant="flat"
                 :ripple="true"
@@ -494,11 +526,11 @@ watch(
               >
                 <VIcon class="mr-2" style="color: white !important;">mdi-check</VIcon>
                 Готово
-        </VBtn>
+              </VBtn>
             </div>
           </div>
-      </VCardText>
-    </VCard>
+        </VCardText>
+      </VCard>
     </VDialog>
 
     <!-- ЭКРАН 1: Выбор страны -->
@@ -521,7 +553,7 @@ watch(
         >
           <VCardText class="pa-4 text-center">
             <VImg
-              :src="`/images/countries/${country.name}.png`"
+              :src="`/images/countries/${country.flag_image_name || country.name}.png`"
               width="80"
               height="60"
               class="mx-auto mb-3"
@@ -542,8 +574,8 @@ watch(
       </div>
     </div>
 
-      <!-- ЭКРАН 2: Работа с ресурсами -->
-      <div v-if="!isLoading && selectedCountry" style="width: 100%; height: 100%;">
+    <!-- ЭКРАН 2: Работа с ресурсами -->
+    <div v-if="!isLoading && selectedCountry" style="width: 100%; height: 100%;">
 
       <!-- Секция "Вы отправляете с караваном" -->
       <VCard class="mb-3 section-card" style="margin: 15px; position: relative;">
@@ -560,26 +592,26 @@ watch(
         </VCardTitle>
         <VCardText class="pa-3">
           <div class="resources-grid">
-              <div
-                v-for="(item, index) in filteredResToMark"
+            <div
+              v-for="(item, index) in filteredResToMark"
               :key="'sell-' + index"
               class="resource-card-compact"
-              :class="resourcesPlSells[index].count > 0 ? 'card-active' : ''"
+              :class="resourcesPlSells[index]?.count > 0 ? 'card-active' : ''"
               @click="openKeyboard(item, index, 'sell')"
             >
               <VImg
-                    :src="`/images/resources/${item.identificator}.png`"
+                :src="`/images/resources/${item.identificator}.png`"
                 width="56"
                 height="56"
                 class="resource-icon-compact"
               />
               <div class="resource-count-compact">
-                {{ resourcesPlSells[index].count || '0' }}
-                </div>
+                {{ resourcesPlSells[index]?.count || '0' }}
               </div>
             </div>
-          </VCardText>
-        </VCard>
+          </div>
+        </VCardText>
+      </VCard>
 
       <!-- Секция "Вы покупаете" -->
       <VCard class="mb-3 section-card" style="margin: 15px; position: relative;">
@@ -596,28 +628,28 @@ watch(
         </VCardTitle>
         <VCardText class="pa-3">
           <div class="resources-grid">
-              <div
-                v-for="(item, index) in filteredResOffMark"
+            <div
+              v-for="(item, index) in filteredResOffMark"
               :key="'buy-' + index"
               class="resource-card-compact"
-              :class="resourcesPlBuys[index].count > 0 ? 'card-active' : ''"
+              :class="resourcesPlBuys[index]?.count > 0 ? 'card-active' : ''"
               @click="openKeyboard(item, index, 'buy')"
             >
               <VImg
-                    :src="`/images/resources/${item.identificator}.png`"
+                :src="`/images/resources/${item.identificator}.png`"
                 width="56"
                 height="56"
                 class="resource-icon-compact"
               />
               <div class="resource-count-compact">
-                {{ resourcesPlBuys[index].count || '0' }}
-                </div>
+                {{ resourcesPlBuys[index]?.count || '0' }}
               </div>
             </div>
-          </VCardText>
-        </VCard>
+          </div>
+        </VCardText>
+      </VCard>
 
-    <!-- Кнопки действий -->
+      <!-- Кнопки действий -->
       <div style="padding: 0 15px 15px;">
         <VRow dense>
           <VCol cols="6">
@@ -646,51 +678,51 @@ watch(
       </div>
 
       <!-- Bottom Sheet - результаты -->
-    <VBottomSheet v-model="showResultSheet">
-      <VCard>
+      <VBottomSheet v-model="showResultSheet">
+        <VCard>
           <VCardTitle class="text-center">Результат торговли</VCardTitle>
-        <VCardText>
-          <div class="results-mobile">
-            <div v-for="(item, index) in resToPlayer" :key="index" class="result-item-mobile">
+          <VCardText>
+            <div class="results-mobile">
+              <div v-for="(item, index) in resToPlayer" :key="index" class="result-item-mobile">
                 <VImg
                   :src="`/images/resources/${item.identificator || 'gold'}.png`"
-                width="40"
-                height="40"
-                class="mr-3"
-              />
-              <div class="result-info">
-                <span class="result-name">{{ item.name }}</span>
-                <span 
-                  class="result-count"
-                  :class="item.count > 0 ? 'positive' : 'negative'"
-                >
-                  {{ item.count > 0 ? '+' : '' }}{{ item.count }}
-                </span>
+                  width="40"
+                  height="40"
+                  class="mr-3"
+                />
+                <div class="result-info">
+                  <span class="result-name">{{ item.name }}</span>
+                  <span 
+                    class="result-count"
+                    :class="item.count > 0 ? 'positive' : 'negative'"
+                  >
+                    {{ item.count > 0 ? '+' : '' }}{{ item.count }}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        </VCardText>
-        <VCardActions>
-          <VBtn @click="showResultSheet = false" block color="primary">Закрыть</VBtn>
-        </VCardActions>
-      </VCard>
-    </VBottomSheet>
+          </VCardText>
+          <VCardActions>
+            <VBtn @click="showResultSheet = false" block color="primary">Закрыть</VBtn>
+          </VCardActions>
+        </VCard>
+      </VBottomSheet>
     </div>
 
     <!-- Loading экран -->
     <div v-if="isLoading" class="d-flex flex-column align-center justify-center" style="width: 100%; height: 100vh;">
-    <VProgressCircular indeterminate color="primary" size="64" />
-    <div class="mt-4">Загрузка...</div>
+      <VProgressCircular indeterminate color="primary" size="64" />
+      <div class="mt-4">Загрузка...</div>
     </div>
 
     <!-- Диалог статуса эмбарго -->
     <VDialog v-model="showEmbargoStatusDialog" max-width="500">
       <VCard :color="isEmbargoActive ? 'error' : 'success'">
         <VCardTitle>
-        {{ isEmbargoActive ? 'Эмбарго введено!' : 'Эмбарго снято!' }}
+          {{ isEmbargoActive ? 'Эмбарго введено!' : 'Эмбарго снято!' }}
         </VCardTitle>
         <VCardText>
-        {{ embargoStatusMessage }}
+          {{ embargoStatusMessage }}
         </VCardText>
         <VCardActions>
           <VSpacer></VSpacer>
@@ -704,13 +736,13 @@ watch(
       <VCard>
         <VCardTitle class="text-h5">Изменение отношений!</VCardTitle>
         <VCardText>
-        Отношения между странами изменились. Закройте рынок, обработайте все пришедшие караваны, обновите ценники,
-        затем обновите цены в программе (кнопка "Обновить цены")
+          Отношения между странами изменились. Закройте рынок, обработайте все пришедшие караваны, обновите ценники,
+          затем обновите цены в программе (кнопка "Обновить цены")
         </VCardText>
         <VCardActions>
           <VSpacer></VSpacer>
           <VBtn color="grey-darken-1" text @click="showRelationsDialog = false">
-          Закрыть
+            Закрыть
           </VBtn>
         </VCardActions>
       </VCard>
@@ -721,15 +753,15 @@ watch(
       <VCard>
         <VCardTitle class="text-h5">Эта страна ввела эмбарго против Руси!</VCardTitle>
         <VCardText>
-        Для совершения операций с этой страной нужна Контрабанда!
+          Для совершения операций с этой страной нужна Контрабанда!
         </VCardText>
         <VCardActions>
           <VSpacer></VSpacer>
           <VBtn color="grey-darken-1" text @click="confirmContraband">
-          Есть карточка контрабанды!
+            Есть карточка контрабанды!
           </VBtn>
           <VBtn color="grey-darken-1" text @click="showEmbargoDialog = false">
-          Закрыть
+            Закрыть
           </VBtn>
         </VCardActions>
       </VCard>

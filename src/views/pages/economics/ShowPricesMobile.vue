@@ -100,6 +100,7 @@ defineExpose({
 
 <template>
   <VApp>
+
     <div style="width: 100%; height: 100%;">
       <!-- Загрузка -->
       <div v-if="isLoading" class="text-center" style="padding: 32px;">
@@ -126,7 +127,7 @@ defineExpose({
           <!-- Герб страны в правом верхнем углу -->
           <VImg
             v-if="item.country"
-            :src="`/images/countries/${item.country.name}.png`"
+            :src="`/images/countries/${item.country.flag_image_name || item.country.name}.png`"
             width="24"
             height="18"
             class="country-flag-corner"

@@ -7,7 +7,7 @@ import Exchange from '@/views/pages/economics/Exchange.vue'
 import PoliticalActions from '@/views/pages/economics/PoliticalActions.vue'
 import ProductionFront from '@/views/pages/economics/ProductionFront.vue'
 import TradeTurnover from '@/views/pages/economics/TradeTurnover.vue'
-
+import MobileLink from '@/views/pages/economics/MobileLink.vue'
 
 const route = useRoute()
 const activeTab = ref(route.params.tab)
@@ -103,6 +103,10 @@ const tabs = [
 
       <VWindowItem value="exchange_mobile">
         <MobileLink />
+      </VWindowItem>
+
+      <VWindowItem value="trade_turnover">
+        <TradeTurnover />
       </VWindowItem>
 
 
