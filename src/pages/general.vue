@@ -6,6 +6,7 @@ import RegionsTable from '@/views/pages/general/RegionsTable.vue'
 import PlayersTable from '@/views/pages/general/PlayersTable.vue'
 import DetailedYearlyStats from '@/views/pages/general/DetailedYearlyStats.vue'
 import NobleActionsCharts from '@/views/pages/general/NobleActionsCharts.vue'
+import EnterpriseCharts from '@/views/pages/general/EnterpriseCharts.vue'
 
 const route = useRoute()
 const activeTab = ref(route.params?.tab || 'summary')
@@ -128,6 +129,7 @@ const tabs = [
 
       <VWindowItem value="charts">
         <NobleActionsCharts />
+        <EnterpriseCharts />
       </VWindowItem>
     </VWindow>
   </div>

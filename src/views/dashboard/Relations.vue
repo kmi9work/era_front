@@ -313,7 +313,6 @@
     <VCardItem>
       <VCardTitle>Отношения</VCardTitle>
     </VCardItem>
-     {{nonNegativeRelations}}
 
     <!-- Уведомление о блокировке улучшения отношений -->
     <VCardText v-if="hasNoRelationImprovement">
