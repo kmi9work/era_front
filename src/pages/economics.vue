@@ -7,7 +7,7 @@ import Exchange from '@/views/pages/economics/Exchange.vue'
 import PoliticalActions from '@/views/pages/economics/PoliticalActions.vue'
 import ProductionFront from '@/views/pages/economics/ProductionFront.vue'
 import TradeTurnover from '@/views/pages/economics/TradeTurnover.vue'
-
+import MobileLink from '@/views/pages/economics/MobileLink.vue'
 
 const route = useRoute()
 const activeTab = ref(route.params.tab)
@@ -38,10 +38,17 @@ const tabs = [
     tab: 'exchange',
   },
   {
+    title: 'Рынок (📱)',
+    icon: 'ri-smartphone-line',
+    tab: 'exchange_mobile',
+  },
+
+  {
     title: 'Товарооборот',
     icon: 'ri-arrow-left-right-line',
     tab: 'trade_turnover',
   },
+
   {
     title: 'Производство',
     icon: 'ri-cpu-line',
@@ -94,9 +101,14 @@ const tabs = [
         <Exchange />
       </VWindowItem>
 
+      <VWindowItem value="exchange_mobile">
+        <MobileLink />
+      </VWindowItem>
+
       <VWindowItem value="trade_turnover">
         <TradeTurnover />
       </VWindowItem>
+
 
       <VWindowItem value="production_front">
         <ProductionFront />
