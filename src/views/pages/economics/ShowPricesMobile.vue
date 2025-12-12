@@ -159,18 +159,39 @@ defineExpose({
     </div>
 
     <!-- Плавающая кнопка "Назад" внизу -->
-    <div class="floating-back-button">
-      <VBtn 
-        @click="handleBack" 
-        color="#1976d2"
-        block
-        size="x-large"
-        elevation="8"
-        style="color: white !important; font-size: 20px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: normal !important;"
-      >
-        Назад
-      </VBtn>
-    </div>
+<div class="floating-back-button-container">
+  <div class="floating-back-button">
+    <VRow class="ma-0" dense>
+      <VCol cols="6" class="pa-0 pr-1">
+        <VBtn 
+          @click="fetchResources" 
+          color="#4caf50"
+          block
+          size="x-large"
+          elevation="8"
+          style="color: white !important; font-size: 20px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: normal !important;"
+        >
+          Обновить
+        </VBtn>
+
+        
+       
+      </VCol>
+      <VCol cols="6" class="pa-0 pl-1">
+ <VBtn 
+          @click="handleBack" 
+          color="#1976d2"
+          block
+          size="x-large"
+          elevation="8"
+          style="color: white !important; font-size: 20px !important; font-weight: 600 !important; text-transform: none !important; letter-spacing: normal !important;"
+        >
+          Назад
+        </VBtn>
+      </VCol>
+    </VRow>
+  </div>
+</div>
   </VApp>
 </template>
 

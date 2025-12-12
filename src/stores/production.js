@@ -250,18 +250,25 @@ export const useProductionStore = defineStore('production', () => {
   /**
    * Загрузить данные о предприятиях с сервера
    */
-  async function fetchPlantLevels() {
-    isLoading.value = true
-    try {
-      const response = await axios.get(`${import.meta.env.VITE_PROXY}/plant_levels/prod_info_full.json`)
-      plantLevelsInfo.value = response.data
-    } catch (error) {
-      console.error('Error fetching plant levels:', error)
-      throw error
-    } finally {
-      isLoading.value = false
-    }
+async function fetchPlantLevels() {
+  isLoading.value = true
+  try {
+    const response = await axios.get(`${import.meta.env.VITE_PROXY}/plant_levels/prod_info_full.json`)
+    
+    // Фильтрация: оставляем только те сущности, у которых formula_from не пустой массив
+    plantLevelsInfo.value = response.data.filter(item => 
+      item.formula_from && 
+      Array.isArray(item.formula_from) && 
+      item.formula_from.length > 0
+    )
+    
+  } catch (error) {
+    console.error('Error fetching plant levels:', error)
+    throw error
+  } finally {
+    isLoading.value = false
   }
+}
 
   /**
    * Инициализировать массив входных ресурсов
