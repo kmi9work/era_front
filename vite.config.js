@@ -59,10 +59,18 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 5000,
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        mobile: fileURLToPath(new URL('./merchant_mobile_helper.html', import.meta.url)),
+      },
+    },
   },
   optimizeDeps: {
     exclude: ['vuetify'],
     entries: [
+      './index.html',
+      './merchant_mobile_helper.html',
       './src/**/*.vue',
     ],
   },
