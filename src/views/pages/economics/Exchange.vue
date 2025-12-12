@@ -896,7 +896,7 @@ const itemsToGivePlayer = computed(() => {
       </v-card-text>
       <v-card-actions>
         <v-spacer></v-spacer>
-        <v-btn color="grey-darken-1" text @click="calculateCaravanRequest(true) ">
+        <v-btn color="grey-darken-1" text @click="showConfirmDialog = true, showEmbargoDialog = false">
           Есть карточка контрабанды!
         </v-btn>
           <v-btn color="grey-darken-1" text @click="showEmbargoDialog = false">
