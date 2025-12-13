@@ -244,12 +244,12 @@ async function calculateCaravanRequest(isContraband = false) {
 
 //ПРОВЕРИТЬ
 async function submit() {
-  if (embargo.value) {
+
+  await calculateCaravanRequest()
+    if (embargo.value) {
     showEmbargoDialog.value = true
     return
   }
-  
-  await calculateCaravanRequest()
   
   // Открываем модальное окно подтверждения
   showConfirmDialog.value = true
@@ -918,7 +918,7 @@ const itemsToGivePlayer = computed(() => {
       </v-card-text>
       <v-card-actions>
         <v-spacer></v-spacer>
-        <v-btn color="grey-darken-1" text @click="showConfirmDialog = true, showEmbargoDialog = false">
+        <v-btn color="grey-darken-1" text @click=" showEmbargoDialog = false, showConfirmDialog = true">
           Есть карточка контрабанды!
         </v-btn>
           <v-btn color="grey-darken-1" text @click="showEmbargoDialog = false">
