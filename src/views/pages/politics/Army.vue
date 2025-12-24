@@ -475,7 +475,20 @@
 
 <template>
   {{armyProtectingCaravan}}
-  <VCard :title="`${army.name} - ${army.power}`" width="400">
+  <VCard :title="`${army.name}`" width="400">
+    <VCardSubtitle class="pt-0">
+      <div class="d-flex gap-4">
+        <div class="d-flex align-center">
+          <v-icon size="18" class="mr-1">ri-shield-line</v-icon>
+          <strong>{{ army.defense_power }}</strong>
+        </div>
+
+        <div class="d-flex align-center">
+          <v-icon size="18" class="mr-1">ri-sword-line</v-icon>
+          <strong>{{ army.attack_power }}</strong>
+        </div>
+      </div>
+    </VCardSubtitle>
     <VCardText>
       <v-table>
         <tbody>
