@@ -63,6 +63,7 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         mobile: fileURLToPath(new URL('./merchant_mobile_helper.html', import.meta.url)),
+        noble: fileURLToPath(new URL('./noble_helper.html', import.meta.url)),
       },
     },
   },
@@ -71,6 +72,7 @@ export default defineConfig({
     entries: [
       './index.html',
       './merchant_mobile_helper.html',
+      './noble_helper.html',
       './src/**/*.vue',
     ],
   },

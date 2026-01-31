@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import vuetify from '@/plugins/vuetify'
+import iconify from '@/plugins/iconify'
 import axios from 'axios'
 
 // Базовые стили
@@ -19,6 +20,7 @@ const app = createApp(MobileHelper)
 // Подключаем плагины
 app.use(pinia)
 vuetify(app) // Используем существующую конфигурацию Vuetify
+iconify(app) // Подключаем иконки Iconify
 
 // Настройка axios
 axios.defaults.xsrfCookieName = "CSRF-TOKEN"

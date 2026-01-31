@@ -315,7 +315,7 @@ defineExpose({
               <!-- Картинка предприятия -->
               <div class="plant-image-container">
                 <img 
-                  :src="`/public/images/plants/${plantType}.jpg`"
+                  :src="`/images/plants/${plantType}.jpg`"
                   :alt="plantType"
                   class="plant-image"
                 />
