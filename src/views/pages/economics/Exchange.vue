@@ -481,19 +481,19 @@ const recalculate = () => {
 // Выбор гильдии - проверяем ограбление и показываем форму рынка
 const selectGuild = async (guildId) => {
   try {
-    // Проверяем ограбление только если галочка "через Вятку" не включена
-    if (!viaVyatka.value && !isCarProtected.value) {
-      // Проверяем, будет ли караван ограблен (с принятием решения)
-      const response = await axios.get(`${import.meta.env.VITE_PROXY}/caravans/check_robbery_with_decide.json`, {
-        params: { guild_id: guildId }
-      })
+    // // Проверяем ограбление только если галочка "через Вятку" не включена
+    // if (!viaVyatka.value && !isCarProtected.value) {
+    //   // Проверяем, будет ли караван ограблен (с принятием решения)
+    //   const response = await axios.get(`${import.meta.env.VITE_PROXY}/caravans/check_robbery_with_decide.json`, {
+    //     params: { guild_id: guildId }
+    //   })
       
-      // Если караван ограблен, показываем сообщение
-      if (response.data.robbed) {
-        showRobberyDialog.value = true
-        return
-      }
-    }
+    //   // Если караван ограблен, показываем сообщение
+    //   if (response.data.robbed) {
+    //     showRobberyDialog.value = true
+    //     return
+    //   }
+    // }
     
     // Иначе показываем форму
     selectedGuild.value = guildId
