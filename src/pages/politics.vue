@@ -2,6 +2,7 @@
 import { useRoute } from 'vue-router'
 import Ownerships from '@/views/pages/politics/Ownerships.vue'
 import PoliticalActions from '@/views/pages/politics/PoliticalActions.vue'
+import NobleMobileLink from '@/views/pages/politics/NobleMobileLink.vue'
 
 const route = useRoute()
 const activeTab = ref(route.params.tab)
@@ -17,6 +18,11 @@ const tabs = [
     title: 'Политические действия',
     icon: 'ri-shake-hands-line',
     tab: 'political_actions',
+  },
+  {
+    title: 'Помощник',
+    icon: 'ri-smartphone-line',
+    tab: 'helper',
   },
 ]
 </script>
@@ -53,6 +59,10 @@ const tabs = [
 
       <VWindowItem value="political_actions">
         <PoliticalActions />
+      </VWindowItem>
+
+      <VWindowItem value="helper">
+        <NobleMobileLink />
       </VWindowItem>
     </VWindow>
   </div>
