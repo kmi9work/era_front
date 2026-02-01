@@ -152,6 +152,7 @@ onMounted(() => {
           <MerchantResultsScreen
             :active-screen="activeScreen"
             :merch-results="merchResults"
+            :show-cap-per-player="endGameResultsStore.showCapPerPlayer"
           />
         </template>
 

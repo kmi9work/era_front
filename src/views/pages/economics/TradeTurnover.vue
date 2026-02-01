@@ -19,6 +19,12 @@ const editableThresholds = ref([])
 const inputMode = ref('absolute') // 'absolute' или 'percentage'
 const savingThresholds = ref(false)
 
+// История караванов
+const caravansHistory = ref([])
+const loadingCaravans = ref(false)
+const editCaravanDialog = ref(false)
+const editingCaravan = ref(null)
+
 // Загружаем товарообороты всех стран
 const fetchTradeTurnovers = async () => {
   try {
@@ -51,10 +57,27 @@ const fetchTradeLevels = async () => {
   }
 }
 
+// Загрузить историю караванов для страны
+const fetchCaravansHistory = async (countryId) => {
+  loadingCaravans.value = true
+  try {
+    const response = await axios.get(`${import.meta.env.VITE_PROXY}/caravans/by_country/${countryId}.json`)
+    caravansHistory.value = response.data || []
+  } catch (error) {
+    console.error('Error fetching caravans history:', error)
+    caravansHistory.value = []
+  } finally {
+    loadingCaravans.value = false
+  }
+}
+
 // Открыть модальное окно с порогами для страны
 const openThresholdsDialog = async (country) => {
   selectedCountry.value = country
   thresholdsDialog.value = true
+  
+  // Загружаем историю караванов
+  await fetchCaravansHistory(country.country_id)
   
   // Используем закешированные данные если они есть
   if (allThresholds.value[country.country_id]) {
@@ -260,6 +283,108 @@ const cancelEdit = () => {
   editDialog.value = false
   editableThresholds.value = []
 }
+
+// Удалить караван
+const deleteCaravan = async (caravan) => {
+  if (!confirm(`Вы уверены, что хотите удалить караван от ${caravan.guild_name || 'неизвестной гильдии'}?`)) {
+    return
+  }
+  
+  try {
+    await axios.delete(`${import.meta.env.VITE_PROXY}/caravans/${caravan.id}.json`)
+    // Обновляем историю
+    await fetchCaravansHistory(selectedCountry.value.country_id)
+    // Обновляем товарооборот
+    await fetchTradeTurnovers()
+    alert('Караван успешно удален')
+  } catch (error) {
+    console.error('Error deleting caravan:', error)
+    alert('Ошибка при удалении каравана: ' + (error.response?.data?.error || error.message))
+  }
+}
+
+// Открыть диалог редактирования каравана
+const openEditCaravanDialog = (caravan) => {
+  editingCaravan.value = JSON.parse(JSON.stringify(caravan))
+  // Преобразуем JSON объекты в строки для редактирования
+  if (editingCaravan.value.resources_export) {
+    editingCaravan.value.resources_export_text = JSON.stringify(editingCaravan.value.resources_export, null, 2)
+  } else {
+    editingCaravan.value.resources_export_text = '[]'
+  }
+  if (editingCaravan.value.resources_import) {
+    editingCaravan.value.resources_import_text = JSON.stringify(editingCaravan.value.resources_import, null, 2)
+  } else {
+    editingCaravan.value.resources_import_text = '[]'
+  }
+  editCaravanDialog.value = true
+}
+
+// Сохранить изменения каравана
+const saveCaravan = async () => {
+  if (!editingCaravan.value) return
+  
+  try {
+    // Парсим JSON строки обратно в объекты
+    const caravanData = {
+      year: editingCaravan.value.year,
+      gold_export: editingCaravan.value.gold_export,
+      gold_import: editingCaravan.value.gold_import,
+      via_vyatka: editingCaravan.value.via_vyatka,
+      country_id: editingCaravan.value.country_id || selectedCountry.value.country_id,
+      guild_id: editingCaravan.value.guild_id
+    }
+    
+    // Парсим resources_export
+    try {
+      caravanData.resources_export = JSON.parse(editingCaravan.value.resources_export_text || '[]')
+    } catch (e) {
+      alert('Ошибка в формате resources_export: ' + e.message)
+      return
+    }
+    
+    // Парсим resources_import
+    try {
+      caravanData.resources_import = JSON.parse(editingCaravan.value.resources_import_text || '[]')
+    } catch (e) {
+      alert('Ошибка в формате resources_import: ' + e.message)
+      return
+    }
+    
+    await axios.patch(
+      `${import.meta.env.VITE_PROXY}/caravans/${editingCaravan.value.id}.json`,
+      { caravan: caravanData }
+    )
+    // Обновляем историю
+    await fetchCaravansHistory(selectedCountry.value.country_id)
+    // Обновляем товарооборот
+    await fetchTradeTurnovers()
+    editCaravanDialog.value = false
+    editingCaravan.value = null
+    alert('Караван успешно обновлен')
+  } catch (error) {
+    console.error('Error updating caravan:', error)
+    alert('Ошибка при обновлении каравана: ' + (error.response?.data?.error || error.message))
+  }
+}
+
+// Отменить редактирование каравана
+const cancelEditCaravan = () => {
+  editCaravanDialog.value = false
+  editingCaravan.value = null
+}
+
+// Получить URL изображения ресурса
+const getResourceImageUrl = (identificator) => {
+  if (!identificator) {
+    identificator = 'unknown'
+  }
+  return `/images/resources/${identificator}.png`
+}
+
+// Подсказки для редактирования каравана
+const resourcesExportHint = 'Формат: [{"identificator": "wood", "name": "Дерево", "count": 10}]'
+const resourcesImportHint = 'Формат: [{"identificator": "iron", "name": "Железо", "count": 5}]'
 </script>
 
 <template>
@@ -390,7 +515,7 @@ const cancelEdit = () => {
                   size="small"
                   @click="openThresholdsDialog(item)"
                 >
-                  <v-icon icon="mdi-information" class="mr-1" />
+                  <v-icon icon="ri-information-line" class="mr-1" />
                   Уровни
                 </v-btn>
               </td>
@@ -415,7 +540,7 @@ const cancelEdit = () => {
     <!-- Модальное окно с порогами уровней -->
     <v-dialog
       v-model="thresholdsDialog"
-      max-width="600"
+      max-width="1200"
     >
       <v-card>
         <v-card-title class="d-flex justify-space-between align-center">
@@ -480,6 +605,119 @@ const cancelEdit = () => {
           <div v-else class="text-center py-8">
             <v-icon icon="mdi-alert" size="48" color="warning" />
             <div class="mt-4">Нет данных о порогах</div>
+          </div>
+
+          <!-- История караванов -->
+          <v-divider class="my-4" />
+          <h3 class="mb-3">История караванов</h3>
+          <div v-if="loadingCaravans" class="text-center py-4">
+            <v-progress-circular indeterminate size="32" />
+            <div class="mt-2">Загрузка истории...</div>
+          </div>
+          <div v-else-if="caravansHistory.length === 0" class="text-center py-4">
+            <v-icon icon="mdi-package-variant" size="48" color="grey" />
+            <div class="mt-2 text-grey">Нет отправленных караванов</div>
+          </div>
+          <div v-else>
+            <v-table density="compact">
+              <thead>
+                <tr>
+                  <th class="text-left">Год</th>
+                  <th class="text-left">Гильдия</th>
+                  <th class="text-left">Отправлено</th>
+                  <th class="text-left">Получено</th>
+                  <th class="text-center">Золото</th>
+                  <th class="text-center">Через Вятку</th>
+                  <th class="text-center">Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="caravan in caravansHistory" :key="caravan.id">
+                  <td>{{ caravan.year }}</td>
+                  <td>{{ caravan.guild_name || '—' }}</td>
+                  <td>
+                    <div v-if="caravan.resources_export && Array.isArray(caravan.resources_export) && caravan.resources_export.length > 0" class="d-flex flex-wrap gap-1">
+                      <span
+                        v-for="(res, idx) in caravan.resources_export"
+                        :key="idx"
+                        class="d-inline-flex align-center gap-1"
+                      >
+                        <v-img
+                          :src="getResourceImageUrl(res.identificator)"
+                          width="16"
+                          height="16"
+                          style="flex-shrink: 0;"
+                          @error="(e) => console.log('Error loading resource image:', res.identificator, e)"
+                        />
+                        <span class="text-caption">{{ res.count || 0 }}</span>
+                      </span>
+                    </div>
+                    <span v-else class="text-grey">—</span>
+                    <div v-if="caravan.gold_export" class="text-caption text-grey">
+                      Золото: {{ formatNumber(caravan.gold_export) }}
+                    </div>
+                  </td>
+                  <td>
+                    <div v-if="caravan.resources_import && Array.isArray(caravan.resources_import) && caravan.resources_import.length > 0" class="d-flex flex-wrap gap-1">
+                      <span
+                        v-for="(res, idx) in caravan.resources_import"
+                        :key="idx"
+                        class="d-inline-flex align-center gap-1"
+                      >
+                        <v-img
+                          :src="getResourceImageUrl(res.identificator)"
+                          width="16"
+                          height="16"
+                          style="flex-shrink: 0;"
+                          @error="(e) => console.log('Error loading resource image:', res.identificator, e)"
+                        />
+                        <span class="text-caption">{{ res.count || 0 }}</span>
+                      </span>
+                    </div>
+                    <span v-else class="text-grey">—</span>
+                    <div v-if="caravan.gold_import" class="text-caption text-grey">
+                      Золото: {{ formatNumber(caravan.gold_import) }}
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <div v-if="caravan.gold_export || caravan.gold_import">
+                      <div v-if="caravan.gold_export" class="text-error text-caption">
+                        -{{ formatNumber(caravan.gold_export) }}
+                      </div>
+                      <div v-if="caravan.gold_import" class="text-success text-caption">
+                        +{{ formatNumber(caravan.gold_import) }}
+                      </div>
+                    </div>
+                    <span v-else class="text-grey">—</span>
+                  </td>
+                  <td class="text-center">
+                    <v-icon
+                      v-if="caravan.via_vyatka"
+                      icon="mdi-check"
+                      color="success"
+                      size="small"
+                    />
+                    <span v-else class="text-grey">—</span>
+                  </td>
+                  <td class="text-center">
+                    <v-btn
+                      icon="ri-pencil-line"
+                      size="small"
+                      variant="text"
+                      color="primary"
+                      @click="openEditCaravanDialog(caravan)"
+                    />
+                    <v-btn
+                      icon="ri-delete-bin-line"
+                      size="small"
+                      variant="text"
+                      color="error"
+                      @click="deleteCaravan(caravan)"
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
           </div>
         </v-card-text>
         <v-card-actions>
@@ -644,7 +882,7 @@ const cancelEdit = () => {
 
           <!-- Подсказка -->
           <v-alert type="info" variant="tonal" density="compact">
-            <v-icon icon="mdi-information" class="mr-2" />
+            <v-icon icon="ri-information-line" class="mr-2" />
             <strong>Автоматическая валидация:</strong> 
             <ul class="mt-2 mb-0">
               <li>Каждый следующий порог должен быть больше предыдущего</li>
@@ -668,6 +906,107 @@ const cancelEdit = () => {
             variant="elevated"
             @click="saveThresholds"
             :loading="savingThresholds"
+          >
+            <v-icon icon="mdi-content-save" class="mr-1" />
+            Сохранить
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Модальное окно редактирования каравана -->
+    <v-dialog
+      v-model="editCaravanDialog"
+      max-width="800"
+      persistent
+    >
+      <v-card v-if="editingCaravan">
+        <v-card-title class="d-flex justify-space-between align-center">
+          <span>Редактирование каравана</span>
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            @click="cancelEditCaravan"
+          />
+        </v-card-title>
+        <v-divider />
+        <v-card-text>
+          <v-row>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model.number="editingCaravan.year"
+                label="Год"
+                type="number"
+                variant="outlined"
+                density="compact"
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model.number="editingCaravan.gold_export"
+                label="Золото отправлено"
+                type="number"
+                variant="outlined"
+                density="compact"
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model.number="editingCaravan.gold_import"
+                label="Золото получено"
+                type="number"
+                variant="outlined"
+                density="compact"
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-checkbox
+                v-model="editingCaravan.via_vyatka"
+                label="Через Вятку"
+                density="compact"
+              />
+            </v-col>
+          </v-row>
+
+          <v-divider class="my-4" />
+          <h4 class="mb-2">Ресурсы отправлены (resources_export)</h4>
+          <v-textarea
+            v-model="editingCaravan.resources_export_text"
+            label="JSON массив ресурсов"
+            variant="outlined"
+            rows="4"
+            :hint="resourcesExportHint"
+            persistent-hint
+          />
+
+          <v-divider class="my-4" />
+          <h4 class="mb-2">Ресурсы получены (resources_import)</h4>
+          <v-textarea
+            v-model="editingCaravan.resources_import_text"
+            label="JSON массив ресурсов"
+            variant="outlined"
+            rows="4"
+            :hint="resourcesImportHint"
+            persistent-hint
+          />
+
+          <v-alert type="warning" variant="tonal" class="mt-4">
+            <strong>Внимание:</strong> Изменение каравана может повлиять на товарооборот и уровни торговли.
+          </v-alert>
+        </v-card-text>
+        <v-card-actions>
+          <v-btn
+            color="error"
+            variant="text"
+            @click="cancelEditCaravan"
+          >
+            Отмена
+          </v-btn>
+          <v-spacer />
+          <v-btn
+            color="success"
+            variant="elevated"
+            @click="saveCaravan"
           >
             <v-icon icon="mdi-content-save" class="mr-1" />
             Сохранить

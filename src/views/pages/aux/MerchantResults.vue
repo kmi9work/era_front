@@ -88,6 +88,18 @@ const clearGuildData = async (guild) => {
   }
 };
 
+const handleToggleCapPerPlayer = async (event) => {
+  const checked = event.target.checked
+  isLoading.value = true
+  try {
+    await endGameResultsStore.updateShowCapPerPlayer(checked)
+  } catch (error) {
+    errorMessage.value = 'Ошибка обновления настройки'
+  } finally {
+    isLoading.value = false
+  }
+};
+
 // Загружаем данные при монтировании
 onMounted(() => {
   refreshData();
@@ -111,6 +123,20 @@ const formatNumber = (val) => {
     <!-- Основная карточка -->
     <div class="card main-card">
       <h3 class="card-title">Результаты торговцев</h3>
+      
+      <!-- Настройка показа капитала на игрока -->
+      <div class="merchant-settings" style="margin-bottom: 20px; padding: 12px; background-color: #f8f9fa; border-radius: 6px;">
+        <label class="settings-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #2c3e50; font-size: 14px;">
+          <input 
+            type="checkbox" 
+            :checked="endGameResultsStore.showCapPerPlayer"
+            @change="handleToggleCapPerPlayer"
+            style="cursor: pointer;"
+            :disabled="isLoading"
+          />
+          <span>Считать ли результаты на игрока?</span>
+        </label>
+      </div>
       
       <div v-if="errorMessage" class="message error">
         {{ errorMessage }}

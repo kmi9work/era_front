@@ -9,6 +9,7 @@ export const useEndGameResultsStore = defineStore('merchant_results', () => {
   const merchantsList = ref([])
   const nobleInfList = ref([])
   const currentDisplay = ref('merchPlaceholder')
+  const showCapPerPlayer = ref(true) // По умолчанию показываем
 
   const pollTime = 5000
   const pollTimeout = {
@@ -30,12 +31,29 @@ export const useEndGameResultsStore = defineStore('merchant_results', () => {
         if (Array.isArray(data.merchants)) merchantsList.value = data.merchants
         if (Array.isArray(data.nobles)) nobleInfList.value = data.nobles
         if (data.display) currentDisplay.value = data.display
+        if (data.show_cap_per_player !== undefined) {
+          showCapPerPlayer.value = data.show_cap_per_player
+        }
       }
     } catch (error) {
       console.error('Ошибка загрузки bundle экрана:', error)
       errorMessage.value = error.message || 'Ошибка загрузки экрана'
     } finally {
       isLoading.value = false
+    }
+  }
+
+  /** --- Обновление настройки показа капитала на игрока --- */
+  const updateShowCapPerPlayer = async (value) => {
+    try {
+      await axios.patch(
+        `${import.meta.env.VITE_PROXY}/game_parameters/update_merchant_results_settings`,
+        { show_cap_per_player: value }
+      )
+      showCapPerPlayer.value = value
+    } catch (error) {
+      console.error('Ошибка обновления настройки:', error)
+      errorMessage.value = error.message || 'Ошибка обновления настройки'
     }
   }
 
@@ -67,10 +85,12 @@ export const useEndGameResultsStore = defineStore('merchant_results', () => {
     merchantsList,
     nobleInfList,
     currentDisplay,
+    showCapPerPlayer,
     pollTime,
 
     // actions
     fetchScreenBundle,
+    updateShowCapPerPlayer,
     startPolling,
     stopPolling,
     cleanup,

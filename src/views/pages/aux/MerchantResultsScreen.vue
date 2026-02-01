@@ -45,13 +45,13 @@
             <span class="winner-name">{{ team.player }}</span>
             <div class="winner-header">
               <span>Капитал</span> • 
-              <span>Игроков</span> • 
-              <span>На игрока</span>
+              <span>Игроков</span>
+              <template v-if="showCapPerPlayer"> • <span>На игрока</span></template>
             </div>
             <span class="winner-stats">
               {{ team.capital.toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"> • 
-              {{ team.number_of_players }}👥 • 
-              <span class="highlight-gold">{{ (team.cap_per_pl || 0).toLocaleString() }}</span><img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;">
+              {{ team.number_of_players }}👥
+              <template v-if="showCapPerPlayer"> • <span class="highlight-gold">{{ (team.cap_per_pl || 0).toLocaleString() }}</span><img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></template>
             </span>
           </div>
         </div>
@@ -70,13 +70,13 @@
             <span class="winner-name">{{ team.player }}</span>
             <div class="winner-header">
               <span>Капитал</span> • 
-              <span>Игроков</span> • 
-              <span>На игрока</span>
+              <span>Игроков</span>
+              <template v-if="showCapPerPlayer"> • <span>На игрока</span></template>
             </div>
             <span class="winner-stats">
               {{ team.capital.toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"> • 
-              {{ team.number_of_players }}👥 • 
-              <span class="highlight-gold">{{ (team.cap_per_pl || 0).toLocaleString() }}</span><img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;">
+              {{ team.number_of_players }}👥
+              <template v-if="showCapPerPlayer"> • <span class="highlight-gold">{{ (team.cap_per_pl || 0).toLocaleString() }}</span><img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></template>
             </span>
           </div>
         </div>
@@ -95,13 +95,13 @@
             <span class="winner-name">{{ team.player }}</span>
             <div class="winner-header">
               <span>Капитал</span> • 
-              <span>Игроков</span> • 
-              <span>На игрока</span>
+              <span>Игроков</span>
+              <template v-if="showCapPerPlayer"> • <span>На игрока</span></template>
             </div>
             <span class="winner-stats">
               {{ team.capital.toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"> • 
-              {{ team.number_of_players }}👥 • 
-              <span class="highlight-gold">{{ (team.cap_per_pl || 0).toLocaleString() }}</span><img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;">
+              {{ team.number_of_players }}👥
+              <template v-if="showCapPerPlayer"> • <span class="highlight-gold">{{ (team.cap_per_pl || 0).toLocaleString() }}</span><img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></template>
             </span>
           </div>
         </div>
@@ -119,7 +119,7 @@
               <th class="name-col">Команда</th>
               <th class="capital-col">Капитал</th>
               <th class="players-col">Игроков</th>
-              <th class="capital-per-player-col">На игрока</th>
+              <th v-if="showCapPerPlayer" class="capital-per-player-col">На игрока</th>
             </tr>
           </thead>
           <tbody>
@@ -132,7 +132,7 @@
               <td class="team-name">{{ team.player }}</td>
               <td class="team-capital">{{ team.capital.toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></td>
               <td class="team-players">{{ team.number_of_players }}👥</td>
-              <td class="team-capital-per-player">{{ (team.cap_per_pl || 0).toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></td>
+              <td v-if="showCapPerPlayer" class="team-capital-per-player">{{ (team.cap_per_pl || 0).toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></td>
             </tr>
           </tbody>
         </table>
@@ -269,7 +269,7 @@
               <th class="favor-col">Боярская милость</th>
               <th class="capital-col">Капитал</th>
               <th class="players-col">Игроков</th>
-              <th class="capital-per-player-col">На игрока</th>
+              <th v-if="showCapPerPlayer" class="capital-per-player-col">На игрока</th>
             </tr>
           </thead>
           <tbody>
@@ -283,7 +283,7 @@
               <td class="team-favor">{{ team.boyar_favor || 0 }}⚜️</td>
               <td class="team-capital">{{ team.capital.toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></td>
               <td class="team-players">{{ team.number_of_players }}👥</td>
-              <td class="team-capital-per-player">{{ (team.cap_per_pl || 0).toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></td>
+              <td v-if="showCapPerPlayer" class="team-capital-per-player">{{ (team.cap_per_pl || 0).toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></td>
             </tr>
           </tbody>
         </table>
@@ -298,9 +298,18 @@
 </template>
 
 <script setup>
-// URL для загрузки изображений ресурсов с бэкенда
-const baseURL = import.meta.env.VITE_PROXY
-const getResourceImageUrl = (identificator) => `${baseURL}/images/resources/${identificator}.png`
+// URL для загрузки изображений ресурсов
+// В продакшене файлы находятся в public/images/resources/ и обслуживаются веб-сервером напрямую
+// Используем относительный путь без префикса /backend
+const getResourceImageUrl = (identificator) => {
+  if (!identificator) {
+    identificator = 'unknown'
+  }
+  // Всегда используем относительный путь без префикса /backend
+  // В продакшене веб-сервер должен обслуживать /images/resources/ напрямую
+  // В разработке vite proxy должен проксировать этот путь к бэкенду
+  return `/images/resources/${identificator}.png`
+}
 
 defineProps({
   activeScreen: {
@@ -310,6 +319,10 @@ defineProps({
   merchResults: {
     type: Array,
     required: true
+  },
+  showCapPerPlayer: {
+    type: Boolean,
+    default: true
   }
 })
 </script>
