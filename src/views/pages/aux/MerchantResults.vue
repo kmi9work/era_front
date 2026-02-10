@@ -31,6 +31,13 @@ const editGuild = (guild) => {
   if (editingGuild.value.money == null || !Number.isFinite(Number(editingGuild.value.money))) {
     editingGuild.value.money = 0;
   }
+  if (
+    editingGuild.value.number_of_players == null ||
+    !Number.isFinite(Number(editingGuild.value.number_of_players)) ||
+    Number(editingGuild.value.number_of_players) <= 0
+  ) {
+    editingGuild.value.number_of_players = 1
+  }
 };
 
 const cancelEdit = () => {
@@ -49,6 +56,7 @@ const updateGuild = async () => {
       guild_id: editingGuild.value.guild_id,
       money: editingGuild.value.money || 0,
       boyar_favor: Number.isFinite(Number(editingGuild.value.boyar_favor)) ? Number(editingGuild.value.boyar_favor) : 0,
+      number_of_players: Math.max(1, Number(editingGuild.value.number_of_players) || 1),
     };
 
     await axios.patch(
@@ -190,8 +198,8 @@ const formatNumber = (val) => {
                 <input :value="formatNumber(guild.plants_value)" type="text" disabled class="disabled-input">
               </div>
               <div class="form-group">
-                <label>Количество игроков (вычисляется автоматически):</label>
-                <input :value="guild.number_of_players" type="text" disabled class="disabled-input">
+                <label>Количество игроков:</label>
+                <input v-model.number="editingGuild.number_of_players" type="number" min="1" required>
               </div>
               <div class="form-group">
                 <label>Деньги:</label>

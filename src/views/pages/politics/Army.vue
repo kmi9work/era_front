@@ -474,7 +474,6 @@
 </script>
 
 <template>
-  {{armyProtectingCaravan}}
   <VCard :title="`${army.name}`" width="400">
     <VCardSubtitle class="pt-0">
       <div class="d-flex gap-4">

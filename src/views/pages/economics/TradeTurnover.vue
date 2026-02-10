@@ -25,6 +25,38 @@ const loadingCaravans = ref(false)
 const editCaravanDialog = ref(false)
 const editingCaravan = ref(null)
 
+const normalizeBoolean = (value) => {
+  if (value === true || value === false) return value
+
+  if (typeof value === 'number') return value !== 0
+
+  if (typeof value === 'string') {
+    const v = value.trim().toLowerCase()
+    if (['true', '1', 't', 'yes', 'y'].includes(v)) return true
+    if (['false', '0', 'f', 'no', 'n', ''].includes(v)) return false
+  }
+
+  return Boolean(value)
+}
+
+const getCaravanGuildName = (caravan) => {
+  return caravan?.guild_name || caravan?.guild?.name || '—'
+}
+
+const getCaravanGoldTurnover = (caravan) => {
+  const exportGold = Number(caravan?.gold_export ?? 0)
+  const importGold = Number(caravan?.gold_import ?? 0)
+
+  const exportPart = Number.isFinite(exportGold) ? Math.abs(exportGold) : 0
+  const importPart = Number.isFinite(importGold) ? Math.abs(importGold) : 0
+
+  return exportPart + importPart
+}
+
+const isCaravanViaVyatka = (caravan) => {
+  return normalizeBoolean(caravan?.via_vyatka)
+}
+
 // Загружаем товарообороты всех стран
 const fetchTradeTurnovers = async () => {
   try {
@@ -62,7 +94,10 @@ const fetchCaravansHistory = async (countryId) => {
   loadingCaravans.value = true
   try {
     const response = await axios.get(`${import.meta.env.VITE_PROXY}/caravans/by_country/${countryId}.json`)
-    caravansHistory.value = response.data || []
+    caravansHistory.value = (response.data || []).map((caravan) => ({
+      ...caravan,
+      via_vyatka: normalizeBoolean(caravan?.via_vyatka),
+    }))
   } catch (error) {
     console.error('Error fetching caravans history:', error)
     caravansHistory.value = []
@@ -286,7 +321,7 @@ const cancelEdit = () => {
 
 // Удалить караван
 const deleteCaravan = async (caravan) => {
-  if (!confirm(`Вы уверены, что хотите удалить караван от ${caravan.guild_name || 'неизвестной гильдии'}?`)) {
+  if (!confirm(`Вы уверены, что хотите удалить караван от ${getCaravanGuildName(caravan) || 'неизвестной гильдии'}?`)) {
     return
   }
   
@@ -306,6 +341,7 @@ const deleteCaravan = async (caravan) => {
 // Открыть диалог редактирования каравана
 const openEditCaravanDialog = (caravan) => {
   editingCaravan.value = JSON.parse(JSON.stringify(caravan))
+  editingCaravan.value.via_vyatka = normalizeBoolean(editingCaravan.value?.via_vyatka)
   // Преобразуем JSON объекты в строки для редактирования
   if (editingCaravan.value.resources_export) {
     editingCaravan.value.resources_export_text = JSON.stringify(editingCaravan.value.resources_export, null, 2)
@@ -399,7 +435,7 @@ const resourcesImportHint = 'Формат: [{"identificator": "iron", "name": "�
           @click="refreshData"
           :loading="isLoading"
         >
-          <v-icon icon="mdi-refresh" class="mr-2" />
+          <v-icon icon="ri-refresh-line" class="mr-2" />
           Обновить
         </v-btn>
       </VCardTitle>
@@ -546,7 +582,7 @@ const resourcesImportHint = 'Формат: [{"identificator": "iron", "name": "�
         <v-card-title class="d-flex justify-space-between align-center">
           <span>Уровни торговли: {{ selectedCountry ? (selectedCountry.short_name || selectedCountry.country_name) : '' }}</span>
           <v-btn
-            icon="mdi-close"
+            icon="ri-close-line"
             variant="text"
             @click="thresholdsDialog = false"
           />
@@ -603,7 +639,7 @@ const resourcesImportHint = 'Формат: [{"identificator": "iron", "name": "�
             </div>
           </div>
           <div v-else class="text-center py-8">
-            <v-icon icon="mdi-alert" size="48" color="warning" />
+            <v-icon icon="ri-alert-line" size="48" color="warning" />
             <div class="mt-4">Нет данных о порогах</div>
           </div>
 
@@ -615,7 +651,7 @@ const resourcesImportHint = 'Формат: [{"identificator": "iron", "name": "�
             <div class="mt-2">Загрузка истории...</div>
           </div>
           <div v-else-if="caravansHistory.length === 0" class="text-center py-4">
-            <v-icon icon="mdi-package-variant" size="48" color="grey" />
+            <v-icon icon="ri-inbox-2-line" size="48" color="grey" />
             <div class="mt-2 text-grey">Нет отправленных караванов</div>
           </div>
           <div v-else>
@@ -634,7 +670,7 @@ const resourcesImportHint = 'Формат: [{"identificator": "iron", "name": "�
               <tbody>
                 <tr v-for="caravan in caravansHistory" :key="caravan.id">
                   <td>{{ caravan.year }}</td>
-                  <td>{{ caravan.guild_name || '—' }}</td>
+                  <td>{{ getCaravanGuildName(caravan) }}</td>
                   <td>
                     <div v-if="caravan.resources_export && Array.isArray(caravan.resources_export) && caravan.resources_export.length > 0" class="d-flex flex-wrap gap-1">
                       <span
@@ -680,20 +716,15 @@ const resourcesImportHint = 'Формат: [{"identificator": "iron", "name": "�
                     </div>
                   </td>
                   <td class="text-center">
-                    <div v-if="caravan.gold_export || caravan.gold_import">
-                      <div v-if="caravan.gold_export" class="text-error text-caption">
-                        -{{ formatNumber(caravan.gold_export) }}
-                      </div>
-                      <div v-if="caravan.gold_import" class="text-success text-caption">
-                        +{{ formatNumber(caravan.gold_import) }}
-                      </div>
-                    </div>
+                    <span v-if="getCaravanGoldTurnover(caravan) > 0" class="font-weight-medium">
+                      {{ formatNumber(getCaravanGoldTurnover(caravan)) }}
+                    </span>
                     <span v-else class="text-grey">—</span>
                   </td>
                   <td class="text-center">
                     <v-icon
-                      v-if="caravan.via_vyatka"
-                      icon="mdi-check"
+                      v-if="isCaravanViaVyatka(caravan)"
+                      icon="ri-check-line"
                       color="success"
                       size="small"
                     />
@@ -726,7 +757,7 @@ const resourcesImportHint = 'Формат: [{"identificator": "iron", "name": "�
             variant="tonal"
             @click="openEditDialog"
           >
-            <v-icon icon="mdi-pencil" class="mr-1" />
+            <v-icon icon="ri-pencil-line" class="mr-1" />
             Редактировать
           </v-btn>
           <v-spacer />
@@ -751,7 +782,7 @@ const resourcesImportHint = 'Формат: [{"identificator": "iron", "name": "�
         <v-card-title class="d-flex justify-space-between align-center">
           <span>Редактирование порогов: {{ selectedCountry ? (selectedCountry.short_name || selectedCountry.country_name) : '' }}</span>
           <v-btn
-            icon="mdi-close"
+            icon="ri-close-line"
             variant="text"
             @click="cancelEdit"
           />
@@ -770,11 +801,11 @@ const resourcesImportHint = 'Формат: [{"identificator": "iron", "name": "�
                   divided
                 >
                   <v-btn value="absolute" min-width="220">
-                    <v-icon icon="mdi-currency-usd" class="mr-2" />
+                    <v-icon icon="ri-money-dollar-circle-line" class="mr-2" />
                     Абсолютная сумма
                   </v-btn>
                   <v-btn value="percentage" min-width="220">
-                    <v-icon icon="mdi-percent" class="mr-2" />
+                    <v-icon icon="ri-percent-line" class="mr-2" />
                     Процент
                   </v-btn>
                 </v-btn-toggle>
@@ -871,7 +902,7 @@ const resourcesImportHint = 'Формат: [{"identificator": "iron", "name": "�
                     color="info"
                     @click="recalculateAllFromIndex(index)"
                   >
-                    <v-icon icon="mdi-calculator" />
+                    <v-icon icon="ri-calculator-line" />
                   </v-btn>
                 </td>
               </tr>
@@ -907,7 +938,7 @@ const resourcesImportHint = 'Формат: [{"identificator": "iron", "name": "�
             @click="saveThresholds"
             :loading="savingThresholds"
           >
-            <v-icon icon="mdi-content-save" class="mr-1" />
+            <v-icon icon="ri-save-3-line" class="mr-1" />
             Сохранить
           </v-btn>
         </v-card-actions>
@@ -924,7 +955,7 @@ const resourcesImportHint = 'Формат: [{"identificator": "iron", "name": "�
         <v-card-title class="d-flex justify-space-between align-center">
           <span>Редактирование каравана</span>
           <v-btn
-            icon="mdi-close"
+            icon="ri-close-line"
             variant="text"
             @click="cancelEditCaravan"
           />
@@ -1008,7 +1039,7 @@ const resourcesImportHint = 'Формат: [{"identificator": "iron", "name": "�
             variant="elevated"
             @click="saveCaravan"
           >
-            <v-icon icon="mdi-content-save" class="mr-1" />
+            <v-icon icon="ri-save-3-line" class="mr-1" />
             Сохранить
           </v-btn>
         </v-card-actions>

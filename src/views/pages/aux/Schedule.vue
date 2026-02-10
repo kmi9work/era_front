@@ -5,10 +5,12 @@ import axios from 'axios'
 const showModal = ref(false)
 const createScheduleModal = ref(false)
 const showEditModal = ref(false)
+const shiftScheduleModal = ref(false)
 const error = ref(null)
 const isLoading = ref(false)
 const isDeleting = ref(false)
 const schedule = ref([]) // Локальное состояние для расписания
+const shiftMinutes = ref(0)
 const newItem = ref({
   identificator: '',
   start: '',
@@ -75,6 +77,34 @@ const createStandardSchedule = async ()  => {
   } catch (err) {
     console.error('Ошибка при создании расписания:', err)
     error.value = 'Не удалось создать расписание'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const shiftSchedule = async () => {
+  error.value = null
+  const minutes = Number(shiftMinutes.value)
+  if (!Number.isFinite(minutes) || !Number.isInteger(minutes) || minutes === 0) {
+    error.value = 'Введите целое число минут (не 0)'
+    return
+  }
+
+  isLoading.value = true
+  try {
+    const response = await axios.patch(
+      `${import.meta.env.VITE_PROXY}/game_parameters/shift_schedule`,
+      { request: { minutes } }
+    )
+    if (response.data?.success !== true) {
+      throw new Error(response.data?.error || 'Не удалось сдвинуть расписание')
+    }
+    await fetchSchedule()
+    shiftScheduleModal.value = false
+    shiftMinutes.value = 0
+  } catch (err) {
+    console.error('Ошибка при сдвиге расписания:', err)
+    error.value = err?.response?.data?.error || err?.message || 'Не удалось сдвинуть расписание'
   } finally {
     isLoading.value = false
   }
@@ -262,6 +292,13 @@ onUnmounted(() => {
           <span v-if="!isLoading">+ Добавить</span>
           <span v-else>Загрузка...</span>
         </button>
+        <button
+          class="secondary-button"
+          @click="shiftScheduleModal = true"
+          :disabled="isLoading || schedule.length === 0"
+        >
+          Сдвинуть расписание
+        </button>
         <button 
           class="create_schedule_button" 
           @click="createScheduleModal = true"
@@ -400,6 +437,46 @@ onUnmounted(() => {
           >
             <span v-if="!isLoading">Добавить</span>
             <span v-else>Добавление...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модальное окно сдвига расписания -->
+    <div v-if="shiftScheduleModal" class="modal-overlay" @click.self="shiftScheduleModal = false">
+      <div class="modal-content">
+        <h3>Сдвинуть расписание</h3>
+
+        <div v-if="error" class="error-message">
+          {{ error }}
+        </div>
+
+        <div class="form-group">
+          <label>На сколько минут сдвинуть?</label>
+          <input
+            v-model.number="shiftMinutes"
+            type="number"
+            step="1"
+            placeholder="Например: 15 или -10"
+            :disabled="isLoading"
+          >
+          <small class="form-hint">Положительное значение — вперёд, отрицательное — назад.</small>
+        </div>
+
+        <div class="modal-actions">
+          <button
+            class="cancel-button"
+            @click="shiftScheduleModal = false"
+            :disabled="isLoading"
+          >
+            Отмена
+          </button>
+          <button
+            class="confirm-button"
+            @click="shiftSchedule"
+            :disabled="isLoading"
+          >
+            Сдвинуть
           </button>
         </div>
       </div>
