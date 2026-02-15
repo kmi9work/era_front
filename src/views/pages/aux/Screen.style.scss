@@ -42,7 +42,8 @@
   justify-content: center;
   font-size: 1.8rem;
   font-weight: bold;
-  font-family: 'Beryozki', sans-serif;
+  // font-family: 'Beryozki', sans-serif;
+  font-family: 'Molot', sans-serif;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
@@ -73,7 +74,8 @@
 }
 
 .noble-name {
-  font-family: 'Beryozki', sans-serif;
+  // font-family: 'Beryozki', sans-serif;
+  font-family: 'Molot', sans-serif;
   font-size: 5rem;
   font-weight: bold;
   color: #FFF;
@@ -94,7 +96,8 @@
 }
 
 .stat-value {
-  font-family: 'Beryozki', monospace;
+  // font-family: 'Beryozki', monospace;
+  font-family: 'Molot', sans-serif;
   font-size: 3rem;
   font-weight: bold;
   color: #FFD700;
@@ -217,7 +220,8 @@
 .merchant-table {
   width: 90%;
   border-collapse: collapse;
-  font-family: 'Beryozki', sans-serif;
+  // font-family: 'Beryozki', sans-serif;
+  font-family: 'Molot', sans-serif;
   font-size: 4rem;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 12px;
@@ -312,7 +316,8 @@
 }
 
 .fullscreen-results {
-  font-family: 'Beryozki', sans-serif;
+  // font-family: 'Beryozki', sans-serif;
+  font-family: 'Molot', sans-serif;
   font-size: 12rem;
   font-weight: bold;
   text-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
@@ -321,7 +326,8 @@
 }
 
 .fullscreen-schedule-name {
-  font-family: 'Beryozki', sans-serif;
+  // font-family: 'Beryozki', sans-serif;
+  font-family: 'Molot', sans-serif;
   font-size: 6rem;
   font-weight: bold;
   text-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
@@ -330,7 +336,8 @@
 }
 
 .fullscreen-place-title {
-  font-family: 'Beryozki', sans-serif;
+  // font-family: 'Beryozki', sans-serif;
+  font-family: 'Molot', sans-serif;
   font-size: 14rem;
   font-weight: bold;
   text-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
@@ -339,7 +346,8 @@
 }
 
 .fullscreen-place-subtitle {
-  font-family: 'Beryozki', sans-serif;
+  // font-family: 'Beryozki', sans-serif;
+  font-family: 'Molot', sans-serif;
   font-size: 3rem;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
   margin-bottom: 2rem;
@@ -355,7 +363,8 @@
 }
 
 .result-line {
-  font-family: 'Beryozki', monospace;
+  // font-family: 'Beryozki', monospace;
+  font-family: 'Molot', sans-serif;
   font-size: 3rem;
   font-feature-settings: "tnum";
   text-rendering: optimizeLegibility;
@@ -374,7 +383,8 @@
 }
 
 .winner-line {
-  font-family: 'Beryozki', monospace;
+  // font-family: 'Beryozki', monospace;
+  font-family: 'Molot', sans-serif;
   font-size: 4rem;
   font-feature-settings: "tnum";
   text-rendering: optimizeLegibility;
@@ -780,7 +790,8 @@
 }
 
 .fullscreen-timer-value {
-  font-family: 'Beryozki', monospace;
+  // font-family: 'Beryozki', monospace;
+  font-family: 'Molot', sans-serif;
   font-size: 20rem;
   font-feature-settings: "tnum";
   text-rendering: optimizeLegibility;
@@ -1188,7 +1199,8 @@
   text-shadow: 0 0 20px rgba(255, 215, 0, 0.6),
                0 0 40px rgba(255, 215, 0, 0.3);
   letter-spacing: 1px;
-  font-family: 'Beryozki', 'Roboto Mono', monospace;
+  // font-family: 'Beryozki', 'Roboto Mono', monospace;
+  font-family: 'Molot', sans-serif;
 }
 
 .progress-container {
@@ -1368,7 +1380,8 @@
 .stats-value {
   font-weight: 700;
   font-size: 2.5rem;
-  font-family: 'Beryozki', 'Roboto Mono', monospace;
+  // font-family: 'Beryozki', 'Roboto Mono', monospace;
+  font-family: 'Molot', sans-serif;
 }
 
 .stats-value.completed {

@@ -38,6 +38,14 @@
               </div>
             </div>
 
+            <!-- Артель -->
+            <div v-else-if="screen.id === 'artel'" class="timer-preview">
+              <div class="preview-message">
+                <p style="font-size: 1.2rem; margin-bottom: 8px;">Артель</p>
+                <p style="font-size: 0.9rem; opacity: 0.8;">Время и результаты</p>
+              </div>
+            </div>
+
             <!-- Результаты знати -->
             <div v-else-if="screen.id === 'noble_results'" class="results-preview">
               <div class="preview-message"></div>
@@ -393,6 +401,7 @@ const screens = [
   { id: 'placeholder', label: 'Заглушка' },
   { id: 'timer', label: 'Таймер' },
   { id: 'trade_turnover', label: 'Товарооборот' },
+  { id: 'artel', label: 'Артель' },
   { id: 'merchant_results', label: 'Результаты купцов' },
   { id: 'noble_results', label: 'Результаты знати' }
 ]

@@ -108,6 +108,23 @@ const handleToggleCapPerPlayer = async (event) => {
   }
 };
 
+const handleToggleIntelligenceStatus = async (key, event) => {
+  const checked = event.target.checked
+  isLoading.value = true
+  errorMessage.value = null
+  try {
+    await endGameResultsStore.updateIntelligenceDataStatus({
+      ...endGameResultsStore.intelligenceDataStatus,
+      [key]: checked,
+    })
+    successMessage.value = 'Статус разведданных обновлён'
+  } catch (error) {
+    errorMessage.value = 'Ошибка обновления статуса разведданных'
+  } finally {
+    isLoading.value = false
+  }
+}
+
 // Загружаем данные при монтировании
 onMounted(() => {
   refreshData();
@@ -145,6 +162,37 @@ const formatNumber = (val) => {
           <span>Считать ли результаты на игрока?</span>
         </label>
       </div>
+
+      <div class="merchant-settings" style="margin-bottom: 20px; padding: 12px; background-color: #f8f9fa; border-radius: 6px;">
+        <div style="font-weight: 600; color: #2c3e50; margin-bottom: 8px;">Разведданные Артели</div>
+        <label class="settings-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #2c3e50; font-size: 14px; margin-bottom: 6px;">
+          <input
+            type="checkbox"
+            :checked="endGameResultsStore.intelligenceDataStatus.military_recruitment"
+            :disabled="isLoading"
+            @change="handleToggleIntelligenceStatus('military_recruitment', $event)"
+          />
+          <span>Вербовка военных</span>
+        </label>
+        <label class="settings-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #2c3e50; font-size: 14px; margin-bottom: 6px;">
+          <input
+            type="checkbox"
+            :checked="endGameResultsStore.intelligenceDataStatus.scientists_recruitment"
+            :disabled="isLoading"
+            @change="handleToggleIntelligenceStatus('scientists_recruitment', $event)"
+          />
+          <span>Вербовка учёных</span>
+        </label>
+        <label class="settings-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #2c3e50; font-size: 14px;">
+          <input
+            type="checkbox"
+            :checked="endGameResultsStore.intelligenceDataStatus.teaching_staff_recruitment"
+            :disabled="isLoading"
+            @change="handleToggleIntelligenceStatus('teaching_staff_recruitment', $event)"
+          />
+          <span>Вербовка пед. состава</span>
+        </label>
+      </div>
       
       <div v-if="errorMessage" class="message error">
         {{ errorMessage }}
@@ -175,7 +223,7 @@ const formatNumber = (val) => {
                   <span class="stat">Деньги: <strong>{{ formatNumber(guild.money || 0) }}</strong>💰</span>
                   <span class="stat" v-if="guild.cap_per_pl">Капитал на игрока: <strong>{{ formatNumber(guild.cap_per_pl) }}</strong>💰</span>
                   <span class="stat">Игроков: <strong>{{ guild.number_of_players }}</strong>👥</span>
-                  <span class="stat">Боярская милость: <strong>{{ formatNumber(guild.boyar_favor ?? 0) }}</strong>⚜️</span>
+                  <span class="stat">Спецсредства: <strong>{{ formatNumber(guild.boyar_favor ?? 0) }}</strong>⚜️</span>
                 </div>
               </div>
               <button 
@@ -207,7 +255,7 @@ const formatNumber = (val) => {
                 <small class="form-hint">Добавляются к стоимости предприятий для расчета итогового капитала</small>
               </div>
               <div class="form-group">
-                <label>Боярская милость:</label>
+                <label>Спецсредства:</label>
                 <input v-model.number="editingGuild.boyar_favor" type="number" min="0">
               </div>
               <div class="form-actions">

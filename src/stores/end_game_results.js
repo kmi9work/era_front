@@ -10,6 +10,11 @@ export const useEndGameResultsStore = defineStore('merchant_results', () => {
   const nobleInfList = ref([])
   const currentDisplay = ref('merchPlaceholder')
   const showCapPerPlayer = ref(true) // По умолчанию показываем
+  const intelligenceDataStatus = ref({
+    military_recruitment: false,
+    scientists_recruitment: false,
+    teaching_staff_recruitment: false,
+  })
 
   const pollTime = 5000
   const pollTimeout = {
@@ -34,6 +39,13 @@ export const useEndGameResultsStore = defineStore('merchant_results', () => {
         if (data.show_cap_per_player !== undefined) {
           showCapPerPlayer.value = data.show_cap_per_player
         }
+        if (data.intelligence_data_status) {
+          intelligenceDataStatus.value = {
+            military_recruitment: !!data.intelligence_data_status.military_recruitment,
+            scientists_recruitment: !!data.intelligence_data_status.scientists_recruitment,
+            teaching_staff_recruitment: !!data.intelligence_data_status.teaching_staff_recruitment,
+          }
+        }
       }
     } catch (error) {
       console.error('Ошибка загрузки bundle экрана:', error)
@@ -54,6 +66,25 @@ export const useEndGameResultsStore = defineStore('merchant_results', () => {
     } catch (error) {
       console.error('Ошибка обновления настройки:', error)
       errorMessage.value = error.message || 'Ошибка обновления настройки'
+    }
+  }
+
+  const updateIntelligenceDataStatus = async (nextStatus) => {
+    try {
+      const payloadStatus = {
+        military_recruitment: !!nextStatus.military_recruitment,
+        scientists_recruitment: !!nextStatus.scientists_recruitment,
+        teaching_staff_recruitment: !!nextStatus.teaching_staff_recruitment,
+      }
+      await axios.patch(
+        `${import.meta.env.VITE_PROXY}/game_parameters/update_merchant_results_settings`,
+        { intelligence_data_status: payloadStatus }
+      )
+      intelligenceDataStatus.value = payloadStatus
+    } catch (error) {
+      console.error('Ошибка обновления статуса разведданных:', error)
+      errorMessage.value = error.message || 'Ошибка обновления статуса разведданных'
+      throw error
     }
   }
 
@@ -86,11 +117,13 @@ export const useEndGameResultsStore = defineStore('merchant_results', () => {
     nobleInfList,
     currentDisplay,
     showCapPerPlayer,
+    intelligenceDataStatus,
     pollTime,
 
     // actions
     fetchScreenBundle,
     updateShowCapPerPlayer,
+    updateIntelligenceDataStatus,
     startPolling,
     stopPolling,
     cleanup,

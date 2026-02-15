@@ -17,6 +17,7 @@ import TimerScreen from './TimerScreen.vue'
 import TradeTurnoverScreen from './TradeTurnoverScreen.vue'
 import MerchantResultsScreen from './MerchantResultsScreen.vue'
 import NobleResultsScreen from './NobleResultsScreen.vue'
+import ArtelScreen from './ArtelScreen.vue'
 
 // Stores
 const timerStore = useTimerStore()
@@ -144,6 +145,14 @@ onMounted(() => {
             :get-level-name="getLevelName"
             :get-progress-color="getProgressColor"
             :get-checklist-progress-color="getChecklistProgressColor"
+          />
+        </template>
+
+        <!-- Артель -->
+        <template v-else-if="selectedScreen === 'artel'">
+          <ArtelScreen
+            :timer-store="timerStore"
+            :intelligence-data-status="endGameResultsStore.intelligenceDataStatus"
           />
         </template>
 

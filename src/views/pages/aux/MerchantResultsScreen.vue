@@ -3,13 +3,13 @@
     <!-- Заглушки -->
     <div v-if="activeScreen === 'merchPlaceholder'" class="all-results-container">
       <div class="fullscreen-text-container">
-        <div class="fullscreen-place-title">Результаты купцов <br></br>(По капиталу)</div>
+        <div class="fullscreen-place-title">Результаты артелей <br></br>(По капиталу)</div>
       </div>
     </div>
 
     <div v-else-if="activeScreen === 'merchBoyarPlaceholder'" class="all-results-container">
       <div class="fullscreen-text-container">
-        <div class="fullscreen-place-title">Результаты купцов <br></br>(По боярским милостям)</div>
+        <div class="fullscreen-place-title">Результаты артелей <br></br>(По боярским милостям)</div>
       </div>
     </div>
 
@@ -111,7 +111,7 @@
     <!-- Таблица всех результатов по капиталу -->
     <div v-else-if="activeScreen === 'allMerch'" class="all-results-container">
       <div class="fullscreen-text-container">
-        <div class="fullscreen-place-title" style="margin-bottom: 20px;">Результаты купцов</div>
+        <div class="fullscreen-place-title" style="margin-bottom: 20px;">Результаты артелей</div>
         <table class="merchant-table">
           <thead>
             <tr>
@@ -170,7 +170,7 @@
           >
             <span class="winner-name">{{ team.player }}</span>
             <div class="winner-header">
-              <span>Боярская милость</span> •
+              <span>Спецсредства</span> •
               <span>Игроков</span>
             </div>
             <span class="winner-stats">
@@ -193,7 +193,7 @@
           >
             <span class="winner-name">{{ team.player }}</span>
             <div class="winner-header">
-              <span>Боярская милость</span> •
+              <span>Спецсредства</span> •
               <span>Игроков</span>
             </div>
             <span class="winner-stats">
@@ -216,7 +216,7 @@
           >
             <span class="winner-name">{{ team.player }}</span>
             <div class="winner-header">
-              <span>Боярская милость</span> •
+              <span>Спецсредства</span> •
               <span>Игроков</span>
             </div>
             <span class="winner-stats">
@@ -231,13 +231,13 @@
     <!-- Таблица всех результатов по боярским милостям -->
     <div v-else-if="activeScreen === 'allMerchBoyar'" class="all-results-container">
       <div class="fullscreen-text-container">
-        <div class="fullscreen-place-title" style="margin-bottom: 20px;">Результаты купцов</div>
+        <div class="fullscreen-place-title" style="margin-bottom: 20px;">Результаты артелей</div>
         <table class="merchant-table">
           <thead>
             <tr>
               <th class="place-col">Место</th>
               <th class="name-col">Команда</th>
-              <th class="favor-col">Боярская милость</th>
+              <th class="favor-col">Спецсредства</th>
               <th class="players-col">Игроков</th>
             </tr>
           </thead>
@@ -260,13 +260,13 @@
     <!-- Комбинированный вывод: боярские милости + капитал (сортировка по боярским милостям) -->
     <div v-else-if="activeScreen === 'allMerchBoyarWithCapital'" class="all-results-container">
       <div class="fullscreen-text-container">
-        <div class="fullscreen-place-title" style="margin-bottom: 20px;">Результаты купцов</div>
+        <div class="fullscreen-place-title" style="margin-bottom: 20px;">Результаты артелей</div>
         <table class="merchant-table">
           <thead>
             <tr>
               <th class="place-col">Место</th>
               <th class="name-col">Команда</th>
-              <th class="favor-col">Боярская милость</th>
+              <th class="favor-col">Спецсредства</th>
               <th class="capital-col">Капитал</th>
               <th class="players-col">Игроков</th>
               <th v-if="showCapPerPlayer" class="capital-per-player-col">На игрока</th>
@@ -292,7 +292,7 @@
 
     <!-- Fallback -->
     <div v-else class="fullscreen-text-container">
-        <div class="fullscreen-place-title">Результаты купцов</div>
+        <div class="fullscreen-place-title">Результаты артелей</div>
     </div>
   </div>
 </template>
