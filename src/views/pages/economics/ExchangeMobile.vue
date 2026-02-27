@@ -87,10 +87,12 @@ const fetchResources = async () => {
   }
 }
 
+const getResourceCountryId = res => res?.country?.id ?? res?.country_id ?? null
+
 const filteredResOffMark = computed(() => {
   if (!resources.value["off_market"] || !selectedCountry.value) return []
 
-  let filtered = resources.value["off_market"].filter((res) => res.country.id == selectedCountry.value)
+  let filtered = resources.value["off_market"].filter((res) => getResourceCountryId(res) == selectedCountry.value)
 
   resourcesPlBuys.value = filtered.map(item => ({
     identificator: item.identificator,
@@ -105,7 +107,7 @@ const filteredResToMark = computed(() => {
   if (!resources.value["to_market"]) return []
   
   let filtered = selectedCountry.value 
-    ? resources.value["to_market"].filter(res => res.country.id == selectedCountry.value)
+    ? resources.value["to_market"].filter(res => getResourceCountryId(res) == selectedCountry.value)
     : resources.value["to_market"]
   
   resourcesPlSells.value = filtered.map(item => ({
