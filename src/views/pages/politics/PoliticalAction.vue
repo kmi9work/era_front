@@ -17,6 +17,7 @@
   import contract_to_cousin from '@/views/pages/political_actions/contract_to_cousin.vue'
   import improving_the_city from '@/views/pages/political_actions/improving_the_city.vue'
   import sermon_vassals from '@/views/pages/political_actions/sermon_vassals.vue'
+  import sermon from '@/views/pages/political_actions/sermon.vue'
   import root_out_heresies from '@/views/pages/political_actions/root_out_heresies.vue'
   import call_for_unity_vassals from '@/views/pages/political_actions/call_for_unity_vassals.vue'
   import counterintelligence from '@/views/pages/political_actions/counterintelligence.vue'
@@ -58,7 +59,7 @@
   compMap.set("drain_the_swamps", drain_the_swamps);
   compMap.set("contract_to_cousin", contract_to_cousin);
   compMap.set("improving_the_city", improving_the_city);
-  compMap.set("sermon_vassals", sermon_vassals);
+  compMap.set("sermon", sermon);
   compMap.set("root_out_heresies", root_out_heresies);
   compMap.set("call_for_unity_vassals", call_for_unity_vassals);
   compMap.set("counterintelligence", counterintelligence);
@@ -82,6 +83,7 @@
   compMap.set("protect_caravan", protect_caravan);
   compMap.set("spy_away_mutiny", spy_away_mutiny);
   compMap.set("infiltrate_army", infiltrate_army);
+  compMap.set("sermon_vassals", sermon_vassals);
 
   const props = defineProps({
     noble_job: {
