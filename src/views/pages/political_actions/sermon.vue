@@ -26,6 +26,7 @@
   async function runAction(noble_job_id, action_id){
     await axios.post(`${import.meta.env.VITE_PROXY}/political_actions.json`, {
         political_action_type_id: action_id,
+        success: true,
         job_id: noble_job_id,
         params: {region_id: region.value}
       })
