@@ -15,9 +15,9 @@
 
   const countries = ref([]);
   const country_id = ref(0);
-  
+
   onBeforeMount(async () => {
-    await axios.get(`${import.meta.env.VITE_PROXY}/countries.json?vyatka_free=1`) 
+    await axios.get(`${import.meta.env.VITE_PROXY}/countries.json?foreign=1`)
       .then(response => {
         countries.value = response.data;
         if (countries.value.length > 0) {
@@ -26,11 +26,14 @@
       })
   })
 
-  async function runAction(noble_job_id, action_id){
+  async function runAction(noble_job_id, action_id, success){
+    const params = success ? { country_id: country_id.value } : {};
+
     await axios.post(`${import.meta.env.VITE_PROXY}/political_actions.json`, {
         political_action_type_id: action_id,
+        success: success,
         job_id: noble_job_id,
-        params: {country_id: country_id.value}
+        params: params
       })
     emit('close-dialog')
   }
@@ -39,22 +42,19 @@
 <template>
   <v-list>
     <v-list-subheader>Описание</v-list-subheader>
+    <v-list-item>{{action.description}}</v-list-item>
 
-    <v-list-item
-      subtitle="Эффект"
-    >Отношения с выбранной страной улучшаются на 1 пункт.</v-list-item>
-
-    <v-list-item
-      subtitle="Стоимость"
-    >{{action.cost}}</v-list-item>
+    <v-list-item subtitle="Успех">{{action.success}}</v-list-item>
+    <v-list-item subtitle="Неудача">{{action.failure}}</v-list-item>
+    <v-list-item subtitle="Стоимость">{{action.cost}}</v-list-item>
+    <v-list-item subtitle="Вероятность">{{action.probability}}</v-list-item>
 
     <v-divider></v-divider>
 
     <v-list-subheader>Параметры</v-list-subheader>
-
     <v-list-item>
       <v-select
-        label="Выберите страну"
+        label="Выберите страну (для успеха)"
         :items="countries"
         v-model="country_id"
         item-title="name"
@@ -63,6 +63,7 @@
     </v-list-item>
   </v-list>
   <v-card-text>
-    <v-btn text="Выполнить" variant="tonal" color="primary" @click="runAction(noble_job.id, action.id)"></v-btn>
+    <v-btn text="Успех" variant="text" @click="runAction(noble_job.id, action.id, true)"></v-btn>
+    <v-btn text="Неудача" variant="text" @click="runAction(noble_job.id, action.id, false)"></v-btn>
   </v-card-text>
 </template>
