@@ -352,7 +352,7 @@
                 variant="text"
                 rounded
                 prepend-icon="ri-arrow-down-double-fill"
-                min-width="300"
+                width="270"
                 style="justify-content: start;"
               >
                 {{ country.name }}

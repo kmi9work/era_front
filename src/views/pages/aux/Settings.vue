@@ -10,6 +10,9 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 
+// Лимит отношений для получения торговых очков
+const maxRelationsForTradePoints = ref(2)
+
 // Состояния для вассалов
 const vassalIncomes = ref({})
 const vassalCountries = ref([
@@ -35,11 +38,12 @@ const allianceTypeError = ref('')
 const loadSettings = async () => {
   try {
     isLoading.value = true
-    const [yearsResponse, caravansResponse, statsResponse, vassalResponse] = await Promise.all([
+    const [yearsResponse, caravansResponse, statsResponse, vassalResponse, maxRelationsResponse] = await Promise.all([
       axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/get_years_count.json`),
       axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/get_caravans_per_guild.json`),
       axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/get_robbery_stats.json`),
-      axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/get_vassalage_settings.json`)
+      axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/get_vassalage_settings.json`),
+      axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/get_max_relations_for_trade_points.json`)
     ])
     yearsCount.value = yearsResponse.data.years_count || 1
     caravansPerGuild.value = caravansResponse.data.caravans_per_guild || 1
@@ -49,6 +53,9 @@ const loadSettings = async () => {
     if (vassalResponse.data && vassalResponse.data.vassal_incomes) {
       vassalIncomes.value = vassalResponse.data.vassal_incomes
     }
+    
+    // Загружаем лимит отношений
+    maxRelationsForTradePoints.value = maxRelationsResponse.data.max_relations_for_trade_points || 2
   } catch (error) {
     console.error('Ошибка при загрузке настроек:', error)
     errorMessage.value = 'Не удалось загрузить настройки'
@@ -173,6 +180,9 @@ const saveSettings = async () => {
       }),
       axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/update_vassalage_settings.json`, {
         vassal_incomes: vassalIncomes.value
+      }),
+      axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/update_max_relations_for_trade_points.json`, {
+        max_relations_for_trade_points: maxRelationsForTradePoints.value
       })
     ])
     
@@ -307,6 +317,25 @@ onMounted(() => {
               />
             </VCol>
           </VRow>
+        </div>
+        
+        <!-- Лимит отношений для получения торговых очков -->
+        <div class="setting-item">
+          <VLabel class="mb-2">
+            Лимит отношений для торговых очков:
+          </VLabel>
+          
+          <VTextField
+            v-model.number="maxRelationsForTradePoints"
+            type="number"
+            min="0"
+            max="2"
+            variant="outlined"
+            density="compact"
+            :disabled="isLoading"
+            hint="При достижении этого уровня отношений торговые очки не начисляются"
+            persistent-hint
+          />
         </div>
           
         <VBtn
