@@ -248,6 +248,56 @@ const saveEdit = async () => {
   }
 }
 
+const shiftItem = async (item, minutes) => {
+  if (!item || !item.id) return
+  
+  error.value = null
+  isLoading.value = true
+  
+  try {
+    // Calculate new start and finish times
+    const [startH, startM] = item.start.split(':').map(Number)
+    const [finishH, finishM] = item.finish.split(':').map(Number)
+    
+    const startTotalMinutes = startH * 60 + startM + minutes
+    const finishTotalMinutes = finishH * 60 + finishM + minutes
+    
+    // Handle day rollover (keep within 0-1439 minutes)
+    const normalizeMinutes = (m) => {
+      if (m < 0) return m + 1440
+      if (m >= 1440) return m - 1440
+      return m
+    }
+    
+    const newStartMinutes = normalizeMinutes(startTotalMinutes)
+    const newFinishMinutes = normalizeMinutes(finishTotalMinutes)
+    
+    const newStartH = String(Math.floor(newStartMinutes / 60)).padStart(2, '0')
+    const newStartM = String(newStartMinutes % 60).padStart(2, '0')
+    const newFinishH = String(Math.floor(newFinishMinutes / 60)).padStart(2, '0')
+    const newFinishM = String(newFinishMinutes % 60).padStart(2, '0')
+    
+    await axios.patch(
+      `${import.meta.env.VITE_PROXY}/game_parameters/update_schedule_item`,
+      {
+        request: {
+          id: item.id,
+          identificator: item.identificator,
+          start: `${newStartH}:${newStartM}`,
+          finish: `${newFinishH}:${newFinishM}`,
+          type: item.type
+        }
+      }
+    )
+    await fetchSchedule()
+  } catch (err) {
+    console.error('Ошибка при сдвиге пункта:', err)
+    error.value = 'Не удалось сдвинуть пункт расписания'
+  } finally {
+    isLoading.value = false
+  }
+}
+
 // Удалить выбранный пункт расписания
 const deleteItem = async (id) => {
   if (!id) return
@@ -342,9 +392,27 @@ onUnmounted(() => {
               </span>
             </td>
             <td class="actions-cell">
-              <button class="edit-button" @click="openEdit(item)" :disabled="isLoading || isDeleting">
-                Редактировать
-              </button>
+              <div style="display: flex; gap: 4px; justify-content: flex-end; align-items: center;">
+                <button 
+                  class="shift-btn shift-btn--minus" 
+                  @click="shiftItem(item, -5)" 
+                  :disabled="isLoading || isDeleting"
+                  title="Сдвинуть на -5 минут"
+                >
+                  −5
+                </button>
+                <button 
+                  class="shift-btn shift-btn--plus" 
+                  @click="shiftItem(item, +5)" 
+                  :disabled="isLoading || isDeleting"
+                  title="Сдвинуть на +5 минут"
+                >
+                  +5
+                </button>
+                <button class="edit-button" @click="openEdit(item)" :disabled="isLoading || isDeleting">
+                  Редактировать
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -946,6 +1014,38 @@ onUnmounted(() => {
   border: none;
   border-radius: 4px;
   cursor: pointer;
+}
+
+.shift-btn {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  min-width: 40px;
+}
+
+.shift-btn--plus {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.shift-btn--minus {
+  background-color: #FF9800;
+  color: white;
+}
+
+.shift-btn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.shift-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .cancel-button:hover:not(:disabled),

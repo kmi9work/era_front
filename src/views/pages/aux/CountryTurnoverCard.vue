@@ -48,8 +48,8 @@
         {{ formatTurnover(item.trade_turnover) }}
       </div>
       
-      <!-- Прогресс-бар -->
-      <div class="progress-container">
+      <!-- Прогресс-бар (показываем всегда для Вятки) -->
+      <div v-if="item.country_id !== 9 || hasTradeLevels" class="progress-container">
         <div class="progress-track">
           <div 
             class="progress-fill"
@@ -62,7 +62,7 @@
           </div>
         </div>
         <div class="progress-text">
-          До следующего уровня: {{ formatTurnover(toNextLevel) }}
+          {{ item.country_id === 9 && !hasTradeLevels ? 'Товарооборот Вятки' : `До следующего уровня: ${formatTurnover(toNextLevel)}` }}
         </div>
       </div>
     </div>
@@ -130,20 +130,42 @@ const props = defineProps({
   }
 })
 
+const hasTradeLevels = computed(() => {
+  // Для Вятки (country_id = 9) проверяем есть ли уровни торговли
+  if (props.item.country_id === 9) {
+    return props.tradeLevels[props.item.country_id] && 
+           props.tradeLevels[props.item.country_id].current_level !== undefined
+  }
+  return true
+})
+
 const levelName = computed(() => {
+  // Для Вятки без уровней показываем пустую строку
+  if (props.item.country_id === 9 && !hasTradeLevels.value) {
+    return ''
+  }
   return props.getLevelName(props.item.country_id)
 })
 
 const progressPercent = computed(() => {
+  // Для Вятки без уровней показываем 100% заполненный прогресс бар
+  if (props.item.country_id === 9 && !hasTradeLevels.value) {
+    return 100
+  }
   return props.getProgressPercent(props.item.country_id, props.item.trade_turnover)
 })
 
 const progressColor = computed(() => {
+  // Для Вятки без уровней используем синий цвет
+  if (props.item.country_id === 9 && !hasTradeLevels.value) {
+    return 'primary'
+  }
   return props.getProgressColor(props.tradeLevels[props.item.country_id])
 })
 
 const toNextLevel = computed(() => {
   const level = props.tradeLevels[props.item.country_id]
+  // Для Вятки без уровней возвращаем 0
   return level?.to_next_level || 0
 })
 

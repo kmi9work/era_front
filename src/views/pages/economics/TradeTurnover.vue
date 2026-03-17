@@ -513,29 +513,35 @@ const resourcesImportHint = 'Формат: [{"identificator": "iron", "name": "�
               
               <!-- Прогресс-бар -->
               <td class="text-left">
-                <div v-if="tradeLevels[item.country_id]">
+                <div v-if="item.country_id === 9 || tradeLevels[item.country_id]">
                   <div class="d-flex justify-space-between align-center mb-2">
                     <span class="text-body-2">
                       Товарооборот: <strong>{{ formatNumber(item.trade_turnover) }}</strong> золота
                     </span>
-                    <span class="text-body-2">
+                    <span v-if="item.country_id !== 9 && tradeLevels[item.country_id]" class="text-body-2">
                       Порог: <strong>{{ formatNumber(tradeLevels[item.country_id].threshold) }}</strong> золота
+                    </span>
+                    <span v-if="item.country_id === 9" class="text-body-2 text-grey">
+                      (карaваны через Вятку)
+                    </span>
+                    <span v-else-if="!tradeLevels[item.country_id]" class="text-body-2 text-grey">
+                      (без уровней)
                     </span>
                   </div>
                   <v-progress-linear
                     :model-value="getProgressPercent(item.country_id, item.trade_turnover)"
-                    :color="getProgressColor(tradeLevels[item.country_id])"
+                    :color="item.country_id === 9 ? 'primary' : getProgressColor(tradeLevels[item.country_id])"
                     height="25"
                     rounded
                   >
                     <template v-slot:default>
                       <span class="text-caption font-weight-bold">
-                        Осталось: {{ formatNumber(tradeLevels[item.country_id].to_next_level) }} золота
+                        {{ item.country_id === 9 ? 'Товарооборот Вятки' : `Осталось: ${formatNumber(tradeLevels[item.country_id]?.to_next_level || 0)} золота` }}
                       </span>
                     </template>
                   </v-progress-linear>
                   <div class="text-caption mt-1 text-center">
-                    До следующего уровня
+                    {{ item.country_id === 9 ? 'Караваны через Вятку не влияют на отношения' : 'До следующего уровня' }}
                   </div>
                 </div>
                 <div v-else class="text-center">
