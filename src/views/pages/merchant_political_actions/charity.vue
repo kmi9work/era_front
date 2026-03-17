@@ -8,14 +8,17 @@
   })
 
   const emit = defineEmits(['close-dialog']);
+  
+  const guilds = ref([]);
+  const selectedGuildId = ref(null);
 
-  const regions = ref([]);
-  const region = ref(0);
   onBeforeMount(async () => {
-    await axios.get(`${import.meta.env.VITE_PROXY}/regions.json?foreign=0`) 
+    await axios.get(`${import.meta.env.VITE_PROXY}/guilds.json`) 
       .then(response => {
-        regions.value = response.data;
-        region.value = regions.value[0].id;
+        guilds.value = response.data;
+        if (guilds.value.length > 0) {
+          selectedGuildId.value = guilds.value[0].id;
+        }
       })
   })
 
@@ -24,7 +27,7 @@
         political_action_type_id: action_id,
         success: success,
         player_id: 1, //Костыль - единственный купец
-        params: {region_id: region.value}
+        guild_id: selectedGuildId.value,
       })
     emit('close-dialog')
   }
@@ -49,24 +52,18 @@
     <v-list-item
       subtitle="Вероятность"
     >{{action.probability}}</v-list-item>
+    
+    <v-list-item>
+      <v-select
+        v-model="selectedGuildId"
+        :items="guilds.map(g => ({ title: g.name, value: g.id }))"
+        label="Выберите гильдию"
+        variant="outlined"
+        density="compact"
+      ></v-select>
+    </v-list-item>
 
     <v-divider></v-divider>
-
-    <v-list-subheader>Параметры</v-list-subheader>
-
-    <v-list-item>
-      <template v-slot:prepend>
-        <v-list-item-action start>
-          <v-select
-            label="Регион"
-            :items="regions"
-            v-model="region"
-            item-title="name"
-            item-value="id"
-          ></v-select>
-        </v-list-item-action>
-      </template>
-    </v-list-item>
   </v-list>
   <v-card-text>
     <v-btn text="Успех" variant="text" @click="runAction(action.id, true)"></v-btn>

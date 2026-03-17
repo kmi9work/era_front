@@ -38,28 +38,20 @@ const tabs = [
     tab: 'exchange',
   },
   {
-    title: 'Рынок (📱)',
-    icon: 'ri-smartphone-line',
-    tab: 'exchange_mobile',
+    title: 'Политические действия',
+    icon: 'ri-shake-hands-line',
+    tab: 'buyer_actions',
   },
-
   {
     title: 'Товарооборот',
     icon: 'ri-arrow-left-right-line',
     tab: 'trade_turnover',
   },
-
   {
     title: 'Производство',
     icon: 'ri-cpu-line',
     tab: 'production_front',
-  },
-  {
-    title: 'Политические действия',
-    icon: 'ri-shake-hands-line',
-    tab: 'buyer_actions',
   }
-
 ]
 </script>
 
