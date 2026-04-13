@@ -2,6 +2,14 @@
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { useEndGameResultsStore } from '@/stores/end_game_results'
+import { useGameConfig } from '@/composables/useGameConfig'
+
+const { isGameActive } = useGameConfig()
+const isArtel = computed(() => isGameActive('artel'))
+
+const favorLabel = computed(() => {
+  return isArtel.value ? 'Знаки отличия' : 'Боярские милости'
+})
 
 // Состояния UI
 const isLoading = ref(false);
@@ -223,7 +231,7 @@ const formatNumber = (val) => {
                   <span class="stat">Деньги: <strong>{{ formatNumber(guild.money || 0) }}</strong>💰</span>
                   <span class="stat" v-if="guild.cap_per_pl">Капитал на игрока: <strong>{{ formatNumber(guild.cap_per_pl) }}</strong>💰</span>
                   <span class="stat">Игроков: <strong>{{ guild.number_of_players }}</strong>👥</span>
-                  <span class="stat">Спецсредства: <strong>{{ formatNumber(guild.boyar_favor ?? 0) }}</strong>⚜️</span>
+                  <span class="stat">{{ favorLabel }}: <strong>{{ formatNumber(guild.boyar_favor ?? 0) }}</strong>⚜️</span>
                 </div>
               </div>
               <button 
@@ -255,7 +263,7 @@ const formatNumber = (val) => {
                 <small class="form-hint">Добавляются к стоимости предприятий для расчета итогового капитала</small>
               </div>
               <div class="form-group">
-                <label>Спецсредства:</label>
+                <label>{{ favorLabel }}:</label>
                 <input v-model.number="editingGuild.boyar_favor" type="number" min="0">
               </div>
               <div class="form-actions">

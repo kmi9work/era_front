@@ -25,7 +25,7 @@ const tabs = [
   },
 
   {
-    title: 'Результаты купцов',
+    title: 'Вывод результатов',
     icon: 'ri-money-dollar-box-line',
     tab: 'merchant_results',
   },

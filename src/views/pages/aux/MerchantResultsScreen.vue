@@ -3,13 +3,13 @@
     <!-- Заглушки -->
     <div v-if="activeScreen === 'merchPlaceholder'" class="all-results-container">
       <div class="fullscreen-text-container">
-        <div class="fullscreen-place-title">Результаты артелей <br></br>(По капиталу)</div>
+        <div class="fullscreen-place-title">{{ mainTitle }} <br></br>(По капиталу)</div>
       </div>
     </div>
 
     <div v-else-if="activeScreen === 'merchBoyarPlaceholder'" class="all-results-container">
       <div class="fullscreen-text-container">
-        <div class="fullscreen-place-title">Результаты артелей <br></br>(По боярским милостям)</div>
+        <div class="fullscreen-place-title">{{ mainTitle }} <br></br>({{ byBoyarsSubtitle }})</div>
       </div>
     </div>
 
@@ -45,13 +45,15 @@
             <span class="winner-name">{{ team.player }}</span>
             <div class="winner-header">
               <span>Капитал</span> • 
-              <span>Игроков</span>
+              <template v-if="showCapPerPlayer"><span>Игроков</span></template>
               <template v-if="showCapPerPlayer"> • <span>На игрока</span></template>
             </div>
             <span class="winner-stats">
-              {{ team.capital.toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"> • 
-              {{ team.number_of_players }}👥
-              <template v-if="showCapPerPlayer"> • <span class="highlight-gold">{{ (team.cap_per_pl || 0).toLocaleString() }}</span><img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></template>
+              {{ team.capital.toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;">
+              <template v-if="showCapPerPlayer">
+                <span> • {{ team.number_of_players }}👥</span>
+                <span> • <span class="highlight-gold">{{ (team.cap_per_pl || 0).toLocaleString() }}</span><img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></span>
+              </template>
             </span>
           </div>
         </div>
@@ -70,13 +72,15 @@
             <span class="winner-name">{{ team.player }}</span>
             <div class="winner-header">
               <span>Капитал</span> • 
-              <span>Игроков</span>
+              <template v-if="showCapPerPlayer"><span>Игроков</span></template>
               <template v-if="showCapPerPlayer"> • <span>На игрока</span></template>
             </div>
             <span class="winner-stats">
-              {{ team.capital.toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"> • 
-              {{ team.number_of_players }}👥
-              <template v-if="showCapPerPlayer"> • <span class="highlight-gold">{{ (team.cap_per_pl || 0).toLocaleString() }}</span><img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></template>
+              {{ team.capital.toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;">
+              <template v-if="showCapPerPlayer">
+                <span> • {{ team.number_of_players }}👥</span>
+                <span> • <span class="highlight-gold">{{ (team.cap_per_pl || 0).toLocaleString() }}</span><img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></span>
+              </template>
             </span>
           </div>
         </div>
@@ -95,13 +99,15 @@
             <span class="winner-name">{{ team.player }}</span>
             <div class="winner-header">
               <span>Капитал</span> • 
-              <span>Игроков</span>
+              <template v-if="showCapPerPlayer"><span>Игроков</span></template>
               <template v-if="showCapPerPlayer"> • <span>На игрока</span></template>
             </div>
             <span class="winner-stats">
-              {{ team.capital.toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"> • 
-              {{ team.number_of_players }}👥
-              <template v-if="showCapPerPlayer"> • <span class="highlight-gold">{{ (team.cap_per_pl || 0).toLocaleString() }}</span><img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></template>
+              {{ team.capital.toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;">
+              <template v-if="showCapPerPlayer">
+                <span> • {{ team.number_of_players }}👥</span>
+                <span> • <span class="highlight-gold">{{ (team.cap_per_pl || 0).toLocaleString() }}</span><img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></span>
+              </template>
             </span>
           </div>
         </div>
@@ -111,14 +117,14 @@
     <!-- Таблица всех результатов по капиталу -->
     <div v-else-if="activeScreen === 'allMerch'" class="all-results-container">
       <div class="fullscreen-text-container">
-        <div class="fullscreen-place-title" style="margin-bottom: 20px;">Результаты артелей</div>
+        <div class="fullscreen-place-title" style="margin-bottom: 20px;">{{ mainTitle }}</div>
         <table class="merchant-table">
           <thead>
             <tr>
               <th class="place-col">Место</th>
               <th class="name-col">Команда</th>
               <th class="capital-col">Капитал</th>
-              <th class="players-col">Игроков</th>
+              <th v-if="showCapPerPlayer" class="players-col">Игроков</th>
               <th v-if="showCapPerPlayer" class="capital-per-player-col">На игрока</th>
             </tr>
           </thead>
@@ -131,7 +137,7 @@
               <td class="place-number">{{ team.place }}</td>
               <td class="team-name">{{ team.player }}</td>
               <td class="team-capital">{{ team.capital.toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></td>
-              <td class="team-players">{{ team.number_of_players }}👥</td>
+              <td v-if="showCapPerPlayer" class="team-players">{{ team.number_of_players }}👥</td>
               <td v-if="showCapPerPlayer" class="team-capital-per-player">{{ (team.cap_per_pl || 0).toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></td>
             </tr>
           </tbody>
@@ -170,12 +176,14 @@
           >
             <span class="winner-name">{{ team.player }}</span>
             <div class="winner-header">
-              <span>Спецсредства</span> •
-              <span>Игроков</span>
+              <span>{{ favorLabel }}</span> •
+              <template v-if="showCapPerPlayer"><span>Игроков</span></template>
             </div>
             <span class="winner-stats">
-              <span class="highlight-gold">{{ team.boyar_favor || 0 }}⚜️</span> •
-              {{ team.number_of_players }}👥
+              <span class="highlight-gold">{{ team.boyar_favor || 0 }}⚜️</span>
+              <template v-if="showCapPerPlayer">
+                <span> • {{ team.number_of_players }}👥</span>
+              </template>
             </span>
           </div>
         </div>
@@ -193,12 +201,14 @@
           >
             <span class="winner-name">{{ team.player }}</span>
             <div class="winner-header">
-              <span>Спецсредства</span> •
-              <span>Игроков</span>
+              <span>{{ favorLabel }}</span> •
+              <template v-if="showCapPerPlayer"><span>Игроков</span></template>
             </div>
             <span class="winner-stats">
-              <span class="highlight-gold">{{ team.boyar_favor || 0 }}⚜️</span> •
-              {{ team.number_of_players }}👥
+              <span class="highlight-gold">{{ team.boyar_favor || 0 }}⚜️</span>
+              <template v-if="showCapPerPlayer">
+                <span> • {{ team.number_of_players }}👥</span>
+              </template>
             </span>
           </div>
         </div>
@@ -216,12 +226,14 @@
           >
             <span class="winner-name">{{ team.player }}</span>
             <div class="winner-header">
-              <span>Спецсредства</span> •
-              <span>Игроков</span>
+              <span>{{ favorLabel }}</span> •
+              <template v-if="showCapPerPlayer"><span>Игроков</span></template>
             </div>
             <span class="winner-stats">
-              <span class="highlight-gold">{{ team.boyar_favor || 0 }}⚜️</span> •
-              {{ team.number_of_players }}👥
+              <span class="highlight-gold">{{ team.boyar_favor || 0 }}⚜️</span>
+              <template v-if="showCapPerPlayer">
+                <span> • {{ team.number_of_players }}👥</span>
+              </template>
             </span>
           </div>
         </div>
@@ -237,8 +249,8 @@
             <tr>
               <th class="place-col">Место</th>
               <th class="name-col">Команда</th>
-              <th class="favor-col">Спецсредства</th>
-              <th class="players-col">Игроков</th>
+              <th class="favor-col">{{ favorLabel }}</th>
+              <th v-if="showCapPerPlayer" class="players-col">Игроков</th>
             </tr>
           </thead>
           <tbody>
@@ -250,7 +262,7 @@
               <td class="place-number">{{ team.place }}</td>
               <td class="team-name">{{ team.player }}</td>
               <td class="team-favor">{{ team.boyar_favor || 0 }}⚜️</td>
-              <td class="team-players">{{ team.number_of_players }}👥</td>
+              <td v-if="showCapPerPlayer" class="team-players">{{ team.number_of_players }}👥</td>
             </tr>
           </tbody>
         </table>
@@ -260,15 +272,15 @@
     <!-- Комбинированный вывод: боярские милости + капитал (сортировка по боярским милостям) -->
     <div v-else-if="activeScreen === 'allMerchBoyarWithCapital'" class="all-results-container">
       <div class="fullscreen-text-container">
-        <div class="fullscreen-place-title" style="margin-bottom: 20px;">Результаты артелей</div>
+        <div class="fullscreen-place-title" style="margin-bottom: 20px;">{{ mainTitle }}</div>
         <table class="merchant-table">
           <thead>
             <tr>
               <th class="place-col">Место</th>
               <th class="name-col">Команда</th>
-              <th class="favor-col">Спецсредства</th>
+              <th class="favor-col">{{ favorLabel }}</th>
               <th class="capital-col">Капитал</th>
-              <th class="players-col">Игроков</th>
+              <th v-if="showCapPerPlayer" class="players-col">Игроков</th>
               <th v-if="showCapPerPlayer" class="capital-per-player-col">На игрока</th>
             </tr>
           </thead>
@@ -282,7 +294,7 @@
               <td class="team-name">{{ team.player }}</td>
               <td class="team-favor">{{ team.boyar_favor || 0 }}⚜️</td>
               <td class="team-capital">{{ team.capital.toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></td>
-              <td class="team-players">{{ team.number_of_players }}👥</td>
+              <td v-if="showCapPerPlayer" class="team-players">{{ team.number_of_players }}👥</td>
               <td v-if="showCapPerPlayer" class="team-capital-per-player">{{ (team.cap_per_pl || 0).toLocaleString() }}<img :src="getResourceImageUrl('gold')" alt="золото" style="width: 1em; height: 1em; vertical-align: middle; display: inline-block;"></td>
             </tr>
           </tbody>
@@ -292,12 +304,31 @@
 
     <!-- Fallback -->
     <div v-else class="fullscreen-text-container">
-        <div class="fullscreen-place-title">Результаты артелей</div>
+        <div class="fullscreen-place-title">{{ mainTitle }}</div>
     </div>
   </div>
 </template>
 
 <script setup>
+import { computed } from 'vue'
+import { useGameConfig } from '@/composables/useGameConfig'
+
+const { isGameActive } = useGameConfig()
+const isArtel = computed(() => isGameActive('artel'))
+
+// Динамические заголовки в зависимости от игры
+const mainTitle = computed(() => {
+  return isArtel.value ? 'Результаты артелей' : 'Результаты купцов'
+})
+
+const byBoyarsSubtitle = computed(() => {
+  return isArtel.value ? 'По знакам отличия' : 'По боярским милостям'
+})
+
+const favorLabel = computed(() => {
+  return isArtel.value ? 'Знаки отличия' : 'Боярские милости'
+})
+
 // URL для загрузки изображений ресурсов
 // В продакшене файлы находятся в public/images/resources/ и обслуживаются веб-сервером напрямую
 // Используем относительный путь без префикса /backend

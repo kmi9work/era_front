@@ -6,7 +6,7 @@
   const productionStore = useProductionStore()
 
   onBeforeMount(async () => {
-    await axios.get(`${import.meta.env.VITE_PROXY}/plant_levels/prod_info_full.json`)
+    await axios.get(`${import.meta.env.VITE_PROXY}/plant_levels.json`)
     .then(response => {
       // Сохраняем данные в store
       productionStore.setPlantLevels(response.data)

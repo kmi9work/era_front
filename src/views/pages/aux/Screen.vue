@@ -3,6 +3,7 @@ import { computed, onMounted } from 'vue'
 import { useTimerStore } from '@/stores/timer'
 import { useEndGameResultsStore } from '@/stores/end_game_results.js'
 import previewPlaceholder from '@/assets/images/preview_placeholder.jpg'
+import { useGameConfig } from '@/composables/useGameConfig'
 
 // Composables
 import { useTradeTurnover } from '@/composables/useTradeTurnover.js'
@@ -22,6 +23,13 @@ import ArtelScreen from './ArtelScreen.vue'
 // Stores
 const timerStore = useTimerStore()
 const endGameResultsStore = useEndGameResultsStore()
+const { isGameActive } = useGameConfig()
+const isArtel = computed(() => isGameActive('artel'))
+
+// Computed property for game-specific CSS class
+const gameClass = computed(() => {
+  return isArtel.value ? 'artel-game' : 'base-game'
+})
 
 // Composables
 const { isFullscreen, toggleFullscreen } = useFullscreen()
@@ -117,7 +125,7 @@ onMounted(() => {
   />
 
   <!-- Полноэкранный режим -->
-  <div id="fullscreen-content" :class="['fullscreen-mode', { active: isFullscreen }]">
+  <div id="fullscreen-content" :class="['fullscreen-mode', { active: isFullscreen }, gameClass]">
     <Transition name="fade" mode="out-in">
       <div class="fullscreen-content-wrapper" :key="selectedScreen">
         <!-- Заглушка -->

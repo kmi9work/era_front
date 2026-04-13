@@ -14,13 +14,13 @@ export const useProductionStore = defineStore('production', () => {
 
   // Computed
   const uniquePlantTypes = computed(() => {
-    return [...new Set(plantLevelsInfo.value.map(plant => plant.name))]
+    return [...new Set(plantLevelsInfo.value.map(plant => plant.plant_type?.name))]
   })
 
   const filteredPlantsByType = computed(() => {
     if (selectedPlantTypeIndex.value === null) return []
     const selectedType = uniquePlantTypes.value[selectedPlantTypeIndex.value]
-    return plantLevelsInfo.value.filter(plant => plant.name === selectedType)
+    return plantLevelsInfo.value.filter(plant => plant.plant_type?.name === selectedType)
   })
 
   const selectedPlantId = computed(() => {
@@ -244,7 +244,7 @@ export const useProductionStore = defineStore('production', () => {
    * @returns {Array}
    */
   function getPlantsByType(plantType) {
-    return plantLevelsInfo.value.filter(plant => plant.name === plantType)
+    return plantLevelsInfo.value.filter(plant => plant.plant_type?.name === plantType)
   }
 
   /**
@@ -253,15 +253,15 @@ export const useProductionStore = defineStore('production', () => {
 async function fetchPlantLevels() {
   isLoading.value = true
   try {
-    const response = await axios.get(`${import.meta.env.VITE_PROXY}/plant_levels/prod_info_full.json`)
-    
+    const response = await axios.get(`${import.meta.env.VITE_PROXY}/plant_levels.json`)
+
     // Фильтрация: оставляем только те сущности, у которых formula_from не пустой массив
-    plantLevelsInfo.value = response.data.filter(item => 
-      item.formula_from && 
-      Array.isArray(item.formula_from) && 
+    plantLevelsInfo.value = response.data.filter(item =>
+      item.formula_from &&
+      Array.isArray(item.formula_from) &&
       item.formula_from.length > 0
     )
-    
+
   } catch (error) {
     console.error('Error fetching plant levels:', error)
     throw error

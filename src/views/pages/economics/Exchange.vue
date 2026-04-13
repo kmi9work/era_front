@@ -275,9 +275,22 @@ const hasEmbargo = (country) => {
 // Метод для определения цвета кнопки страны
 const getButtonColor = (country) => {
   if (selectedCountry.value === country.id && !hasEmbargo(country)) return 'success'
-  if (selectedCountry.value === country.id && hasEmbargo(country)) return 'secondary'  
+  if (selectedCountry.value === country.id && hasEmbargo(country)) return 'secondary'
   if (hasEmbargo(country)) return 'error'
   return undefined
+}
+
+// Возвращает уникальные ресурсы, которыми торгует страна (из обоих направлений)
+const getCountryResources = (countryId) => {
+  if (!resources.value || !countryId) return []
+  const offMarket = (resources.value['off_market'] || []).filter(res => getResourceCountryId(res) == countryId)
+  const toMarket = (resources.value['to_market'] || []).filter(res => getResourceCountryId(res) == countryId)
+  const seen = new Set()
+  return [...offMarket, ...toMarket].filter(res => {
+    if (seen.has(res.identificator)) return false
+    seen.add(res.identificator)
+    return true
+  })
 }
 
 const nameChecker = (item) => {
@@ -693,13 +706,27 @@ const itemsToGivePlayer = computed(() => {
           :color="getButtonColor(country)"
           :class="{ 'embargo-border': hasEmbargo(country) }"
         >
-          <v-img
-            :src="`/images/countries/${country.flag_image_name || country.name}.png`"
-            width="32"
-            height="24"
-          />
-          <span class="short-name">{{ country.short_name || country.name }}</span>
-          
+          <div class="country-btn-inner">
+            <div class="country-btn-top">
+              <v-img
+                :src="`/images/countries/${country.flag_image_name || country.name}.png`"
+                width="32"
+                height="24"
+              />
+              <span class="short-name">{{ country.short_name || country.name }}</span>
+            </div>
+            <div v-if="getCountryResources(country.id).length > 0" class="country-resource-icons">
+              <v-img
+                v-for="res in getCountryResources(country.id)"
+                :key="res.identificator"
+                :src="getResourceImageUrl(res.identificator)"
+                :title="res.name"
+                width="20"
+                height="20"
+                class="resource-mini-icon"
+              />
+            </div>
+          </div>
           <span v-if="hasEmbargo(country)" class="embargo-label">Эмбарго</span>
         </v-btn>
       </div>
@@ -1214,11 +1241,37 @@ const itemsToGivePlayer = computed(() => {
 
 .compact-combined {
   min-width: 80px !important;
-  padding: 2px 4px !important;
+  padding: 6px 8px !important;
+  height: auto !important;
   font-size: 1rem;
 }
 .short-name {
   margin-left: 4px;
+}
+
+.country-btn-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.country-btn-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.country-resource-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  justify-content: center;
+}
+
+.resource-mini-icon {
+  border-radius: 2px;
+  flex-shrink: 0;
 }
 
 @keyframes blink {
