@@ -2,6 +2,36 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
 
+// Все уникальные входные ресурсы из всех формул
+function deriveFormulaFrom(formulas) {
+  const seen = new Set()
+  const result = []
+  for (const f of (formulas || [])) {
+    for (const item of (f.from || [])) {
+      if (!seen.has(item.identificator)) {
+        seen.add(item.identificator)
+        result.push(item)
+      }
+    }
+  }
+  return result
+}
+
+// Все уникальные выходные ресурсы из всех формул
+function deriveFormulaTo(formulas) {
+  const seen = new Set()
+  const result = []
+  for (const f of (formulas || [])) {
+    for (const item of (f.to || [])) {
+      if (!seen.has(item.identificator)) {
+        seen.add(item.identificator)
+        result.push(item)
+      }
+    }
+  }
+  return result
+}
+
 export const useProductionStore = defineStore('production', () => {
   // State
   const plantLevelsInfo = ref([]) // Информация о всех предприятиях
@@ -34,11 +64,11 @@ export const useProductionStore = defineStore('production', () => {
 
   const availableResources = computed(() => {
     if (!selectedPlantLevel.value) return []
-    
+
     if (calculationMode.value === 'from') {
-      return selectedPlantLevel.value.formula_from || []
+      return deriveFormulaFrom(selectedPlantLevel.value.formulas)
     } else {
-      return selectedPlantLevel.value.formula_to || []
+      return deriveFormulaTo(selectedPlantLevel.value.formulas)
     }
   })
 
@@ -137,14 +167,16 @@ export const useProductionStore = defineStore('production', () => {
    * @returns {string}
    */
   function lookUpRes(identificator, plantLevel) {
-    // Ищем в formula_from
-    const fromRes = plantLevel.formula_from?.find(r => r.identificator === identificator)
+    // Ищем в formula_from (производная из формул)
+    const formulaFrom = deriveFormulaFrom(plantLevel.formulas)
+    const fromRes = formulaFrom.find(r => r.identificator === identificator)
     if (fromRes) return fromRes.name
-    
-    // Ищем в formula_to
-    const toRes = plantLevel.formula_to?.find(r => r.identificator === identificator)
+
+    // Ищем в formula_to (производная из формул)
+    const formulaTo = deriveFormulaTo(plantLevel.formulas)
+    const toRes = formulaTo.find(r => r.identificator === identificator)
     if (toRes) return toRes.name
-    
+
     return identificator
   }
 
@@ -255,12 +287,11 @@ async function fetchPlantLevels() {
   try {
     const response = await axios.get(`${import.meta.env.VITE_PROXY}/plant_levels.json`)
 
-    // Фильтрация: оставляем только те сущности, у которых formula_from не пустой массив
-    plantLevelsInfo.value = response.data.filter(item =>
-      item.formula_from &&
-      Array.isArray(item.formula_from) &&
-      item.formula_from.length > 0
-    )
+    // Фильтрация: оставляем только те сущности, у которых есть входные ресурсы (перерабатывающие)
+    plantLevelsInfo.value = response.data.filter(item => {
+      const formulaFrom = deriveFormulaFrom(item.formulas)
+      return Array.isArray(formulaFrom) && formulaFrom.length > 0
+    })
 
   } catch (error) {
     console.error('Error fetching plant levels:', error)

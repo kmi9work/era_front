@@ -5,6 +5,35 @@
 
   const productionStore = useProductionStore()
 
+  // Вспомогательные функции для получения входных/выходных ресурсов из формул
+  function deriveFormulaFrom(formulas) {
+    const seen = new Set()
+    const result = []
+    for (const f of (formulas || [])) {
+      for (const item of (f.from || [])) {
+        if (!seen.has(item.identificator)) {
+          seen.add(item.identificator)
+          result.push(item)
+        }
+      }
+    }
+    return result
+  }
+
+  function deriveFormulaTo(formulas) {
+    const seen = new Set()
+    const result = []
+    for (const f of (formulas || [])) {
+      for (const item of (f.to || [])) {
+        if (!seen.has(item.identificator)) {
+          seen.add(item.identificator)
+          result.push(item)
+        }
+      }
+    }
+    return result
+  }
+
   onBeforeMount(async () => {
     await axios.get(`${import.meta.env.VITE_PROXY}/plant_levels.json`)
     .then(response => {
@@ -25,11 +54,12 @@
     let filtered = productionStore.plantLevelsInfo.filter((res) => res.id == selectedPlantId.value)
 
     if (filtered.length){
-      back_bound_from.value = Array(filtered[0]["formula_from"].length).fill(0).map(
+      const formulaFrom = deriveFormulaFrom(filtered[0].formulas)
+      back_bound_from.value = Array(formulaFrom.length).fill(0).map(
         function(_, i) {
-          return {"identificator": filtered[0]["formula_from"][i].identificator, "count": null}
+          return {"identificator": formulaFrom[i].identificator, "count": null}
         })
-      return filtered[0]["formula_from"]
+      return formulaFrom
     }else{
       return []
     }
@@ -58,11 +88,12 @@
   const plantLevel_to = computed(() => {
     let filtered = productionStore.plantLevelsInfo.filter((res) => res.id == selectedPlantId.value)
     if (filtered.length){
-      back_bound_to.value = Array(filtered[0]["formula_to"].length).fill(0).map(
+      const formulaTo = deriveFormulaTo(filtered[0].formulas)
+      back_bound_to.value = Array(formulaTo.length).fill(0).map(
         function(_, i) {
-          return {"identificator": filtered[0]["formula_to"][i].identificator, "count": null}
+          return {"identificator": formulaTo[i].identificator, "count": null}
         })
-      return filtered[0]["formula_to"]
+      return formulaTo
     }else{
       return []
     }
