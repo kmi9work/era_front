@@ -1,40 +1,29 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import ChecklistDetailMobile from './ChecklistDetailMobile.vue'
 
 const emit = defineEmits(['back'])
 
 const checklists = ref([])
-const vassalIncomes = ref({})
 const isLoading = ref(true)
-const pollInterval = ref(null)
+const selectedChecklistId = ref(null)
+const error = ref(null)
 
 async function loadChecklists() {
   try {
+    error.value = null
+    isLoading.value = true
     const response = await axios.get(`${import.meta.env.VITE_PROXY}/vassals_and_robbers/checklists.json`)
-    checklists.value = response.data
-  } catch (error) {
-    console.error('Ошибка при загрузке чек-листов:', error)
-  }
-}
-
-async function loadVassalageSettings() {
-  try {
-    const response = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters.json`)
-    const vassalageSettings = response.data.find(gp => gp.identificator === 'vassalage_settings')
-    if (vassalageSettings && vassalageSettings.params && vassalageSettings.params.vassal_incomes) {
-      vassalIncomes.value = vassalageSettings.params.vassal_incomes
-    }
-  } catch (error) {
-    console.error('Ошибка при загрузке настроек вассалитета:', error)
-  }
-}
-
-function getConditionColor(condition) {
-  if (condition.is_completed) {
-    return 'success'
-  } else {
-    return 'error'
+    console.log('Загружены чек-листы:', response.data)
+    checklists.value = Array.isArray(response.data) ? response.data : []
+    console.log('Отфильтрованные чек-листы с vassal_country:', checklists.value.filter(c => c.vassal_country))
+  } catch (err) {
+    console.error('Ошибка при загрузке чек-листов:', err)
+    error.value = err.response?.data?.error || err.message || 'Не удалось загрузить чек-листы'
+    checklists.value = []
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -44,71 +33,25 @@ function getProgressColor(percentage) {
   return 'error'
 }
 
-async function establishVassalage(checklist) {
-  const income = vassalIncomes.value[checklist.vassal_country.id]
-  const countryName = checklist.vassal_country.name
-  
-  let confirmMessage = `Установить вассалитет с ${countryName}?\nДоход Казначея увеличится на ${income?.toLocaleString('ru-RU') || income} руб.`
-  
-  // Добавляем предупреждение, если не все условия выполнены
-  if (checklist.completion_percentage !== 100) {
-    confirmMessage = `⚠️ ВНИМАНИЕ: Не все условия чек-листа выполнены!\n${confirmMessage}`
-  }
-  
-  if (!confirm(confirmMessage)) {
-    return
-  }
-
-  try {
-    await axios.post(`${import.meta.env.VITE_PROXY}/vassals_and_robbers/checklists/${checklist.id}/establish_vassalage`)
-    alert(`Вассалитет с ${countryName} установлен!\nДоход Казначея увеличен на ${income?.toLocaleString('ru-RU') || income} руб.`)
-    // Обновляем список чек-листов
-    loadChecklists()
-  } catch (error) {
-    console.error('Ошибка при установке вассалитета:', error)
-    alert('Ошибка при установке вассалитета: ' + (error.response?.data?.error || error.message))
-  }
+function openChecklist(checklistId) {
+  console.log('Открываем чек-лист:', checklistId)
+  selectedChecklistId.value = checklistId
 }
 
-async function removeVassalage(checklist) {
-  const income = vassalIncomes.value[checklist.vassal_country.id]
-  const countryName = checklist.vassal_country.name
-  
-  if (!confirm(`Снять вассалитет с ${countryName}?\nДоход Казначея уменьшится на ${income?.toLocaleString('ru-RU') || income} руб.`)) {
-    return
-  }
-
-  try {
-    await axios.post(`${import.meta.env.VITE_PROXY}/vassals_and_robbers/checklists/${checklist.id}/remove_vassalage`)
-    alert(`Вассалитет с ${countryName} снят!\nДоход Казначея уменьшен на ${income?.toLocaleString('ru-RU') || income} руб.`)
-    // Обновляем список чек-листов
-    loadChecklists()
-  } catch (error) {
-    console.error('Ошибка при снятии вассалитета:', error)
-    alert('Ошибка при снятии вассалитета: ' + (error.response?.data?.error || error.message))
-  }
+function backToList() {
+  selectedChecklistId.value = null
 }
 
 onMounted(async () => {
-  isLoading.value = true
-  await loadVassalageSettings()
   await loadChecklists()
-  isLoading.value = false
-  
-  // Автообновление каждые 10 секунд
-  pollInterval.value = setInterval(() => {
-    loadChecklists()
-  }, 10000)
-})
-
-onBeforeUnmount(() => {
-  if (pollInterval.value) {
-    clearInterval(pollInterval.value)
-  }
 })
 
 const handleBack = () => {
-  emit('back')
+  if (selectedChecklistId.value) {
+    backToList()
+  } else {
+    emit('back')
+  }
 }
 
 defineExpose({
@@ -118,127 +61,113 @@ defineExpose({
 
 <template>
   <v-app>
-    <v-app-bar color="primary" dark>
-      <v-btn icon @click="handleBack">
-        <VIcon>mdi-arrow-left</VIcon>
-      </v-btn>
-      <v-toolbar-title>Чек-листы</v-toolbar-title>
-    </v-app-bar>
+    <!-- Детальная страница чек-листа -->
+    <ChecklistDetailMobile
+      v-if="selectedChecklistId"
+      :checklist-id="selectedChecklistId"
+      @back="backToList"
+    />
 
-    <v-main style="padding-bottom: 80px;">
-      <div v-if="isLoading" class="text-center" style="padding: 32px;">
-        <VProgressCircular indeterminate color="primary" size="64" />
-      </div>
+    <!-- Список чек-листов -->
+    <template v-else>
+      <v-app-bar color="primary" dark>
+        <v-btn icon @click="handleBack">
+          <VIcon>mdi-arrow-left</VIcon>
+        </v-btn>
+        <v-toolbar-title>Чек-листы</v-toolbar-title>
+      </v-app-bar>
 
-      <div v-else class="pa-3">
-        <template v-for="checklist in checklists" :key="checklist.id">
-          <v-card
-            v-if="checklist.vassal_country"
-            class="mb-3"
-          >
-            <v-card-item>
-              <v-card-title class="d-flex align-center justify-space-between flex-wrap">
-                <div class="d-flex align-center gap-2 mb-2">
-                  <span>{{ checklist.vassal_country?.name || 'Неизвестно' }}</span>
-                  <VBtn
-                    v-if="!checklist.vassalage_established"
-                    color="success"
-                    variant="outlined"
-                    size="small"
-                    @click="establishVassalage(checklist)"
-                  >
-                    Установить вассалитет
-                  </VBtn>
-                  <VBtn
-                    v-if="checklist.vassalage_established"
-                    color="error"
-                    variant="outlined"
-                    size="small"
-                    @click="removeVassalage(checklist)"
-                  >
-                    Снять вассалитет
-                  </VBtn>
-                </div>
-                <VChip
+      <v-main style="padding-bottom: 80px;">
+        <div v-if="isLoading" class="text-center" style="padding: 32px;">
+          <VProgressCircular indeterminate color="primary" size="64" />
+        </div>
+
+        <div v-else-if="error" class="pa-3">
+          <v-alert type="error" class="mb-3">
+            {{ error }}
+          </v-alert>
+          <v-btn block color="primary" @click="loadChecklists">
+            Попробовать снова
+          </v-btn>
+        </div>
+
+        <div v-else class="pa-3">
+          <div v-if="checklists.length === 0" class="text-center pa-8">
+            <VIcon size="64" color="grey">ri-checkbox-multiple-line</VIcon>
+            <div class="mt-4 text-grey">Нет чек-листов</div>
+          </div>
+
+          <template v-else-if="checklists.filter(c => c.vassal_country).length === 0">
+            <div class="text-center pa-8">
+              <VIcon size="64" color="grey">ri-checkbox-multiple-line</VIcon>
+              <div class="mt-4 text-grey">Нет чек-листов с вассальными странами</div>
+            </div>
+          </template>
+
+          <template v-else>
+            <v-card
+              v-for="checklist in checklists.filter(c => c.vassal_country)"
+              :key="checklist.id"
+              class="mb-3 checklist-card"
+              elevation="2"
+              @click.stop="openChecklist(checklist.id)"
+              style="cursor: pointer;"
+            >
+            <v-card-text class="pa-4">
+              <div class="d-flex align-center justify-space-between mb-3">
+                <h2 class="text-h5 mb-0">{{ checklist.vassal_country?.name || 'Неизвестно' }}</h2>
+                <v-chip
                   :color="getProgressColor(checklist.completion_percentage || 0)"
-                  size="small"
+                  size="large"
                 >
                   {{ checklist.completion_percentage || 0 }}%
-                </VChip>
-              </v-card-title>
-            </v-card-item>
+                </v-chip>
+              </div>
 
-            <v-card-text>
               <!-- Прогресс-бар -->
               <VProgressLinear
                 :model-value="checklist.completion_percentage || 0"
                 :color="getProgressColor(checklist.completion_percentage || 0)"
-                height="8"
+                height="12"
                 rounded
-                class="mb-4"
+                class="mb-2"
               />
 
-              <!-- Список условий -->
-              <VList density="compact">
-                <VListItem
-                  v-for="(condition, index) in checklist.conditions"
-                  :key="index"
-                  :class="{'px-0': true, 'condition-completed': condition.is_completed}"
-                >
-                  <template v-slot:prepend>
-                    <VIcon
-                      :icon="condition.is_completed ? 'mdi-check-circle' : 'mdi-close-circle'"
-                      :color="getConditionColor(condition)"
-                      size="24"
-                    />
-                  </template>
-
-                  <VListItemTitle>
-                    {{ condition.description }}
-                  </VListItemTitle>
-
-                  <VListItemSubtitle v-if="condition.requirement !== undefined">
-                    Требуется: {{ condition.requirement }} | 
-                    Текущее: <strong>{{ condition.current_value }}</strong>
-                  </VListItemSubtitle>
-
-                  <template v-if="!condition.is_completed && condition.current_value !== undefined">
-                    <VListItemSubtitle class="text-error">
-                      Не выполнено
-                    </VListItemSubtitle>
-                  </template>
-                </VListItem>
-              </VList>
+              <div class="d-flex align-center justify-space-between mt-2">
+                <span class="text-caption text-medium-emphasis">
+                  {{ checklist.completed_count || 0 }} / {{ checklist.total_count || 0 }} условий
+                </span>
+                <VIcon color="primary">mdi-chevron-right</VIcon>
+              </div>
             </v-card-text>
           </v-card>
-        </template>
-
-        <div v-if="checklists.length === 0" class="text-center pa-8">
-          <VIcon size="64" color="grey">ri-checkbox-multiple-line</VIcon>
-          <div class="mt-4 text-grey">Нет чек-листов</div>
+          </template>
         </div>
-      </div>
-      
-      <!-- Фиксированная кнопка Назад -->
-      <div class="back-button-fixed">
-        <v-btn
-          block
-          color="primary"
-          size="large"
-          prepend-icon="mdi-arrow-left"
-          @click="handleBack"
-        >
-          Назад
-        </v-btn>
-      </div>
-    </v-main>
+        
+        <!-- Фиксированная кнопка Назад -->
+        <div class="back-button-fixed">
+          <v-btn
+            block
+            color="primary"
+            size="large"
+            prepend-icon="mdi-arrow-left"
+            @click="handleBack"
+          >
+            Назад
+          </v-btn>
+        </div>
+      </v-main>
+    </template>
   </v-app>
 </template>
 
 <style scoped>
-.condition-completed {
-  background-color: rgba(76, 175, 80, 0.08);
-  border-left: 3px solid rgb(76, 175, 80);
+.checklist-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.checklist-card:active {
+  transform: scale(0.98);
 }
 
 .back-button-fixed {
