@@ -46,6 +46,14 @@
               </div>
             </div>
 
+            <!-- Государь -->
+            <div v-else-if="screen.id === 'sovereign'" class="timer-preview">
+              <div class="preview-message">
+                <p style="font-size: 1.2rem; margin-bottom: 8px;">Государь</p>
+                <p style="font-size: 0.9rem; opacity: 0.8;">Общее расписание + две команды</p>
+              </div>
+            </div>
+
             <!-- Результаты знати -->
             <div v-else-if="screen.id === 'noble_results'" class="results-preview">
               <div class="preview-message"></div>
@@ -403,7 +411,8 @@ const screens = [
   { id: 'trade_turnover', label: 'Товарооборот' },
   { id: 'artel', label: 'Артель' },
   { id: 'merchant_results', label: 'Результаты купцов' },
-  { id: 'noble_results', label: 'Результаты знати' }
+  { id: 'noble_results', label: 'Результаты знати' },
+  { id: 'sovereign', label: 'Государь' }
 ]
 </script>
 

@@ -6,6 +6,7 @@ import Schedule from '@/views/pages/aux/Schedule.vue'
 import MerchantResults from '@/views/pages/aux/MerchantResults.vue'
 import Settings from '@/views/pages/aux/Settings.vue'
 import CaravanRobbery from '@/views/pages/aux/CaravanRobbery.vue'
+import SovereignSchedule from '@/views/pages/aux/SovereignSchedule.vue'
 
 const route = useRoute()
 const activeTab = ref(route.params.tab || 'test') // Значение по умолчанию
@@ -40,6 +41,12 @@ const tabs = [
     title: 'Грабить караваны',
     icon: 'ri-skull-line',
     tab: 'caravan_robbery',
+  },
+
+  {
+    title: 'Расписание Государя',
+    icon: 'ri-crown-line',
+    tab: 'sovereign_schedule',
   },
 
 ]
@@ -100,7 +107,11 @@ watch(
       </VWindowItem>
 
       <VWindowItem value="caravan_robbery">
-        <CaravanRobbery /> 
+        <CaravanRobbery />
+      </VWindowItem>
+
+      <VWindowItem value="sovereign_schedule">
+        <SovereignSchedule />
       </VWindowItem>
 
     </VWindow>

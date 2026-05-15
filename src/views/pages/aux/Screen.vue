@@ -19,6 +19,7 @@ import TradeTurnoverScreen from './TradeTurnoverScreen.vue'
 import MerchantResultsScreen from './MerchantResultsScreen.vue'
 import NobleResultsScreen from './NobleResultsScreen.vue'
 import ArtelScreen from './ArtelScreen.vue'
+import SovereignTimerScreen from './SovereignTimerScreen.vue'
 
 // Stores
 const timerStore = useTimerStore()
@@ -179,6 +180,11 @@ onMounted(() => {
             :active-screen="activeScreen"
             :noble-results="nobleResults"
           />
+        </template>
+
+        <!-- Государь (три таймера) -->
+        <template v-else-if="selectedScreen === 'sovereign'">
+          <SovereignTimerScreen />
         </template>
       </div>
     </Transition>
