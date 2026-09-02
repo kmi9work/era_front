@@ -30,3 +30,8 @@ axios.defaults.withCredentials = true
 // Монтируем приложение
 app.mount('#app')
 
+// Регистрируем service worker только для мобильного приложения «Кошелёк ресурсов»
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'))
+}
+

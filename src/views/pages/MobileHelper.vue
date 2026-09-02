@@ -3,10 +3,15 @@ import { ref, onMounted, onBeforeUnmount, provide } from 'vue'
 import ExchangeMobile from './economics/ExchangeMobile.vue'
 import ShowPricesMobile from './economics/ShowPricesMobile.vue'
 import ProductionMobile from './economics/ProductionMobile.vue'
+import PlayerSelectMobile from './wallet/PlayerSelectMobile.vue'
+import WalletFlow from './wallet/WalletFlow.vue'
+import { useWalletPlayerStore } from '@/stores/walletPlayer'
 import '@/assets/fonts/fonts.css'
 
+const walletPlayerStore = useWalletPlayerStore()
+
 // Навигация между экранами
-const currentScreen = ref('menu') // 'menu', 'caravan', 'production', 'prices'
+const currentScreen = ref('menu') // 'menu', 'caravan', 'production', 'prices', 'wallet'
 const selectedCountryId = ref(null) // Для передачи в ExchangeMobile
 const cameFromPrices = ref(false) // Флаг: пришли ли из экрана цен
 
@@ -14,6 +19,7 @@ const cameFromPrices = ref(false) // Флаг: пришли ли из экран
 const productionMobileRef = ref(null)
 const exchangeMobileRef = ref(null)
 const showPricesMobileRef = ref(null)
+const walletFlowRef = ref(null)
 
 // Переход на экраны
 const goToCaravan = () => {
@@ -28,6 +34,10 @@ const goToProduction = () => {
 
 const goToPrices = () => {
   currentScreen.value = 'prices'
+}
+
+const goToWallet = () => {
+  currentScreen.value = 'wallet'
 }
 
 const backToMenu = () => {
@@ -53,7 +63,8 @@ const handleOpenMarketFromPrices = (countryId) => {
 const componentRefs = {
   production: productionMobileRef,
   caravan: exchangeMobileRef,
-  prices: showPricesMobileRef
+  prices: showPricesMobileRef,
+  wallet: walletFlowRef
 }
 
 // Обработка кнопки "Назад" телефона
@@ -83,13 +94,17 @@ onBeforeUnmount(() => {
 
 <template>
   <v-app>
+    <!-- ЭКРАН: Выбор игрока (один раз, при первом запуске) -->
+    <PlayerSelectMobile v-if="!walletPlayerStore.hasPlayer" />
+
+    <template v-else>
     <!-- ЭКРАН: Главное меню -->
     <VContainer fluid class="pa-0" v-if="currentScreen === 'menu'">
       <!-- Меню -->
       <div class="menu-container">
         <!-- Заголовок -->
         <div class="menu-header">
-          <h1 class="menu-title">Помощник купца</h1>
+          <h1 class="menu-title">ЭП: Кошелёк ресурсов</h1>
         </div>
 
         <!-- Опции меню -->
@@ -147,6 +162,24 @@ onBeforeUnmount(() => {
               <VIcon icon="mdi-chevron-right" size="32" color="white" class="menu-arrow" />
             </div>
           </VCard>
+
+          <VCard
+            class="menu-item"
+            elevation="2"
+            @click="goToWallet"
+            ripple
+          >
+            <div class="menu-item-content">
+              <div class="menu-icon-wrapper">
+                <VIcon icon="mdi-wallet" size="40" color="white" />
+              </div>
+              <div class="menu-text">
+                <div class="menu-item-title">Кошель</div>
+                <div class="menu-item-description">Ваши ресурсы и передача другим игрокам</div>
+              </div>
+              <VIcon icon="mdi-chevron-right" size="32" color="white" class="menu-arrow" />
+            </div>
+          </VCard>
         </div>
       </div>
     </VContainer>
@@ -169,12 +202,18 @@ onBeforeUnmount(() => {
 
     <!-- ЭКРАН: Цены -->
     <div v-if="currentScreen === 'prices'">
-      <ShowPricesMobile 
+      <ShowPricesMobile
         ref="showPricesMobileRef"
         @back="backToMenu"
         @open-market="handleOpenMarketFromPrices"
       />
     </div>
+
+    <!-- ЭКРАН: Кошель -->
+    <div v-if="currentScreen === 'wallet'">
+      <WalletFlow ref="walletFlowRef" :player="walletPlayerStore.player" @back="backToMenu" />
+    </div>
+    </template>
   </v-app>
 </template>
 

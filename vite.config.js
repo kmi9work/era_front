@@ -6,6 +6,7 @@ import Components from 'unplugin-vue-components/vite'
 import { defineConfig } from 'vite'
 import vuetify from 'vite-plugin-vuetify'
 import svgLoader from 'vite-svg-loader'
+import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -44,6 +45,26 @@ export default defineConfig({
       },
     }),
     svgLoader(),
+
+    // PWA только для merchant_mobile_helper.html («ЭП: Кошелёк ресурсов»).
+    // vite-plugin-pwa у multi-page сборки инжектит <link rel="manifest"> во ВСЕ HTML-входы
+    // (index.html/noble_helper.html) независимо от injectRegister, поэтому manifest здесь
+    // отключён (manifest: false) — сам файл public/manifest.webmanifest написан вручную
+    // и подключён только из merchant_mobile_helper.html. injectRegister тоже отключён —
+    // регистрация SW делается вручную в src/mobile-entry.js.
+    VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
+      injectRegister: false,
+      manifest: false,
+      injectManifest: {
+        injectionPoint: 'self.__WB_MANIFEST',
+        // index.html и noble_helper.html — документы других приложений на этом же домене,
+        // их нельзя отдавать из кэша SW, зарегистрированного со страницы кошелька.
+        globIgnores: ['index.html', 'noble_helper.html'],
+      },
+    }),
   ],
   define: { 'process.env': {} },
   resolve: {
