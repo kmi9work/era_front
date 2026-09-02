@@ -10,6 +10,7 @@ import '@layouts/styles/index.scss'
 
 // Импортируем главный контейнер
 import MobileHelper from './views/pages/MobileHelper.vue'
+import { usePwaInstallStore } from './stores/pwaInstall'
 
 // Создаем Pinia store
 const pinia = createPinia()
@@ -19,6 +20,19 @@ const app = createApp(MobileHelper)
 
 // Подключаем плагины
 app.use(pinia)
+
+// Ловим предложение браузера установить приложение — сохраняем его в сторе,
+// чтобы показать свою кнопку «Установить» вместо автоматического баннера браузера
+const pwaInstallStore = usePwaInstallStore(pinia)
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault()
+  pwaInstallStore.setDeferredPrompt(event)
+})
+
+window.addEventListener('appinstalled', () => {
+  pwaInstallStore.clearDeferredPrompt()
+})
 vuetify(app) // Используем существующую конфигурацию Vuetify
 iconify(app) // Подключаем иконки Iconify
 

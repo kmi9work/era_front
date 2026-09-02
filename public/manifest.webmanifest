@@ -2,7 +2,7 @@
   "name": "ЭП: Кошелёк ресурсов",
   "short_name": "Кошелёк",
   "description": "Кошелёк ресурсов и калькулятор купца",
-  "start_url": "/merchant_mobile_helper.html",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#1976d2",

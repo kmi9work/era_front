@@ -5,6 +5,7 @@ import ShowPricesMobile from './economics/ShowPricesMobile.vue'
 import ProductionMobile from './economics/ProductionMobile.vue'
 import PlayerSelectMobile from './wallet/PlayerSelectMobile.vue'
 import WalletFlow from './wallet/WalletFlow.vue'
+import PwaInstallBanner from './PwaInstallBanner.vue'
 import { useWalletPlayerStore } from '@/stores/walletPlayer'
 import '@/assets/fonts/fonts.css'
 
@@ -94,6 +95,8 @@ onBeforeUnmount(() => {
 
 <template>
   <v-app>
+    <PwaInstallBanner />
+
     <!-- ЭКРАН: Выбор игрока (один раз, при первом запуске) -->
     <PlayerSelectMobile v-if="!walletPlayerStore.hasPlayer" />
 
