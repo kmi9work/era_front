@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import axios from 'axios'
 
 const props = defineProps({
@@ -45,13 +45,61 @@ const fetchData = async () => {
   }
 }
 
-const increment = (item) => {
-  if (item.count < item.available) item.count++
+// Ручной ввод количества
+const setCount = (item, rawValue) => {
+  let value = Math.trunc(Number(rawValue))
+  if (!Number.isFinite(value)) value = 0
+  item.count = Math.max(0, Math.min(item.available, value))
 }
 
-const decrement = (item) => {
-  if (item.count > 0) item.count--
+// Удержание +/- с ускорением: чем дольше зажата кнопка, тем быстрее бежит число
+const HOLD_INITIAL_DELAY = 400 // задержка перед началом авто-повтора
+const HOLD_REPEAT_START_DELAY = 220 // начальный интервал повтора
+const HOLD_ACCELERATION_STEP = 25 // на сколько мс ускоряется каждый шаг
+const MIN_HOLD_DELAY = 40 // потолок скорости (мс между шагами)
+
+const holdState = new Map()
+
+const performStep = (item, direction) => {
+  const before = item.count
+  const next = Math.max(0, Math.min(item.available, before + direction))
+  item.count = next
+  return next !== before
 }
+
+const scheduleNext = (item, direction, delay) => {
+  return setTimeout(() => {
+    const changed = performStep(item, direction)
+    const state = holdState.get(item.identificator)
+    if (!state || !changed) {
+      stopHold(item)
+      return
+    }
+    state.delay = Math.max(MIN_HOLD_DELAY, state.delay - HOLD_ACCELERATION_STEP)
+    state.timeoutId = scheduleNext(item, direction, state.delay)
+  }, delay)
+}
+
+const startHold = (item, direction) => {
+  stopHold(item)
+  performStep(item, direction)
+  const state = { delay: HOLD_REPEAT_START_DELAY }
+  state.timeoutId = scheduleNext(item, direction, HOLD_INITIAL_DELAY)
+  holdState.set(item.identificator, state)
+}
+
+const stopHold = (item) => {
+  const state = holdState.get(item.identificator)
+  if (state) {
+    clearTimeout(state.timeoutId)
+    holdState.delete(item.identificator)
+  }
+}
+
+onBeforeUnmount(() => {
+  holdState.forEach(state => clearTimeout(state.timeoutId))
+  holdState.clear()
+})
 
 const handleBack = () => {
   emit('back')
@@ -86,11 +134,38 @@ onMounted(fetchData)
             <div class="basket-item-available">доступно: {{ item.available }}</div>
           </div>
           <div class="basket-stepper">
-            <VBtn icon size="small" variant="tonal" :disabled="item.count <= 0" @click="decrement(item)">
+            <VBtn
+              icon
+              size="small"
+              variant="tonal"
+              :disabled="item.count <= 0"
+              @pointerdown="startHold(item, -1)"
+              @pointerup="stopHold(item)"
+              @pointerleave="stopHold(item)"
+              @pointercancel="stopHold(item)"
+            >
               <VIcon icon="mdi-minus" />
             </VBtn>
-            <span class="basket-count">{{ item.count }}</span>
-            <VBtn icon size="small" variant="tonal" :disabled="item.count >= item.available" @click="increment(item)">
+            <input
+              type="number"
+              inputmode="numeric"
+              class="basket-count-input"
+              min="0"
+              :max="item.available"
+              :value="item.count"
+              @input="setCount(item, $event.target.value)"
+              @blur="setCount(item, $event.target.value)"
+            >
+            <VBtn
+              icon
+              size="small"
+              variant="tonal"
+              :disabled="item.count >= item.available"
+              @pointerdown="startHold(item, 1)"
+              @pointerup="stopHold(item)"
+              @pointerleave="stopHold(item)"
+              @pointercancel="stopHold(item)"
+            >
               <VIcon icon="mdi-plus" />
             </VBtn>
           </div>
@@ -189,11 +264,21 @@ onMounted(fetchData)
   gap: 8px;
 }
 
-.basket-count {
-  min-width: 24px;
+.basket-count-input {
+  width: 44px;
   text-align: center;
   font-weight: 700;
   font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 4px 2px;
+  -moz-appearance: textfield;
+}
+
+.basket-count-input::-webkit-outer-spin-button,
+.basket-count-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .floating-back-button {
