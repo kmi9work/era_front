@@ -11,6 +11,12 @@ const isLoading = ref(false)
 const isDeleting = ref(false)
 const schedule = ref([]) // Локальное состояние для расписания
 const shiftMinutes = ref(0)
+const savePresetModal = ref(false)
+const presets = ref([])
+const presetName = ref('')
+const selectedPreset = ref('')
+const confirmDeleteSlug = ref(null)
+const successMessage = ref(null)
 const newItem = ref({
   identificator: '',
   start: '',
@@ -66,17 +72,31 @@ const lastCycleFinish = computed(() => {
   return schedule.value[schedule.value.length - 1].finish
 })
 
-const createStandardSchedule = async ()  => {
+const openCreateScheduleModal = async () => {
+  error.value = null
+  successMessage.value = null
+  selectedPreset.value = ''
+  await fetchPresets()
+  createScheduleModal.value = true
+}
+
+const createStandardSchedule = async () => {
   try {
     isLoading.value = true
+    error.value = null
+    // Если выбран сохранённый пресет — создаём из него, иначе стандартное (встроенное) расписание
+    const payload = selectedPreset.value ? { request: { preset: selectedPreset.value } } : {}
     const response = await axios.patch(
-      `${import.meta.env.VITE_PROXY}/game_parameters/create_schedule`
+      `${import.meta.env.VITE_PROXY}/game_parameters/create_schedule`,
+      payload
     )
     await fetchSchedule()
     createScheduleModal.value = false
+    selectedPreset.value = ''
+    successMessage.value = response.data?.message || 'Расписание создано'
   } catch (err) {
     console.error('Ошибка при создании расписания:', err)
-    error.value = 'Не удалось создать расписание'
+    error.value = err?.response?.data?.error || 'Не удалось создать расписание'
   } finally {
     isLoading.value = false
   }
@@ -129,6 +149,80 @@ const fetchSchedule = async () => {
   } finally {
     isLoading.value = false
   }
+}
+
+// --- Пресеты расписания (файлы на бэкенде, переживают пересоздание базы) ---
+
+const fetchPresets = async () => {
+  try {
+    const response = await axios.get(
+      `${import.meta.env.VITE_PROXY}/game_parameters/schedule_presets.json`
+    )
+    presets.value = response.data?.presets || []
+  } catch (err) {
+    console.error('Ошибка при получении пресетов:', err)
+    error.value = 'Не удалось загрузить список пресетов'
+  }
+}
+
+const openSavePresetModal = async () => {
+  error.value = null
+  successMessage.value = null
+  confirmDeleteSlug.value = null
+  presetName.value = ''
+  await fetchPresets()
+  savePresetModal.value = true
+}
+
+const savePreset = async () => {
+  error.value = null
+  successMessage.value = null
+  if (!presetName.value.trim()) {
+    error.value = 'Введите название расписания'
+    return
+  }
+
+  isLoading.value = true
+  try {
+    const response = await axios.patch(
+      `${import.meta.env.VITE_PROXY}/game_parameters/save_schedule_preset`,
+      { request: { name: presetName.value } }
+    )
+    successMessage.value = response.data?.message || 'Пресет сохранён'
+    presetName.value = ''
+    await fetchPresets()
+  } catch (err) {
+    console.error('Ошибка при сохранении пресета:', err)
+    error.value = err?.response?.data?.error || 'Не удалось сохранить пресет'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const deletePreset = async (slug) => {
+  if (!slug) return
+  error.value = null
+  successMessage.value = null
+  isLoading.value = true
+  try {
+    const response = await axios.patch(
+      `${import.meta.env.VITE_PROXY}/game_parameters/delete_schedule_preset`,
+      { request: { slug } }
+    )
+    confirmDeleteSlug.value = null
+    successMessage.value = response.data?.message || 'Пресет удалён'
+    await fetchPresets()
+  } catch (err) {
+    console.error('Ошибка при удалении пресета:', err)
+    error.value = err?.response?.data?.error || 'Не удалось удалить пресет'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const formatPresetDate = (value) => {
+  if (!value) return ''
+  return String(value).slice(0, 10)
 }
 
 const addNewItem = async () => {
@@ -321,6 +415,7 @@ const deleteItem = async (id) => {
 // Получаем расписание при монтировании компонента
 onMounted(() => {
   fetchSchedule()
+  fetchPresets()
   updateNowSeconds()
   nowTicker.value = setInterval(updateNowSeconds, 1000)
 })
@@ -351,11 +446,19 @@ onUnmounted(() => {
         </button>
         <button 
           class="create_schedule_button" 
-          @click="createScheduleModal = true"
+          @click="openCreateScheduleModal"
           :disabled="isLoading || schedule.length > 0"
         >
           <span v-if="!isLoading">+ Создать расписание</span>
           <span v-else>Загрузка...</span>
+        </button>
+        <button
+          class="save-preset-button"
+          @click="openSavePresetModal"
+          :disabled="isLoading || schedule.length === 0"
+          title="Сохранить текущее расписание как пресет (файл на бэкенде)"
+        >
+          Сохранить расписание
         </button>
       </div>
     </div>
@@ -550,17 +653,81 @@ onUnmounted(() => {
       </div>
     </div>
     
-    <!-- Модальное окно создания стандартного расписания -->
+    <!-- Модальное окно сохранения пресета расписания -->
+    <div v-if="savePresetModal" class="modal-overlay" @click.self="savePresetModal = false">
+      <div class="modal-content">
+        <h3>Сохранить расписание</h3>
+
+        <div v-if="error" class="error-message">{{ error }}</div>
+        <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
+
+        <div class="form-group">
+          <label for="preset-name">Название расписания:</label>
+          <input
+            id="preset-name"
+            v-model="presetName"
+            type="text"
+            placeholder="Например: Игра Эпоха перемен, март"
+            :disabled="isLoading"
+            @keyup.enter="savePreset"
+          >
+          <small class="form-hint">Имя превращается в имя файла. Пресет с таким же названием будет перезаписан.</small>
+        </div>
+
+        <div class="form-group" v-if="presets.length">
+          <label>Сохранённые пресеты ({{ presets.length }}):</label>
+          <div class="preset-list">
+            <div v-for="preset in presets" :key="preset.slug" class="preset-row">
+              <div class="preset-info">
+                <strong>{{ preset.name }}</strong>
+                <span class="preset-meta">
+                  {{ preset.items_count }} пунктов<span v-if="preset.saved_at"> • {{ formatPresetDate(preset.saved_at) }}</span><span v-if="preset.saved_on"> • {{ preset.saved_on }}</span>
+                </span>
+              </div>
+              <button
+                v-if="confirmDeleteSlug !== preset.slug"
+                class="preset-delete-btn"
+                @click="confirmDeleteSlug = preset.slug"
+                :disabled="isLoading"
+              >Удалить</button>
+              <button
+                v-else
+                class="preset-delete-btn preset-delete-btn--confirm"
+                @click="deletePreset(preset.slug)"
+                :disabled="isLoading"
+              >Точно удалить?</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="cancel-button" @click="savePresetModal = false" :disabled="isLoading">Закрыть</button>
+          <button class="confirm-button" @click="savePreset" :disabled="isLoading">
+            {{ isLoading ? 'Сохранение...' : 'Сохранить' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модальное окно создания расписания -->
     <div v-if="createScheduleModal" class="modal-overlay" @click.self="createScheduleModal = false">
       <div class="modal-content">
-        <h3>Создать стандартное расписание</h3>
+        <h3>Создать расписание</h3>
         
         <div v-if="error" class="error-message">
           {{ error }}
         </div>
         
-        <div class="simple-message">
-          <p>Вы уверены, что хотите создать стандартное расписание?</p>
+        <div class="form-group">
+          <label for="preset-select">Какое расписание создать?</label>
+          <select id="preset-select" v-model="selectedPreset" :disabled="isLoading">
+            <option value="">Стандартное (встроенное)</option>
+            <option v-for="preset in presets" :key="preset.slug" :value="preset.slug">
+              {{ preset.name }} — {{ preset.items_count }} пунктов{{ preset.saved_at ? ' • ' + formatPresetDate(preset.saved_at) : '' }}
+            </option>
+          </select>
+          <small class="form-hint" v-if="presets.length">Сохранённых пресетов: {{ presets.length }}</small>
+          <small class="form-hint" v-else>Сохранённых пресетов нет. Сохранить текущее расписание можно кнопкой «Сохранить расписание».</small>
         </div>
         
         <div class="modal-actions">
@@ -1060,6 +1227,115 @@ onUnmounted(() => {
 .delete-confirm-button:disabled,
 .secondary-button:disabled {
   opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.save-preset-button {
+  background-color: #00897b;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.save-preset-button:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.save-preset-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.form-hint {
+  display: block;
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.success-message {
+  color: #2e7d32;
+  padding: 12px;
+  background-color: #e8f5e9;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}
+
+.form-group select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  background-color: #fff;
+}
+
+.preset-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+.preset-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.preset-row:last-child {
+  border-bottom: none;
+}
+
+.preset-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.preset-info strong {
+  font-size: 0.9rem;
+  color: #111827;
+  overflow-wrap: anywhere;
+}
+
+.preset-meta {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.preset-delete-btn {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  background-color: #fbe9e7;
+  color: #c62828;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.preset-delete-btn--confirm {
+  background-color: #f44336;
+  color: white;
+}
+
+.preset-delete-btn:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
