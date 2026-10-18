@@ -1,9 +1,12 @@
 <script setup>
 /**
  * Действие Великого князя: снять все эмбарго с гильдии (п. 10).
- * Доступно при открытой технологии «Заморская торговля» — проверяет бэкенд.
+ *
+ * Технология «Заморская торговля» — условие правила. Если в текущем государстве
+ * она не открыта, экран выводит предупреждение «действие запрещено», но само
+ * действие не блокирует: кнопка остаётся доступной.
  */
-import { computed, onBeforeMount, ref } from 'vue'
+import { computed, onBeforeMount, ref, watch } from 'vue'
 import { engineApi, errorMessage } from '../../api'
 
 const props = defineProps({
@@ -17,13 +20,17 @@ const emit = defineEmits(['close-dialog'])
 
 const guilds = ref([])
 const guildId = ref(null)
+const availability = ref(null)
 const error = ref(null)
 const result = ref(null)
 const sending = ref(false)
 
 const selected = computed(() => guilds.value.find(guild => guild.id === guildId.value))
+// Предупреждаем только по явному ответу бэкенда «технология закрыта»: если статус
+// не пришёл, пугать мастера нечем — действие всё равно не блокируется.
+const technologyClosed = computed(() => availability.value?.is_open === false)
 
-async function load() {
+async function loadGuilds() {
   try {
     const { data } = await engineApi.getIntelligenceTargets()
     guilds.value = data.guilds || []
@@ -33,6 +40,20 @@ async function load() {
   }
 }
 
+async function loadAvailability() {
+  try {
+    const { data } = await engineApi.getLiftAllAvailability()
+    availability.value = data
+  } catch {
+    availability.value = null
+  }
+}
+
+async function load() {
+  error.value = null
+  await Promise.all([loadGuilds(), loadAvailability()])
+}
+
 async function run() {
   sending.value = true
   error.value = null
@@ -40,6 +61,7 @@ async function run() {
   try {
     const { data } = await engineApi.liftAllEmbargoes({ guild_id: guildId.value })
     result.value = data
+    await loadAvailability()
   } catch (e) {
     error.value = errorMessage(e)
   } finally {
@@ -48,6 +70,15 @@ async function run() {
 }
 
 onBeforeMount(load)
+
+// Диалог не пересоздаётся при повторном открытии: статус технологии перечитываем
+// каждый раз (государство могло смениться), список гильдий — только если пуст.
+watch(() => props.dialogOpen, (isOpen) => {
+  if (!isOpen) return
+
+  loadAvailability()
+  if (!guilds.value.length) loadGuilds()
+})
 </script>
 
 <template>
@@ -57,6 +88,20 @@ onBeforeMount(load)
     </VAlert>
     <VAlert v-else-if="result" type="success" variant="tonal" density="compact" class="mb-3">
       Снято эмбарго: {{ result.lifted_country_ids?.length || 0 }}.
+      <template v-if="result.overseas_trade_open === false">
+        Действие выполнено без технологии «Заморская торговля».
+      </template>
+    </VAlert>
+
+    <VAlert
+      v-if="technologyClosed"
+      type="warning"
+      variant="tonal"
+      density="compact"
+      class="mb-3"
+    >
+      Действие запрещено: в государстве «{{ availability.country_name }}» не открыта
+      технология «{{ availability.technology_name }}».
     </VAlert>
 
     <VSelect

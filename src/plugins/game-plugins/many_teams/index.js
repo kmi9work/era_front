@@ -18,6 +18,7 @@ import { router } from '@/plugins/router'
 
 import DashboardPage from './views/DashboardPage.vue'
 import EconomicsPage from './views/EconomicsPage.vue'
+import PairEmbargoButton from './components/PairEmbargoButton.vue'
 
 import conductIntelligence from './views/actions/conduct_intelligence.vue'
 import undermineStability from './views/actions/undermine_stability.vue'
@@ -72,6 +73,11 @@ export default function ManyTeamsPlugin() {
   console.log('[many_teams] Initializing plugin...')
 
   componentRegistry.register('many_teams.action_components', ACTION_COMPONENTS)
+
+  // Точка расширения ядра: в ячейке отношений кнопка «эмбарго» заменяется
+  // модалкой выбора гильдии (PairRelationsCell, «Информация о стране» +
+  // «Дашборд»). Без регистрации ядро рисует прежнюю кнопку-переключатель.
+  componentRegistry.register('pair_relations_embargo', PairEmbargoButton)
 
   overrideRoute('/dashboard', DashboardPage)
   overrideRoute('/economics', EconomicsPage)

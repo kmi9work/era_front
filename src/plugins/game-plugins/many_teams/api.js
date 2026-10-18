@@ -13,11 +13,22 @@ export const engineApi = {
   setExtractionPermission: payload => axios.post(`${BASE()}/extraction_permissions`, payload),
 
   /** Эмбарго страна → гильдия (п. 9, п. 10). */
-  getEmbargoes: countryId => axios.get(`${BASE()}/guild_embargoes`, { params: { country_id: countryId } }),
+  getEmbargoes: (countryId, targetCountryId) => axios.get(`${BASE()}/guild_embargoes`, {
+    params: { country_id: countryId, target_country_id: targetCountryId },
+  }),
   imposeEmbargo: payload => axios.post(`${BASE()}/guild_embargoes`, payload),
   liftEmbargo: payload => axios.delete(`${BASE()}/guild_embargoes`, { data: payload }),
   imposeEmbargoOnAll: payload => axios.post(`${BASE()}/guild_embargoes/impose_all`, payload),
+  liftAllEmbargoesForCountry: payload => axios.post(`${BASE()}/guild_embargoes/lift_all_for_country`, payload),
   liftAllEmbargoes: payload => axios.post(`${BASE()}/guild_embargoes/lift_all`, payload),
+
+  /** Статус технологии «Заморская торговля» у текущего государства (п. 10, предупреждение). */
+  getLiftAllAvailability: () => axios.get(`${BASE()}/guild_embargoes/lift_all_availability`),
+
+  /** «Рынок»: какие государства наложили эмбарго на конкретную гильдию. */
+  getMarketEmbargoes: (guildId, countryId) => axios.get(`${BASE()}/guild_embargoes/market`, {
+    params: { guild_id: guildId, country_id: countryId },
+  }),
 
   /** Пункты разведки и цели (п. 11). */
   getIntelligenceTargets: () => axios.get(`${BASE()}/intelligence/targets`),

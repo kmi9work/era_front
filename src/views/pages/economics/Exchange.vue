@@ -8,6 +8,17 @@ const caravanStore = useCaravanStore()
 // Гильдии на рынке — только текущего государства (гильдия принадлежит стране)
 const { currentCountryId, loadCurrentCountry } = useCurrentCountry()
 
+// Точка расширения для плагинов: карта эмбарго «страна → гильдия».
+// Ядро про гильдейные эмбарго не знает и работает по страновому флагу
+// Country#params["embargo"]; плагин передаёт карту { [countryId]: true },
+// посчитанную для выбранной гильдии, и подсветка/диалог работают по ней.
+const props = defineProps({
+  embargoCountries: { type: Object, default: null },
+  embargoDialogTitle: { type: String, default: 'Эта страна ввела эмбарго против Руси!' },
+  embargoDialogText: { type: String, default: 'Для совершения операций с этой страной нужна Контрабанда!' },
+})
+const emit = defineEmits(['guild-selected'])
+
 // URL для загрузки изображений ресурсов с бэкенда
 // В продакшене файлы находятся в eraofchange/public/images/resources/
 // Статические файлы обслуживаются веб-сервером напрямую, поэтому не используем VITE_PROXY
@@ -265,16 +276,23 @@ async function submit() {
 
 // ЭМБАРГО
 
+// Единая проверка: карта плагина (эмбарго на гильдию) или страновой флаг ядра
+const isEmbargoed = (country) => {
+  if (!country) return false
+  if (props.embargoCountries) return Boolean(props.embargoCountries[country.id])
+  return Number(country?.params?.embargo) > 0
+}
+
 // Сообщение о том, что какая-то страна ввела эмбарго. 
 const embargo = computed(() => {
   if (selectedCountry.value == null) return false;
   const country = countries.value.find(c => c.id === selectedCountry.value);
-  return Number(country?.params?.embargo) > 0;
+  return isEmbargoed(country);
 });
 
 // Проверялка на предмет эмбарго для кнопок
 const hasEmbargo = (country) => {
-  return (country?.params?.embargo > 0) 
+  return isEmbargoed(country)
 }
 
 // Метод для определения цвета кнопки страны
@@ -526,11 +544,13 @@ const selectGuild = async (guildId) => {
     // Иначе показываем форму
     selectedGuild.value = guildId
     showMarketForm.value = true
+    emit('guild-selected', guildId)
   } catch (error) {
     console.error('Ошибка при проверке ограбления:', error)
     // В случае ошибки все равно показываем форму
     selectedGuild.value = guildId
     showMarketForm.value = true
+    emit('guild-selected', guildId)
   }
 }
 
@@ -540,6 +560,7 @@ const backToGuildSelection = () => {
   showMarketForm.value = false
   viaVyatka.value = false
   resetForm()
+  emit('guild-selected', null)
   // Перезагружаем вероятности при возврате
   loadRobberyProbabilities()
 }
@@ -954,9 +975,9 @@ const itemsToGivePlayer = computed(() => {
 
   <v-dialog v-model="showEmbargoDialog" max-width="500">
     <v-card>
-      <v-card-title class="text-h5">Эта страна ввела эмбарго против Руси!</v-card-title>
+      <v-card-title class="text-h5">{{ embargoDialogTitle }}</v-card-title>
       <v-card-text>
-        Для совершения операций с этой страной нужна Контрабанда!
+        {{ embargoDialogText }}
       </v-card-text>
       <v-card-actions>
         <v-spacer></v-spacer>

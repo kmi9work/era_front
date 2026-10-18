@@ -18,15 +18,58 @@ import ProductionFront from '@/views/pages/economics/ProductionFront.vue'
 import TradeTurnover from '@/views/pages/economics/TradeTurnover.vue'
 import GuildEmbargoPanel from '../components/GuildEmbargoPanel.vue'
 import GuildExtractionPanel from '../components/GuildExtractionPanel.vue'
+import { engineApi } from '../api'
+import { useCurrentCountry } from '@/composables/useCurrentCountry'
 
 const route = useRoute()
 const activeTab = ref(route.params.tab || 'dashboard')
 const exchangeKey = ref(0)
 
+const { currentCountryId, loadCurrentCountry } = useCurrentCountry()
+
+// «Рынок»: эмбарго накладывается на гильдию, поэтому подсветка зависит от
+// выбранной гильдии. Карту «страна → есть эмбарго» считает движок
+// (GET /many_teams/guild_embargoes/market), карта уходит в ядро Exchange
+// пропсом embargoCountries вместо странового флага params["embargo"].
+const marketEmbargo = ref({})
+const selectedGuildId = ref(null)
+
+const loadMarketEmbargo = async () => {
+  marketEmbargo.value = {}
+  if (!selectedGuildId.value) return
+  try {
+    const { data } = await engineApi.getMarketEmbargoes(selectedGuildId.value, currentCountryId.value)
+    marketEmbargo.value = Object.fromEntries(
+      (data?.countries || []).map(country => [country.id, Boolean(country.embargoed)])
+    )
+  } catch (e) {
+    // Нет движка — считаем, что эмбарго нет: страновой флаг ядра в many_teams
+    // не используется (эмбарго накладывается только на гильдию)
+    marketEmbargo.value = {}
+  }
+}
+
+const onGuildSelected = (guildId) => {
+  selectedGuildId.value = guildId || null
+  if (!selectedGuildId.value) {
+    marketEmbargo.value = {}
+    return
+  }
+  loadMarketEmbargo()
+}
+
 watch(activeTab, (newTab) => {
   if (newTab === 'exchange') {
     exchangeKey.value += 1
+    loadCurrentCountry()
   }
+})
+
+// Переключение государства в шапке: карта эмбарго относится к гильдиям
+// прошлого государства и больше не действует.
+watch(currentCountryId, () => {
+  selectedGuildId.value = null
+  marketEmbargo.value = {}
 })
 
 const tabs = [
@@ -74,7 +117,12 @@ const tabs = [
         value="exchange"
         :key="exchangeKey"
       >
-        <Exchange />
+        <Exchange
+          :embargo-countries="marketEmbargo"
+          embargo-dialog-title="Эта страна наложила эмбарго на гильдию!"
+          embargo-dialog-text="Караван этой гильдии не пройдёт без карточки «Контрабанда»."
+          @guild-selected="onGuildSelected"
+        />
       </VWindowItem>
 
       <VWindowItem value="trade_turnover">

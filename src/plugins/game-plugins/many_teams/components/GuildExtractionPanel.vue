@@ -1,16 +1,18 @@
 <script setup>
 /**
- * Разрешения на добычу «государство × гильдия» (п. 4) и действие Казначея (п. 5).
+ * Разрешения на добычу (п. 4) и действие Казначея (п. 5).
  *
- * По умолчанию добыча открыта гильдии в стране, к которой она привязана, и
- * закрыта в остальных. Переключатель меняет показатель; каждое изменение
- * выполняется на бэкенде действием Казначея и попадает в политдействия.
+ * Таблица — ВСЕ гильдии игры (решение заказчика), переключатель один: «добыча на
+ * территории текущего государства». Другие территории отсюда не правятся: страна
+ * решает только за свою землю. По умолчанию добыча открыта гильдии в стране, к
+ * которой она привязана, и закрыта в остальных; каждое изменение выполняется на
+ * бэкенде действием Казначея и попадает в политдействия.
  */
 import { computed, ref, watch } from 'vue'
 import { useCurrentCountry } from '@/composables/useCurrentCountry'
 import { engineApi, errorMessage } from '../api'
 
-const { currentCountryId, reloadToken, loadCurrentCountry } = useCurrentCountry()
+const { currentCountryId, currentCountry, reloadToken, loadCurrentCountry } = useCurrentCountry()
 
 const data = ref(null)
 const loading = ref(false)
@@ -19,8 +21,43 @@ const notice = ref(null)
 const saving = ref(null)
 
 const guilds = computed(() => data.value?.guilds || [])
-const countries = computed(() => data.value?.countries || [])
-const playerCountryIds = computed(() => data.value?.player_country_ids || [])
+const permissionsCountry = computed(() => data.value?.country || null)
+
+// Сортировка таблицы: по государству гильдии (по умолчанию) и по названию
+// гильдии. Данных мало (все гильдии игры), поэтому сортируем на клиенте;
+// второй уровень — название гильдии, чтобы порядок был предсказуемым.
+const sortKey = ref('country')
+const sortDir = ref('asc')
+const collator = new Intl.Collator('ru')
+
+const sortedGuilds = computed(() => {
+  const field = row => (sortKey.value === 'country' ? row.guild_country_name : row.guild_name) || ''
+  return [...guilds.value].sort((a, b) => {
+    const primary = collator.compare(field(a), field(b))
+    if (primary !== 0) return sortDir.value === 'asc' ? primary : -primary
+    const secondary = collator.compare(a.guild_name || '', b.guild_name || '')
+    return secondary !== 0 ? secondary : a.guild_id - b.guild_id
+  })
+})
+
+function toggleSort(key) {
+  if (sortKey.value === key) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+    return
+  }
+  sortKey.value = key
+  sortDir.value = 'asc'
+}
+
+function sortIcon(key) {
+  if (sortKey.value !== key) return 'ri-arrow-up-down-line'
+  return sortDir.value === 'asc' ? 'ri-arrow-up-line' : 'ri-arrow-down-line'
+}
+
+function ariaSort(key) {
+  if (sortKey.value !== key) return 'none'
+  return sortDir.value === 'asc' ? 'ascending' : 'descending'
+}
 
 async function load() {
   await loadCurrentCountry()
@@ -42,17 +79,17 @@ async function load() {
   }
 }
 
-async function toggle(guild, permission, value) {
-  saving.value = `${guild.guild_id}:${permission.country_id}`
+async function toggle(guild, value) {
+  saving.value = guild.guild_id
   error.value = null
   notice.value = null
   try {
     const { data: payload } = await engineApi.setExtractionPermission({
       guild_id: guild.guild_id,
-      country_id: permission.country_id,
+      country_id: permissionsCountry.value.id,
       allowed: value,
     })
-    notice.value = `Гильдия «${guild.guild_name}»: добыча в государстве «${permission.country_name}» ` +
+    notice.value = `Гильдия «${guild.guild_name}»: добыча на территории «${permissionsCountry.value.name}» ` +
       `${payload.allowed ? 'разрешена' : 'запрещена'} (действие Казначея № ${payload.action_id})`
     await load()
   } catch (e) {
@@ -71,9 +108,10 @@ watch(reloadToken, load)
     <VCardItem>
       <VCardTitle>Добыча по гильдиям</VCardTitle>
       <VCardSubtitle>
-        Показатель «возможно ли производство на добывающих предприятиях» для пары
-        «государство × гильдия». По умолчанию открыто в стране гильдии, закрыто в остальных;
-        переключатель меняет показатель действием Казначея.
+        Все гильдии игры. Переключатель — «добыча разрешена на территории
+        {{ currentCountry?.name ? `«${currentCountry.name}»` : 'текущего государства' }}»:
+        страна решает только за свою землю. По умолчанию открыто в стране гильдии,
+        закрыто в остальных; изменение выполняется действием Казначея.
       </VCardSubtitle>
     </VCardItem>
 
@@ -89,76 +127,75 @@ watch(reloadToken, load)
         Загрузка…
       </div>
 
-      <div v-else class="table-scroll">
-        <v-table density="compact">
-          <thead>
-            <tr>
-              <th class="text-left sticky-col">Гильдия</th>
-              <th
-                v-for="country in countries"
-                :key="country.id"
-                class="text-center"
+      <v-table v-else density="compact">
+        <thead>
+          <tr>
+            <th
+              class="text-left sortable"
+              :aria-sort="ariaSort('name')"
+              title="Сортировать по названию гильдии"
+              @click="toggleSort('name')"
+            >
+              Гильдия
+              <VIcon :icon="sortIcon('name')" size="14" class="ms-1" />
+            </th>
+            <th
+              class="text-left sortable"
+              :aria-sort="ariaSort('country')"
+              title="Сортировать по государству гильдии"
+              @click="toggleSort('country')"
+            >
+              Государство гильдии
+              <VIcon :icon="sortIcon('country')" size="14" class="ms-1" />
+            </th>
+            <th class="text-center">
+              Добыча на территории «{{ permissionsCountry?.name || currentCountry?.name || '—' }}»
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="guild in sortedGuilds" :key="guild.guild_id">
+            <td>{{ guild.guild_name }}</td>
+            <td>
+              {{ guild.guild_country_name || '—' }}
+              <VChip
+                v-if="guild.own"
+                size="x-small"
+                color="primary"
+                variant="tonal"
+                class="ms-1"
               >
-                {{ country.short_name || country.name }}
-                <VChip
-                  v-if="playerCountryIds.includes(country.id)"
-                  size="x-small"
-                  color="primary"
-                  variant="tonal"
-                  class="ms-1"
-                >
-                  игрок
-                </VChip>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="guild in guilds" :key="guild.guild_id">
-              <td class="sticky-col">{{ guild.guild_name }}</td>
-              <td
-                v-for="permission in guild.permissions"
-                :key="permission.country_id"
-                class="text-center"
-              >
-                <VSwitch
-                  :model-value="permission.allowed"
-                  density="compact"
-                  hide-details
-                  color="success"
-                  :loading="saving === `${guild.guild_id}:${permission.country_id}`"
-                  @update:model-value="value => toggle(guild, permission, value)"
-                />
-                <div class="text-caption text-medium-emphasis">
-                  {{ permission.overridden ? 'изменено' : (permission.own ? 'своя страна' : 'по умолчанию') }}
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
-      </div>
+                своя страна
+              </VChip>
+            </td>
+            <td class="text-center">
+              <VSwitch
+                :model-value="guild.allowed"
+                density="compact"
+                hide-details
+                color="success"
+                :loading="saving === guild.guild_id"
+                @update:model-value="value => toggle(guild, value)"
+              />
+              <div class="text-caption text-medium-emphasis">
+                {{ guild.overridden ? 'изменено вручную' : 'по умолчанию' }}
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </v-table>
     </VCardText>
   </VCard>
 </template>
 
 <style scoped>
-.table-scroll {
-  overflow-x: auto;
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
 }
 
-.table-scroll :deep(table) {
-  inline-size: max-content;
-  min-inline-size: 100%;
-}
-
-.table-scroll :deep(.sticky-col) {
-  position: sticky;
-  inset-inline-start: 0;
-  z-index: 2;
-  background: rgb(var(--v-theme-surface));
-}
-
-.table-scroll :deep(thead th.sticky-col) {
-  z-index: 3;
-  background: #f6f7fb;
+.sortable:hover {
+  color: rgb(var(--v-theme-primary));
 }
 </style>

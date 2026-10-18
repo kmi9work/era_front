@@ -3,6 +3,7 @@
   import { ref, computed, nextTick } from 'vue'
   import AlliancesDialog from '@/components/AlliancesDialog.vue'
   import { usePairEffects } from '@/composables/usePairEffects'
+  import { componentRegistry } from '@/registry'
 
   /**
    * Действия пары «A ↔ B» в одной ячейке (ТЗ № 2, § 2.3).
@@ -46,6 +47,15 @@
   })
 
   const emit = defineEmits(['reload'])
+
+  /**
+   * Точка расширения: игра-плагин может заменить кнопку эмбарго своим
+   * компонентом (модалка выбора гильдии). Регистрируется в registry под ключом
+   * `pair_relations_embargo`; если ключа нет, работает прежняя кнопка-переключатель.
+   */
+  const embargoAction = componentRegistry.has('pair_relations_embargo')
+    ? componentRegistry.get('pair_relations_embargo')
+    : null
 
   const partnerRef = computed(() => props.partnerCountry)
   const effectsRef = computed(() => props.effects)
@@ -293,7 +303,15 @@
         title="Управление союзами"
       ></IconBtn>
     </VBadge>
+    <component
+      :is="embargoAction"
+      v-if="embargoAction"
+      :country="country"
+      :partner-country="partnerCountry"
+      @reload="reload"
+    />
     <IconBtn
+      v-else
       icon="ri-store-line"
       :color="country.embargo == 1 ? 'error' : 'success'"
       @click="setEmbargo"
