@@ -46,6 +46,7 @@
   import protect_caravan from '@/views/pages/political_actions/protect_caravan.vue'
   import spy_away_mutiny from '@/views/pages/political_actions/spy_away_mutiny.vue'
   import infiltrate_army from '@/views/pages/political_actions/infiltrate_army.vue'
+  import { componentRegistry } from '@/registry'
 
   const compMap = new Map();
   // Старые действия ядра игры
@@ -93,6 +94,13 @@
   compMap.set("spy_away_mutiny", spy_away_mutiny);
   compMap.set("infiltrate_army", infiltrate_army);
   compMap.set("sermon_vassals", sermon_vassals);
+
+  // Действия игровых плагинов: плагин регистрирует компоненты в registry под
+  // ключом `<game>.action_components`, ядро только подмешивает их в диспетчер.
+  // Так новые действия живут в плагине, а не в этом файле.
+  componentRegistry.list()
+    .filter(name => name.endsWith('.action_components'))
+    .forEach(name => Object.entries(componentRegistry.get(name) || {}).forEach(([key, component]) => compMap.set(key, component)))
 
   const props = defineProps({
     noble_job: {
