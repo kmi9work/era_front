@@ -25,6 +25,13 @@ import undermineRelations from './views/actions/undermine_relations.vue'
 import setGuildExtraction from './views/actions/set_guild_extraction.vue'
 import liftGuildEmbargoes from './views/actions/lift_guild_embargoes.vue'
 
+// Справочник игр ядра пополняется из плагина: новую игру видно в списке и в
+// информации об активной игре, хотя src/config/game.js не правится.
+GAME_CONFIG.availableGames.two_teams = {
+  name: 'Two Teams',
+  description: 'Режим «много команд»: добыча и эмбарго гильдий, две и более команд',
+}
+
 export const ACTION_COMPONENTS = {
   conduct_intelligence: conductIntelligence,
   undermine_stability: undermineStability,
