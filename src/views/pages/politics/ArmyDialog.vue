@@ -39,6 +39,8 @@ const errorMessage = ref('')
 
 // Инициализация формы
 const initForm = () => {
+  errorMessage.value = ''
+
   if (props.army) {
     // Режим редактирования
     settlementId.value = props.army.settlement?.id
@@ -95,8 +97,19 @@ const submit = () => {
     return
   }
 
+  // Владельцем можно назначить только текущее государство или его знать
+  // (ТЗ № 2, § 6, п. 4): чужие государства и «незнатные» игроки в списке отсутствуют.
+  // При редактировании уже назначенный владелец остаётся допустимым, даже если он вне списка.
+  const isAllowedOwner = flatOwnerItems.value.some(item => item.value === ownerId.value)
+  const currentOwnerId = props.army ? `${props.army.owner_type}-${props.army.owner_id}` : null
+
+  if (!isAllowedOwner && ownerId.value !== currentOwnerId) {
+    errorMessage.value = 'Владельцем можно выбрать только текущее государство или его знать'
+    return
+  }
+
   const [ownerType, ownerIdValue] = ownerId.value.split('-')
-  
+
   emit('submit', {
     settlement_id: settlementId.value,
     owner_id: ownerIdValue,

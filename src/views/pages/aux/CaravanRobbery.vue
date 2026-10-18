@@ -1,17 +1,29 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import axios from 'axios'
+import { useCurrentCountry } from '@/composables/useCurrentCountry'
+
+/**
+ * Настройки ограбления караванов (ТЗ № 2, § 7.3).
+ *
+ * Список «не грабить гильдии» строится по гильдиям текущего государства
+ * (гильдия принадлежит государству своих игроков); при смене государства
+ * данные перечитываются.
+ */
+const { currentCountry, currentCountryId, reloadToken, loadCurrentCountry } = useCurrentCountry()
 
 // Состояния
 const yearsCount = ref(1)
 const guilds = ref([])
 const robberySettings = ref({
   robbery_by_year: {},
-  protected_guilds_by_year: {}
+  protected_guilds_by_year: {},
 })
 const isLoading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+
+const countryName = computed(() => currentCountry.value?.name || 'государство не выбрано')
 
 // Загружаем years_count
 const loadYearsCount = async () => {
@@ -23,11 +35,30 @@ const loadYearsCount = async () => {
   }
 }
 
-// Загружаем список гильдий
+// Государство гильдии: поле country_id из ответа, у старых записей — по её игрокам
+const guildCountryId = guild => {
+  if (guild.country_id) return guild.country_id
+  if (guild.country?.id) return guild.country.id
+
+  const players = Array.isArray(guild.players) ? guild.players : []
+  const player = players.find(item => item.country_id || item.country?.id)
+
+  return player ? (player.country_id || player.country.id) : null
+}
+
+// Загружаем список гильдий текущего государства
 const loadGuilds = async () => {
   try {
     const response = await axios.get(`${import.meta.env.VITE_PROXY}/guilds/list.json`)
-    guilds.value = response.data
+    const allGuilds = Array.isArray(response.data) ? response.data : []
+
+    // Гильдию без игроков отнести к государству нельзя — показываем её, как прежде
+    guilds.value = allGuilds.filter(guild => {
+      const countryId = guildCountryId(guild)
+      if (countryId === null) return true
+
+      return countryId === currentCountryId.value
+    })
   } catch (error) {
     console.error('Ошибка при загрузке гильдий:', error)
     errorMessage.value = 'Не удалось загрузить список гильдий'
@@ -140,9 +171,16 @@ const years = computed(() => {
 })
 
 onMounted(async () => {
+  await loadCurrentCountry()
   await loadYearsCount()
   await loadGuilds()
   await loadSettings()
+})
+
+// Смена государства: гильдии и суммы ограблений — в разрезе текущего государства
+watch(reloadToken, () => {
+  loadGuilds()
+  loadSettings()
 })
 </script>
 
@@ -157,6 +195,11 @@ onMounted(async () => {
       <VDivider />
       
       <VCardText>
+        <!-- Государство, чьи гильдии настраиваются (ТЗ № 2, § 7.3) -->
+        <div class="text-body-2 text-medium-emphasis mb-4">
+          Гильдии государства: {{ countryName }}
+        </div>
+
         <!-- Сообщения об ошибках и успехе -->
         <VAlert
           v-if="errorMessage"

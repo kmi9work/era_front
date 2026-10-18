@@ -1,5 +1,12 @@
 <script setup>
   import axios from 'axios'
+  import { useCurrentCountry } from '@/composables/useCurrentCountry'
+
+  // Передача региона государству (ТЗ № 2, § 4 п. 5): быстрая кнопка передаёт регион
+  // ТЕКУЩЕМУ государству (прежде — жёстко «Руси»), бонус Великому князю предлагается
+  // тогда, когда регион уходит текущему государству (условие совпадает с бэкендом).
+  const { currentCountry, currentCountryId, loadCurrentCountry } = useCurrentCountry()
+
   const props = defineProps({
     countries: {
       type: Array,
@@ -30,9 +37,14 @@
   const by_war = ref(0);
   const capture_stepper = ref(0);
 
+  onBeforeMount(() => {
+    loadCurrentCountry()
+  })
+
   async function captureRegion(region_id, country_id, how) {
     let zb = ''
-    if (country_id == 1){ //rus
+    // Бонус Великому князю — только если регион присоединяет текущее государство
+    if (country_id && country_id == currentCountryId.value){
       let bonus = confirm("Зачислить бонус Великому князю за присоединение земли?")
       zb = bonus ? '&grand_prince_bonus=1' : ''
     }
@@ -79,7 +91,9 @@
                 min-width="92"
                 variant="outlined"
                 rounded
-                @click="captureRegion(ownership.id, 1)">Русь</v-btn>
+                @click="captureRegion(ownership.id, currentCountryId)">
+                {{ currentCountry?.short_name || currentCountry?.name || 'Текущее государство' }}
+              </v-btn>
             </template>
             <VList>
               <VListItem

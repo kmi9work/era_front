@@ -42,7 +42,7 @@ function getYearStats(year) {
 // Получаем отсортированные категории для года
 function getSortedCategories(yearStats) {
   return Object.keys(yearStats).sort((a, b) => {
-    const order = ['Политические действия', 'Действия купцов', 'Владения', 'Армии', 'Строительство', 'Финансы', 'Влияние', 'Общественный порядок', 'Технологии', 'Сражения', 'Должности', 'Игра', 'Прочее']
+    const order = ['Политические действия', 'Действия купцов', 'Владения', 'Армии', 'Строительство', 'Финансы', 'Влияние', 'Общественный порядок', 'Технологии', 'Сражения', 'Должности', 'Государство', 'Игра', 'Прочее']
     const indexA = order.indexOf(a)
     const indexB = order.indexOf(b)
     if (indexA === -1 && indexB === -1) return a.localeCompare(b)
@@ -149,6 +149,7 @@ function getCategoryColor(category) {
     'Технологии': 'indigo',
     'Сражения': 'red',
     'Должности': 'deep-purple',
+    'Государство': 'blue-grey',
     'Игра': 'blue-grey',
     'Прочее': 'grey'
   }
@@ -168,6 +169,7 @@ function getCategoryIcon(category) {
     'Технологии': 'mdi-cog',
     'Сражения': 'mdi-sword-cross',
     'Должности': 'mdi-account-tie',
+    'Государство': 'mdi-flag',
     'Игра': 'mdi-cog',
     'Прочее': 'mdi-help-circle'
   }

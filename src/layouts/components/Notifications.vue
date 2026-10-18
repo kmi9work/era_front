@@ -1,12 +1,83 @@
 <script setup>
   import { ref, onBeforeMount, computed } from 'vue'
   import axios from 'axios'
+  import { useCurrentCountry } from '@/composables/useCurrentCountry'
+
+  // Текущее государство — для формулировок про госрасходы (ТЗ № 2, § 8 п. 5).
+  // Состояние модульное: при смене государства описания перечитываются реактивно.
+  const { currentCountry, loadCurrentCountry } = useCurrentCountry()
 
   const audits = ref([]);
   const not_read = ref([2])
   const expandedItems = ref(new Set())
   const expandedGroups = ref(new Set())
   const viewedAudits = ref(new Set())
+
+  /**
+   * Государство, против которого введено эмбарго, — текущее (ТЗ № 2, § 1.2).
+   * Для «Руси» сохраняем прежнюю формулировку («против Руси») — в режиме одной
+   * команды текст уведомления не меняется (§ 12 ТЗ).
+   */
+  function embargoTargetName() {
+    const name = currentCountry.value?.short_name || currentCountry.value?.name
+    if (!name || name === 'Русь') return 'Руси'
+    return `государства ${name}`
+  }
+
+  /** Название государства для формулировок: из аудита, иначе — текущее. */
+  function auditCountryName(audit) {
+    return audit?.country_name || audit?.auditable?.name || currentCountry.value?.short_name || currentCountry.value?.name || null;
+  }
+
+  /**
+   * Изменения госрасходов в аудите (ТЗ № 2, § 8).
+   * У аудитов Country params.state_expenses — хэш по годам ({"3": true});
+   * прежний формат — скалярный флаг на всю игру (у аудитов GameParameter).
+   * Возвращаем список изменённых лет с новым состоянием.
+   */
+  function getStateExpensesChanges(audit) {
+    const { audited_changes, auditable_type, year } = audit
+
+    if (auditable_type !== 'Country' && auditable_type !== 'GameParameter') return []
+
+    const paramsChanges = audited_changes?.params
+    if (!Array.isArray(paramsChanges) || paramsChanges.length !== 2) return []
+
+    const [oldParams, newParams] = paramsChanges
+    const oldExpenses = oldParams?.state_expenses
+    const newExpenses = newParams?.state_expenses
+    if (oldExpenses === undefined && newExpenses === undefined) return []
+
+    // Скалярный флаг: год берём из самого аудита
+    if (typeof oldExpenses !== 'object' && typeof newExpenses !== 'object') {
+      if (oldExpenses === newExpenses) return []
+      return [{ year, paid: newExpenses === true }]
+    }
+
+    const oldHash = oldExpenses && typeof oldExpenses === 'object' ? oldExpenses : {}
+    const newHash = newExpenses && typeof newExpenses === 'object' ? newExpenses : {}
+
+    return [...new Set([...Object.keys(oldHash), ...Object.keys(newHash)])]
+      .filter(expenseYear => oldHash[expenseYear] !== newHash[expenseYear] && newHash[expenseYear] !== undefined)
+      .map(expenseYear => ({ year: Number(expenseYear), paid: newHash[expenseYear] === true }))
+      .sort((a, b) => b.year - a.year)
+  }
+
+  /** Описание оплаты/отмены госрасходов с годом и названием государства. */
+  function getStateExpensesDescription(audit) {
+    const changes = getStateExpensesChanges(audit)
+    if (!changes.length) return null
+
+    const countryName = auditCountryName(audit)
+
+    return changes.map(({ year, paid }) => {
+      const stateText = paid ? 'Оплачены госрасходы' : 'Отменена оплата госрасходов'
+      const yearText = year ? `за ${year} год` : 'за текущий год'
+      return countryName
+        ? `${stateText} ${yearText} (государство ${countryName})`
+        : `${stateText} ${yearText}`
+    }).join('; ')
+  }
 
   const groupedAudits = computed(() => {
     const groups = {}
@@ -566,13 +637,17 @@
     // Получаем год из бэкенда
     const actionYear = year || 'неизвестный год'
     
+    // Название государства: в старых аудитах GameParameter его нет — подписываем текущим
+    const countryName = auditCountryName(audit)
+    const countrySuffix = countryName ? ` (государство ${countryName})` : ''
+    
     // Проверяем, что изменилось
     if (audited_changes?.value) {
       // Изменение года
       const [oldYear, newYear] = audited_changes.value
       return `Год изменен с ${oldYear} на ${newYear}`
     } else if (audited_changes?.params) {
-      // Изменение параметров (оплата госрасходов)
+      // Изменение параметров (оплата госрасходов) — прежний общий флаг на игру
       const [oldParams, newParams] = audited_changes.params
       
       if (oldParams && newParams) {
@@ -580,10 +655,16 @@
         const newPaid = newParams.state_expenses
         
         if (oldPaid === false && newPaid === true) {
-          return `Оплачены госрасходы за ${actionYear} год`
+          return `Оплачены госрасходы за ${actionYear} год${countrySuffix}`
         } else if (oldPaid === true && newPaid === false) {
-          return `Отменена оплата госрасходов за ${actionYear} год`
+          return `Отменена оплата госрасходов за ${actionYear} год${countrySuffix}`
         }
+      }
+      
+      // Прежний аудит мог хранить состояние хэшем по годам — описываем с годом и государством
+      const stateExpensesDescription = getStateExpensesDescription(audit)
+      if (stateExpensesDescription) {
+        return stateExpensesDescription
       }
     }
     
@@ -647,12 +728,23 @@
     
     const countryName = country_name || auditable?.name || 'Неизвестная страна'
     
+    // Готовый комментарий аудита: бэкенд пишет год и название государства (§ 8 п. 5)
+    if (audit.comment) {
+      return audit.comment
+    }
+    
+    // Подтверждение/отмена госрасходов государства: год и название государства
+    const stateExpensesDescription = getStateExpensesDescription(audit)
+    if (stateExpensesDescription) {
+      return stateExpensesDescription
+    }
+    
     // Проверяем изменения эмбарго
     if (embargo_changed) {
       if (old_embargo === 0 && new_embargo === 1) {
-        return `${countryName} - введено эмбарго против Руси`
+        return `${countryName} - введено эмбарго против ${embargoTargetName()}`
       } else if (old_embargo === 1 && new_embargo === 0) {
-        return `${countryName} - снято эмбарго против Руси`
+        return `${countryName} - снято эмбарго против ${embargoTargetName()}`
       } else {
         return `${countryName} - изменено эмбарго`
       }
@@ -810,8 +902,16 @@
       }
     }
     
-    // Изменения стран (эмбарго)
+    // Изменения стран: эмбарго — «Дипломатия», расходы государства — «Государство»
     if (auditable_type === 'Country') {
+      if (getStateExpensesChanges(audit).length > 0) {
+        return {
+          category: 'Государство',
+          icon: 'mdi-flag',
+          color: '#607D8B'
+        }
+      }
+
       return {
         category: 'Дипломатия',
         icon: 'mdi-flag',
@@ -828,6 +928,8 @@
   }
 
   onBeforeMount(async () => {
+    // Текущее государство нужно для формулировок про госрасходы (§ 8 п. 5)
+    await loadCurrentCountry()
     updateNotifications()
   })
 

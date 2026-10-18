@@ -111,7 +111,7 @@
     <VCard class="mb-6">
       <VCardText>
         <VRow>
-          <VCol cols="12" md="6">
+          <VCol cols="12" md="3">
             <VTextField
               v-model="searchQuery"
               placeholder="Поиск по имени или идентификатору..."
@@ -126,6 +126,19 @@
               v-model="filterType"
               :items="playerTypes"
               placeholder="Тип игрока"
+              clearable
+              variant="outlined"
+              density="compact"
+            />
+          </VCol>
+          <VCol cols="12" md="3">
+            <!-- Фильтр по государству (ТЗ № 2, § 1.3) -->
+            <VSelect
+              v-model="filterCountry"
+              :items="countryFilterOptions"
+              item-title="title"
+              item-value="value"
+              placeholder="Государство"
               clearable
               variant="outlined"
               density="compact"
@@ -166,9 +179,20 @@
           <VCardText class="text-center">
             <!-- Player Info -->
             <div>
-              <h3 class="text-h6 font-weight-bold mb-3">
+              <h3 class="text-h6 font-weight-bold mb-2">
                 {{ player.name }}
               </h3>
+
+              <!-- Государство игрока (ТЗ № 2, § 1.3) -->
+              <div class="d-flex align-center justify-center gap-2 mb-3 text-body-2 text-medium-emphasis">
+                <img
+                  v-if="playerCountryFlag(player)"
+                  :src="playerCountryFlag(player)"
+                  :alt="playerCountryName(player)"
+                  class="country-flag"
+                >
+                <span>{{ playerCountryName(player) }}</span>
+              </div>
             </div>
 
             <!-- QR Code -->
@@ -268,6 +292,18 @@
           density="compact"
           clearable
         />
+
+        <!-- Государство игрока: все страны (GET /countries.json), без признака «играбельности» -->
+        <VSelect
+          v-model="playerForm.country_id"
+          :items="countryOptions"
+          item-title="title"
+          item-value="value"
+          label="Государство"
+          variant="outlined"
+          density="compact"
+          clearable
+        />
       </VCardText>
       <VCardActions>
         <VSpacer />
@@ -294,10 +330,27 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onBeforeMount, nextTick, watch } from 'vue'
 import axios from 'axios'
 import QRCode from 'qrcode'
 import Guilds from '@/views/pages/players/Guilds.vue'
+import { useCurrentCountry } from '@/composables/useCurrentCountry'
+
+/**
+ * Игроки привязаны к государству (ТЗ № 2, § 1.3).
+ *
+ * Государство — из единого источника `@/composables/useCurrentCountry`:
+ * селект в карточке и фильтр списка показывают ВСЕ государства (`GET /countries.json`),
+ * по умолчанию подставляется текущее государство. Признака «играбельное государство»
+ * и отдельного «режима» на экране нет.
+ */
+const {
+  currentCountryId,
+  countries,
+  reloadToken,
+  loadCountries,
+  loadCurrentCountry,
+} = useCurrentCountry()
 
 // Reactive data
 const activeTab = ref('players')
@@ -306,6 +359,9 @@ const loading = ref(false)
 const generatingQR = ref(false)
 const searchQuery = ref('')
 const filterType = ref('')
+
+// Фильтр по государству (ТЗ № 2, § 1.3): null — все государства
+const filterCountry = ref(null)
 const sortBy = ref('name')
 
 // Player CRUD state
@@ -313,7 +369,17 @@ const playerDialog = ref(false)
 const editingPlayer = ref(null)
 const savingPlayer = ref(false)
 const playerErrors = ref({ name: '' })
-const playerForm = ref({ name: '', player_type_id: null, family_id: null })
+
+// Дефолт формы — текущее государство (§ 1.3), не пустое значение
+const playerForm = ref({
+  name: '',
+  player_type_id: null,
+  family_id: null,
+  country_id: currentCountryId.value ?? null,
+})
+
+// Прежний дефолт: по нему видно, правил ли мастер поле «Государство» вручную
+let defaultFormCountryId = currentCountryId.value ?? null
 const playerTypeOptions = ref([])
 const familyOptions = ref([])
 const deleteDialog = ref(false)
@@ -334,10 +400,38 @@ const playerTypes = computed(() => {
   return types.map(type => ({ title: type, value: type }))
 })
 
+// Государства для селекта карточки и фильтра списка — все (GET /countries.json)
+const countryOptions = computed(() =>
+  countries.value.map(country => ({ title: country.name, value: country.id })))
+
+const countryFilterOptions = computed(() => [
+  { title: 'Все государства', value: null },
+  ...countryOptions.value,
+])
+
+const countriesById = computed(() =>
+  countries.value.reduce((acc, country) => {
+    acc[country.id] = country
+
+    return acc
+  }, {}))
+
+// Государство игрока: объект из ответа, иначе — из загруженного списка государств
+const playerCountry = player => player?.country || countriesById.value[player?.country_id] || null
+
+const playerCountryName = player => playerCountry(player)?.name || '—'
+
+const playerCountryFlag = player => {
+  const country = playerCountry(player)
+
+  return country?.flag_image_name ? `/images/countries/${country.flag_image_name}.png` : null
+}
+
 const sortOptions = [
   { title: 'По имени', value: 'name' },
   { title: 'По типу', value: 'type' },
   { title: 'По семье', value: 'family' },
+  { title: 'По государству', value: 'country' },
   { title: 'По ID', value: 'id' }
 ]
 
@@ -359,6 +453,11 @@ const filteredPlayers = computed(() => {
     filtered = filtered.filter(player => player.player_type?.name === filterType.value)
   }
 
+  // Фильтр по государству (ТЗ № 2, § 1.3) — в дополнение к типу и семье
+  if (filterCountry.value) {
+    filtered = filtered.filter(player => player.country_id === filterCountry.value)
+  }
+
   // Sort
   filtered.sort((a, b) => {
     switch (sortBy.value) {
@@ -368,6 +467,8 @@ const filteredPlayers = computed(() => {
         return (a.player_type?.name || '').localeCompare(b.player_type?.name || '')
       case 'family':
         return (a.family?.name || '').localeCompare(b.family?.name || '')
+      case 'country':
+        return (a.country?.name || '').localeCompare(b.country?.name || '')
       case 'id':
         return a.id - b.id
       default:
@@ -382,6 +483,8 @@ const filteredPlayers = computed(() => {
 const loadPlayers = async () => {
   loading.value = true
   try {
+    // Список — по всем государствам (§ 1.3): фильтр по государству работает по этому списку.
+    // Без `country_id` бэкенд отдаёт всех игроков, доход и влияние считает для текущего государства.
     const response = await axios.get(`${import.meta.env.VITE_PROXY}/players.json`)
     players.value = response.data
     
@@ -417,9 +520,17 @@ const loadFamilies = async () => {
 
 const openCreatePlayer = async () => {
   editingPlayer.value = null
-  playerForm.value = { name: '', player_type_id: null, family_id: null }
+
+  // Новый игрок: государство по умолчанию — текущее (§ 1.3), а не пустое значение
+  playerForm.value = {
+    name: '',
+    player_type_id: null,
+    family_id: null,
+    country_id: currentCountryId.value ?? null,
+  }
+  defaultFormCountryId = currentCountryId.value ?? null
   playerErrors.value = { name: '' }
-  await Promise.all([loadPlayerTypes(), loadFamilies()])
+  await Promise.all([loadPlayerTypes(), loadFamilies(), loadCountries()])
   playerDialog.value = true
 }
 
@@ -429,9 +540,12 @@ const openEditPlayer = async (player) => {
     name: player.name || '',
     player_type_id: player.player_type?.id || null,
     family_id: player.family?.id || null,
+
+    // Государство игрока; если у игрока его нет — текущее государство (дефолт, § 1.3)
+    country_id: player.country_id ?? player.country?.id ?? currentCountryId.value ?? null,
   }
   playerErrors.value = { name: '' }
-  await Promise.all([loadPlayerTypes(), loadFamilies()])
+  await Promise.all([loadPlayerTypes(), loadFamilies(), loadCountries()])
   playerDialog.value = true
 }
 
@@ -453,10 +567,16 @@ const savePlayer = async () => {
   if (!validatePlayer()) return
   savingPlayer.value = true
   try {
+    // `country_id` уходит в теле `player` (бэкенд принимает его в permit, § 1.3);
+    // пустое значение заменяем текущим государством — игрок не останется без государства
+    const playerPayload = {
+      ...playerForm.value,
+      country_id: playerForm.value.country_id ?? currentCountryId.value ?? null,
+    }
     if (editingPlayer.value?.id) {
-      await axios.patch(`${import.meta.env.VITE_PROXY}/players/${editingPlayer.value.id}.json`, { player: playerForm.value })
+      await axios.patch(`${import.meta.env.VITE_PROXY}/players/${editingPlayer.value.id}.json`, { player: playerPayload })
     } else {
-      await axios.post(`${import.meta.env.VITE_PROXY}/players.json`, { player: playerForm.value })
+      await axios.post(`${import.meta.env.VITE_PROXY}/players.json`, { player: playerPayload })
     }
     playerDialog.value = false
     await loadPlayers()
@@ -656,12 +776,34 @@ const getPlayerTypeColor = (player) => {
 const clearFilters = () => {
   searchQuery.value = ''
   filterType.value = ''
+  filterCountry.value = null
   sortBy.value = 'name'
 }
 
 // Lifecycle
-onMounted(() => {
+onBeforeMount(async () => {
+  // Список государств (для селекта и фильтра) и текущее государство — до списка игроков
+  await Promise.all([loadCountries(), loadCurrentCountry()])
   loadPlayers()
+})
+
+/**
+ * Смена текущего государства (ТЗ № 2, § 1.1, § 1.3): перечитываем список стран и
+ * список игроков (доход и влияние считаются для нового государства) и обновляем
+ * дефолт «Государство» в форме создания.
+ */
+watch(reloadToken, async () => {
+  const nextDefaultCountryId = currentCountryId.value ?? null
+
+  // В открытой форме создания ещё стоит прежний дефолт — подставляем новое государство
+  if (
+    !editingPlayer.value
+    && (playerForm.value.country_id == null || playerForm.value.country_id === defaultFormCountryId)
+  ) {
+    playerForm.value.country_id = nextDefaultCountryId
+  }
+  defaultFormCountryId = nextDefaultCountryId
+  await Promise.all([loadCountries(true), loadPlayers()])
 })
 </script>
 
@@ -673,6 +815,13 @@ onMounted(() => {
 .player-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.country-flag {
+  block-size: 18px;
+  inline-size: 24px;
+  border-radius: 2px;
+  object-fit: cover;
 }
 
 .qr-container {

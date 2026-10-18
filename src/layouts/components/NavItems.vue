@@ -5,11 +5,21 @@ import VerticalNavLink from '@layouts/components/VerticalNavLink.vue'
 </script>
 
 <template>
-  <!-- 👉 Dashboards -->
+  <!-- 👉 Дашборд: отношения выбранных государств со всеми остальными -->
   <VerticalNavLink
     :item="{
-      title: 'Информация',
+      title: 'Дашборд',
+      icon: 'ri-dashboard-2-line',
       to: '/dashboard',
+    }"
+  />
+
+  <!-- 👉 Информация о стране: данные текущего государства -->
+  <VerticalNavLink
+    :item="{
+      title: 'Информация о стране',
+      icon: 'ri-information-line',
+      to: '/country',
     }"
   />
 

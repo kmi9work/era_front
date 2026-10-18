@@ -1,23 +1,33 @@
 <script setup>
   import axios from 'axios'
+  import { computed, onBeforeMount, ref, watch } from 'vue'
   import CaptureRegion from '@/views/pages/politics/CaptureRegion.vue'
   import Ownership from '@/views/pages/politics/Ownership.vue'
-  import { reactive, computed } from 'vue'
-  import { ref } from 'vue'
+  import { useCurrentCountry } from '@/composables/useCurrentCountry'
+
+  /**
+   * «Политика → Владения» в разрезе текущего государства (ТЗ № 2, § 4).
+   *
+   * Первая вкладка — регионы и поселения текущего государства, вторая («Зарубеж») —
+   * регионы всех остальных государств. Название первой вкладки — имя текущего
+   * государства (ключи вкладок не меняются, чтобы не ломать состояние). При смене
+   * государства данные перечитываются без перезагрузки страницы (§ 1.1).
+   */
+  const { currentCountry, currentCountryId, reloadToken, loadCurrentCountry } = useCurrentCountry()
 
   const navigationTab = ref('settlements')
 
-
-  const tabItems = [
+  // Ключи вкладок фиксированы, реактивно меняется только название первой.
+  const tabItems = computed(() => [
     {
-      name: 'Русь',
+      name: currentCountry.value?.name || 'Русь',
       key: 'settlements'
     },
     {
       name: 'Зарубеж',
       key: 'regions'
     }
-  ]
+  ])
 
   const countries = ref([]);
   const foreign_countries = ref([]);
@@ -58,34 +68,69 @@
     return filteredSettles.value.filter(settle => settle.region_id == region_id);
   }
 
+  // Знать (player_type_id=2) только текущего государства — для фильтра по игроку
+  // и диалога «Кому?» передачи поселения.
+  async function loadNobles(){
+    if (!currentCountryId.value){
+      nobles.value = [];
+      return;
+    }
+    await axios.get(`${import.meta.env.VITE_PROXY}/players.json?country_id=${currentCountryId.value}&player_type_id=2`)
+      .then(response => {
+        nobles.value = Array.isArray(response.data) ? response.data : [];
+      })
+  }
+
+  // Перечитывание владений. Вызывается и при смене государства, и как обработчик
+  // события capture-region после передачи региона/поселения.
   async function updateOwnerships(){
-    await axios.get(`${import.meta.env.VITE_PROXY}/settlements.json`) 
+    if (!currentCountryId.value) return
+    const country_id = currentCountryId.value
+    // Поселения текущего государства (явный country_id).
+    await axios.get(`${import.meta.env.VITE_PROXY}/settlements.json?country_id=${country_id}`)
       .then(response => {
         settlements.value = response.data;
       })
-    await axios.get(`${import.meta.env.VITE_PROXY}/regions.json?foreign=1`) 
+    // Регионы всех остальных государств — вкладка «Зарубеж».
+    await axios.get(`${import.meta.env.VITE_PROXY}/regions.json?foreign=1`)
       .then(response => {
         regions.value = response.data;
       })
-    await axios.get(`${import.meta.env.VITE_PROXY}/regions.json?foreign=0`) 
+    // Регионы текущего государства — первая вкладка (явный country_id вместе с foreign=0).
+    await axios.get(`${import.meta.env.VITE_PROXY}/regions.json?foreign=0&country_id=${country_id}`)
       .then(response => {
         rus_regions.value = response.data;
       })
-    await axios.get(`${import.meta.env.VITE_PROXY}/countries.json?foreign=1`) 
+    // Страны, кроме текущего, — список государств во вкладке «Зарубеж».
+    await axios.get(`${import.meta.env.VITE_PROXY}/countries.json?foreign=1`)
       .then(response => {
         foreign_countries.value = response.data;
       })
-    await axios.get(`${import.meta.env.VITE_PROXY}/countries.json`) 
+    // Полный список государств — цели передачи владения (CaptureRegion / Ownership).
+    await axios.get(`${import.meta.env.VITE_PROXY}/countries.json`)
       .then(response => {
         countries.value = response.data;
       })
   }
 
+  // Смена государства: сброс данных прошлого государства и повторная загрузка (§ 1.1).
+  watch(reloadToken, () => {
+    countries.value = []
+    foreign_countries.value = []
+    settlements.value = []
+    regions.value = []
+    rus_regions.value = []
+    nobles.value = []
+    selected_nobles.value = []
+    tab_regions.value = 0
+    tab_settles.value = 0
+    loadNobles()
+    updateOwnerships()
+  })
+
   onBeforeMount(async () => {
-    await axios.get(`${import.meta.env.VITE_PROXY}/players.json`) 
-      .then(response => {
-        nobles.value = response.data.filter((player) => player.player_type?.id == 2); // 2 - Знать
-      })
+    await loadCurrentCountry()
+    loadNobles()
     await axios.get(`${import.meta.env.VITE_PROXY}/building_types.json`)
       .then(async (response) => {
         building_types.value = response.data;

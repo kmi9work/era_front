@@ -6,6 +6,28 @@ const detailedStats = ref({})
 const selectedYear = ref(1) // Текущий год по умолчанию
 const loading = ref(false)
 
+// Блок «Госрасходы»: разбивка по государствам (ТЗ № 2, § 8 п. 4)
+const stateExpenses = computed(() => detailedStats.value.state_expenses || null)
+
+// Кто подтвердил расходы, кто нет, за какой год
+const stateExpensesByCountry = computed(() => {
+  const byCountry = stateExpenses.value?.by_country || {}
+  return Object.values(byCountry)
+    .map(entry => ({
+      ...entry,
+      yearsList: Object.entries(entry.years || {})
+        .map(([year, state]) => ({ year: Number(year), paid: state === 'paid' }))
+        .sort((a, b) => b.year - a.year)
+    }))
+    .sort((a, b) => (b.year || 0) - (a.year || 0) || String(a.name).localeCompare(String(b.name)))
+})
+
+// Прежний общий флаг прошлых игр (до раздельного учёта по государствам)
+const legacyStateExpenses = computed(() => {
+  const legacy = stateExpenses.value?.legacy
+  return legacy && legacy.final_state && legacy.final_state !== 'unknown' ? legacy : null
+})
+
 // Загружаем подробную статистику за выбранный год
 async function loadDetailedStats(year) {
   loading.value = true
@@ -100,24 +122,76 @@ onBeforeMount(() => {
           </div>
         </div>
 
-        <!-- Госрасходы -->
-        <div v-if="detailedStats.state_expenses" class="summary-section mb-6">
+        <!-- Госрасходы: по государствам (ТЗ № 2, § 8 п. 4) -->
+        <div v-if="stateExpenses" class="summary-section mb-6">
           <div class="section-header">
             <VIcon icon="mdi-cog" class="me-2" color="blue-grey" />
             <h3 class="text-h6">Госрасходы</h3>
           </div>
           <div class="section-content">
-            <p v-if="detailedStats.state_expenses.final_state === 'paid'" class="text-body-1">
+            <p v-if="stateExpenses.final_state === 'paid'" class="text-body-1">
               <VIcon icon="mdi-check-circle" color="success" class="me-1" />
               <strong>Госрасходы оплачены</strong>
+              <span v-if="stateExpenses.country">
+                — {{ stateExpenses.country }}<template v-if="stateExpenses.year">, {{ stateExpenses.year }} год</template>
+              </span>
             </p>
-            <p v-else-if="detailedStats.state_expenses.final_state === 'unpaid'" class="text-body-1">
+            <p v-else-if="stateExpenses.final_state === 'unpaid'" class="text-body-1">
               <VIcon icon="mdi-close-circle" color="error" class="me-1" />
               <strong>Госрасходы не оплачены</strong>
+              <span v-if="stateExpenses.country">
+                — {{ stateExpenses.country }}<template v-if="stateExpenses.year">, {{ stateExpenses.year }} год</template>
+              </span>
             </p>
             <p v-else class="text-body-1 text-disabled">
               <VIcon icon="mdi-help-circle" color="grey" class="me-1" />
               <strong>Состояние госрасходов неизвестно</strong>
+            </p>
+
+            <!-- Разбивка по государствам: кто подтвердил, кто нет, за какой год -->
+            <div v-if="stateExpensesByCountry.length > 0" class="mt-3">
+              <p class="text-body-1">
+                <VIcon icon="mdi-flag" class="me-1" color="blue-grey" />
+                <strong>Разбивка по государствам:</strong>
+              </p>
+              <div
+                v-for="entry in stateExpensesByCountry"
+                :key="entry.id ?? entry.name"
+                class="mb-2"
+              >
+                <div class="text-body-2">
+                  <VIcon
+                    :icon="entry.final_state === 'paid' ? 'mdi-check-circle' : 'mdi-close-circle'"
+                    :color="entry.final_state === 'paid' ? 'success' : 'error'"
+                    class="me-1"
+                  />
+                  <span>
+                    <strong>{{ entry.name }}</strong> —
+                    {{ entry.final_state === 'paid' ? 'расходы оплачены' : 'расходы не оплачены' }}<template v-if="entry.year"> ({{ entry.year }} год)</template>
+                  </span>
+                </div>
+                <div
+                  v-for="yearState in entry.yearsList"
+                  :key="`${entry.id}-${yearState.year}`"
+                  class="text-body-2 ml-4"
+                >
+                  <VIcon
+                    :icon="yearState.paid ? 'mdi-check' : 'mdi-close'"
+                    :color="yearState.paid ? 'success' : 'error'"
+                    class="me-1"
+                  />
+                  <span>{{ yearState.year }} год: {{ yearState.paid ? 'оплачено' : 'не оплачено' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Прежний общий флаг прошлых игр -->
+            <p v-if="legacyStateExpenses" class="text-body-2 text-disabled mt-3">
+              <VIcon icon="mdi-history" class="me-1" />
+              <span>
+                <strong>Прежний общий учёт (до раздельной оплаты по государствам):</strong>
+                {{ legacyStateExpenses.final_state === 'paid' ? 'оплачено' : 'не оплачено' }}
+              </span>
             </p>
           </div>
         </div>

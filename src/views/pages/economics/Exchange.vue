@@ -2,8 +2,11 @@
 import axios from 'axios'
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue'
 import { useCaravanStore } from '@/stores/caravan'
+import { useCurrentCountry } from '@/composables/useCurrentCountry'
 
 const caravanStore = useCaravanStore()
+// Гильдии на рынке — только текущего государства (гильдия принадлежит стране)
+const { currentCountryId, loadCurrentCountry } = useCurrentCountry()
 
 // URL для загрузки изображений ресурсов с бэкенда
 // В продакшене файлы находятся в eraofchange/public/images/resources/
@@ -82,7 +85,9 @@ const fetchCountries = async () => {
 
 const fetchGuilds = async () => {
   try {
-    const response = await axios.get(`${import.meta.env.VITE_PROXY}/guilds/list.json`);
+    await loadCurrentCountry()
+    const params = currentCountryId.value ? { country_id: currentCountryId.value } : {}
+    const response = await axios.get(`${import.meta.env.VITE_PROXY}/guilds/list.json`, { params })
     guilds.value = response.data;
     
     // Загружаем вероятности ограбления для каждой гильдии
@@ -328,10 +333,18 @@ onMounted(async () => {
     isLoading.value = false
   }
 
+  exchangeMounted = true
+
   pollInterval.value = setInterval(fetchCountries, 30000); // 30 секунд
   
   // Добавляем обработчик предупреждения при закрытии
   window.addEventListener('beforeunload', handleBeforeUnload);
+})
+
+// Смена текущего государства — перечитываем гильдии этой страны
+let exchangeMounted = false
+watch(currentCountryId, (id) => {
+  if (exchangeMounted && id) fetchGuilds()
 })
 
 onBeforeUnmount(() => {

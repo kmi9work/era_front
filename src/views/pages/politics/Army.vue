@@ -622,7 +622,15 @@
     </VCardText>
     <VCardText v-if="!isLeased">
       Разведана: 
-      <template v-if="army.hidden">
+      <!-- Армии текущего государства всегда разведаны: свои армии мастеру известны,
+           а разведка/маскировка имеют смысл только для чужих армий (вкладка «Зарубеж») -->
+      <span
+        v-if="!foreign"
+        class="text-success font-weight-medium"
+      >
+        Да
+      </span>
+      <template v-else-if="army.hidden">
         <VBtn 
           color="error"
           variant="text"

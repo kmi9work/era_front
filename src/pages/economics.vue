@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import GuildsDashboard from '@/views/pages/economics/GuildsDashboard.vue'
 import Guilds from '@/views/pages/economics/Guilds.vue'
 import Plants from '@/views/pages/economics/Plants.vue'
 import Exchange from '@/views/pages/economics/Exchange.vue'
@@ -10,7 +11,8 @@ import TradeTurnover from '@/views/pages/economics/TradeTurnover.vue'
 import MobileLink from '@/views/pages/economics/MobileLink.vue'
 
 const route = useRoute()
-const activeTab = ref(route.params.tab)
+// Первая вкладка раздела — «Дашборд» (сводка по гильдиям текущего государства)
+const activeTab = ref(route.params.tab || 'dashboard')
 const exchangeKey = ref(0) // Ключ для принудительного ре-маунта Exchange
 
 // При каждом показе вкладки Рынок - сбрасываем компонент
@@ -32,6 +34,11 @@ const tabs = [
   //   icon: 'ri-building-3-line',
   //   tab: 'plants',
   // },
+  {
+    title: 'Дашборд',
+    icon: 'ri-dashboard-line',
+    tab: 'dashboard',
+  },
   {
     title: 'Рынок',
     icon: 'ri-exchange-line',
@@ -88,6 +95,10 @@ const tabs = [
       <!-- <VWindowItem value="plants">
         <Plants />
       </VWindowItem> -->
+
+      <VWindowItem value="dashboard">
+        <GuildsDashboard />
+      </VWindowItem>
 
       <VWindowItem value="exchange" :key="exchangeKey">
         <Exchange />

@@ -71,7 +71,9 @@ const {
   nobleResults,
   filterMerchResults,
   filterNobleResults,
-  toggleResultsDisplay
+  toggleResultsDisplay,
+  initResults,
+  changeResultsYear
 } = useResultsFiltering()
 
 // Вычисляем текущий тип расписания (play/pause)
@@ -101,9 +103,12 @@ const handleToggleTimer = () => {
   timerStore.toggleTimer()
 }
 
-onMounted(() => {
+onMounted(async () => {
   startPolling()
-  
+
+  // Текущее государство и его подэкран/настройки: экран относится к государству (§9 п. 6)
+  await initResults()
+
   // Запускаем пулинг объединённого запроса результатов
   endGameResultsStore.startPolling()
   filterMerchResults('merchPlaceholder', 0)
@@ -119,10 +124,15 @@ onMounted(() => {
     :timer-store="timerStore"
     :end-game-results-store="endGameResultsStore"
     :timer-message="timerMessage"
+    :year-options="endGameResultsStore.yearOptions"
+    :year-value="endGameResultsStore.yearValue"
+    :source-label="endGameResultsStore.sourceLabel"
+    :results-source="endGameResultsStore.source"
     @change-screen="changeScreen"
     @toggle-fullscreen="toggleFullscreen"
     @toggle-timer="handleToggleTimer"
     @filter-results="handleFilterResults"
+    @change-year="changeResultsYear"
   />
 
   <!-- Полноэкранный режим -->
@@ -171,6 +181,8 @@ onMounted(() => {
             :active-screen="activeScreen"
             :merch-results="merchResults"
             :show-cap-per-player="endGameResultsStore.showCapPerPlayer"
+            :results-year="endGameResultsStore.resultsYear"
+            :source-label="endGameResultsStore.sourceShortLabel"
           />
         </template>
 
@@ -179,6 +191,8 @@ onMounted(() => {
           <NobleResultsScreen
             :active-screen="activeScreen"
             :noble-results="nobleResults"
+            :results-year="endGameResultsStore.resultsYear"
+            :source-label="endGameResultsStore.sourceShortLabel"
           />
         </template>
 

@@ -6,7 +6,7 @@
         :src="`/images/relations/${item.relations}.png`"
         class="relations-icon"
         :alt="`Отношения: ${item.relations}`"
-        :title="`Отношения с Русью: ${item.relations}`"
+        :title="`Отношения${sovereignName ? ` с ${sovereignName}` : ''}: ${item.relations}`"
         width="40"
         height="40"
         contain
@@ -101,7 +101,18 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onBeforeMount } from 'vue'
+import { useCurrentCountry } from '@/composables/useCurrentCountry'
+
+// Товарооборот и отношения считаются с текущим государством (ТЗ № 2, § 7.3):
+// подпись иконки отношений — его имя, а не жёсткая «Русь».
+const { currentCountry, loadCurrentCountry } = useCurrentCountry()
+
+const sovereignName = computed(() => currentCountry.value?.short_name || currentCountry.value?.name || '')
+
+onBeforeMount(() => {
+  loadCurrentCountry()
+})
 
 const props = defineProps({
   item: {

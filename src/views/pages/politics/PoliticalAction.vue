@@ -1,5 +1,6 @@
 <script setup>
   import axios from 'axios'
+  import { useCurrentCountry } from '@/composables/useCurrentCountry'
 
   import ceremonial from '@/views/pages/political_actions/ceremonial.vue'
   import defective_coin from '@/views/pages/political_actions/defective_coin.vue'
@@ -102,6 +103,20 @@
 
   const emit = defineEmits(['reload-actions']);
 
+  /**
+   * Движковые политдействия (ТЗ № 2, § 7.3).
+   *
+   * Списки целей (страны, регионы) в диалогах строятся бэкендом в контексте
+   * текущего государства, а отметка «выполнено» считается по
+   * (должность, год, государство) — здесь государство только передаётся в диалог,
+   * чужое не подставляется.
+   */
+  const { currentCountryId, reloadToken, loadCurrentCountry } = useCurrentCountry()
+
+  onBeforeMount(() => {
+    loadCurrentCountry()
+  })
+
   const pat_settings = ref([]);
   const dialogStates = ref({});
 
@@ -116,6 +131,14 @@
       dialogStates.value[index] = isOpen;
     });
   }, { deep: true });
+
+  // Смена государства: диалоги прежнего государства закрываем и просим родителя
+  // перечитать должности и политдействия нового государства
+  watch(reloadToken, () => {
+    pat_settings.value = [];
+    dialogStates.value = {};
+    emit('reload-actions');
+  });
 
 </script>
 
@@ -153,6 +176,7 @@
         :action="action"
         :noble_job="noble_job"
         :dialog-open="pat_settings[i]"
+        :country-id="currentCountryId"
       />
 
     </v-card>

@@ -1,13 +1,34 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onBeforeMount, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useCurrentCountry } from '@/composables/useCurrentCountry'
 import PlayerViewMobile from './politics/PlayerViewMobile.vue'
 import ArmyCostCalculatorMobile from './politics/ArmyCostCalculatorMobile.vue'
 import PublicOrderMobile from './politics/PublicOrderMobile.vue'
 import ChecklistsMobile from './politics/ChecklistsMobile.vue'
 import '@/assets/fonts/fonts.css'
 
+/**
+ * «Помощник знати» (ТЗ № 2, § 7.3).
+ *
+ * Экраны помощника работают в разрезе текущего государства: его название
+ * подписано в меню, а при смене государства помощник возвращается в меню,
+ * чтобы дочерние экраны не показывали данные прежнего государства.
+ */
+const { currentCountry, reloadToken, loadCurrentCountry } = useCurrentCountry()
+
+const countryName = computed(() => currentCountry.value?.name || '')
+
 // Навигация между экранами
 const currentScreen = ref('menu') // 'menu', 'player', 'army_cost', 'public_order', 'checklists'
+
+onBeforeMount(() => {
+  loadCurrentCountry()
+})
+
+// Смена государства: возвращаемся в меню — дочерние экраны перечитывают данные
+watch(reloadToken, () => {
+  currentScreen.value = 'menu'
+})
 
 // Референсы для всех компонентов
 const playerViewMobileRef = ref(null)
@@ -78,6 +99,9 @@ onBeforeUnmount(() => {
         <!-- Заголовок -->
         <div class="menu-header">
           <h1 class="menu-title">Помощник знати</h1>
+          <div v-if="countryName" class="menu-country">
+            {{ countryName }}
+          </div>
         </div>
 
         <!-- Опции меню -->
@@ -217,6 +241,14 @@ onBeforeUnmount(() => {
   color: white;
   margin: 0;
   text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8);
+}
+
+.menu-country {
+  font-family: 'Monomakh', serif;
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.9);
+  margin-top: 4px;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
 }
 
 .menu-list {

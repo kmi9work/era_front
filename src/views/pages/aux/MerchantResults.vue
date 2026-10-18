@@ -1,10 +1,12 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import axios from 'axios';
 import { useEndGameResultsStore } from '@/stores/end_game_results'
 import { useGameConfig } from '@/composables/useGameConfig'
+import { useCurrentCountry } from '@/composables/useCurrentCountry'
 
 const { isGameActive } = useGameConfig()
+const { currentCountry, reloadToken, loadCurrentCountry } = useCurrentCountry()
 const isArtel = computed(() => isGameActive('artel'))
 
 const favorLabel = computed(() => {
@@ -21,6 +23,23 @@ const endGameResultsStore = useEndGameResultsStore()
 const merchants = computed(() => {
   return endGameResultsStore.merchantsList
 })
+
+// Переключатель года: «Итоги года N» — текущий год живым расчётом, прошедшие снимком
+const yearValue = computed(() => endGameResultsStore.yearValue ?? '')
+const yearOptions = computed(() => endGameResultsStore.yearOptions)
+
+const handleYearChange = async (event) => {
+  const year = event.target.value
+  isLoading.value = true
+  errorMessage.value = null
+  try {
+    await endGameResultsStore.setResultsYear(year === '' ? null : Number(year))
+  } catch (error) {
+    errorMessage.value = 'Ошибка переключения года'
+  } finally {
+    isLoading.value = false
+  }
+}
 
 // Функция для обновления данных
 const refreshData = async () => {
@@ -133,10 +152,18 @@ const handleToggleIntelligenceStatus = async (key, event) => {
   }
 }
 
-// Загружаем данные при монтировании
-onMounted(() => {
-  refreshData();
+// Загружаем данные при монтировании: экран относится к текущему государству (§9)
+onMounted(async () => {
+  await loadCurrentCountry()
+  await endGameResultsStore.reloadForCountry()
   endGameResultsStore.startPolling(); // Запускаем polling если нужно
+});
+
+// Смена государства: подэкран, настройки показа и результаты перечитываем заново
+watch(reloadToken, async () => {
+  editingGuild.value = null
+  successMessage.value = null
+  await endGameResultsStore.reloadForCountry()
 });
 
 // Helpers
@@ -156,7 +183,30 @@ const formatNumber = (val) => {
     <!-- Основная карточка -->
     <div class="card main-card">
       <h3 class="card-title">Результаты торговцев</h3>
-      
+
+      <div class="results-country">
+        Государство: <strong>{{ currentCountry?.name || '—' }}</strong>
+      </div>
+
+      <!-- Год результатов: текущий — живой расчёт, прошедшие — снимок года «Итоги года N» -->
+      <div class="results-period">
+        <label class="period-label" for="results-year">Период:</label>
+        <select
+          id="results-year"
+          class="period-select"
+          :value="yearValue"
+          :disabled="isLoading || !yearOptions.length"
+          @change="handleYearChange"
+        >
+          <option v-for="option in yearOptions" :key="option.value" :value="option.value">
+            {{ option.label }}{{ option.isCurrent ? ' (текущий год)' : '' }}
+          </option>
+        </select>
+        <span class="source-badge" :class="endGameResultsStore.isSnapshot ? 'snapshot' : 'live'">
+          {{ endGameResultsStore.sourceLabel }}
+        </span>
+      </div>
+
       <!-- Настройка показа капитала на игрока -->
       <div class="merchant-settings" style="margin-bottom: 20px; padding: 12px; background-color: #f8f9fa; border-radius: 6px;">
         <label class="settings-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #2c3e50; font-size: 14px;">
@@ -305,6 +355,58 @@ const formatNumber = (val) => {
   margin-bottom: 20px;
   color: #2c3e50;
   text-align: center;
+}
+
+/* Государство экрана и год результатов (ТЗ № 2, §9) */
+.results-country {
+  margin-bottom: 8px;
+  color: #2c3e50;
+  font-size: 14px;
+  text-align: center;
+}
+
+.results-period {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+}
+
+.period-label {
+  color: #2c3e50;
+  font-size: 14px;
+}
+
+.period-select {
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #fff;
+  color: #2c3e50;
+  font-size: 14px;
+}
+
+.source-badge {
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+}
+
+.source-badge.live {
+  background-color: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  color: #2e7d32;
+}
+
+.source-badge.snapshot {
+  background-color: #e3f2fd;
+  border: 1px solid #90caf9;
+  color: #1565c0;
 }
 
 .players-list { margin-top: 25px; }

@@ -1,42 +1,73 @@
 <script setup>
   import axios from 'axios'
-  import { ref, onMounted, onBeforeUnmount } from 'vue'
+  import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+  import { useCurrentCountry } from '@/composables/useCurrentCountry'
 
+  /**
+   * Чек-листы вассалитета текущего государства (ТЗ № 2, § 7.1).
+   *
+   * Текущее государство — сюзерен: показываются его чек-листы, кнопки
+   * «Установить/Снять вассалитет» действуют для пары «сюзерен ↔ вассал».
+   * Блок доступен любому государству; если вассалов нет — пустое состояние.
+   */
   const emit = defineEmits(['reload-dashboard'])
+
+  const { currentCountry, currentCountryId, reloadToken, loadCurrentCountry } = useCurrentCountry()
 
   const checklists = ref([])
   const vassalIncomes = ref({})
   const pollInterval = ref(null)
 
+  const countryName = computed(() => currentCountry.value?.name || 'государство не выбрано')
+  const isLoading = ref(false)
+
   async function loadChecklists() {
+    if (!currentCountryId.value) return
+    isLoading.value = true
     try {
-      const response = await axios.get(`${import.meta.env.VITE_PROXY}/vassals_and_robbers/checklists.json`)
-      checklists.value = response.data
+      const response = await axios.get(
+        `${import.meta.env.VITE_PROXY}/vassals_and_robbers/checklists.json?country_id=${currentCountryId.value}`,
+      )
+      checklists.value = Array.isArray(response.data) ? response.data : []
     } catch (error) {
       console.error('Ошибка при загрузке чек-листов:', error)
+      checklists.value = []
+    } finally {
+      isLoading.value = false
     }
   }
 
   async function loadVassalageSettings() {
+    if (!currentCountryId.value) return
     try {
-      const response = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters.json`)
-      const vassalageSettings = response.data.find(gp => gp.identificator === 'vassalage_settings')
-      if (vassalageSettings && vassalageSettings.params && vassalageSettings.params.vassal_incomes) {
-        vassalIncomes.value = vassalageSettings.params.vassal_incomes
-      }
+      // Суммы вассальных доходов — по сюзерену (у каждой команды свои, § 7.2)
+      const response = await axios.get(
+        `${import.meta.env.VITE_PROXY}/game_parameters/get_vassalage_settings.json?country_id=${currentCountryId.value}`,
+      )
+      vassalIncomes.value = response.data?.vassal_incomes || {}
     } catch (error) {
       console.error('Ошибка при загрузке настроек вассалитета:', error)
+      vassalIncomes.value = {}
     }
   }
 
-  onMounted(() => {
+  onMounted(async () => {
+    await loadCurrentCountry()
     loadVassalageSettings()
     loadChecklists()
-    
+
     // Автообновление каждые 10 секунд
     pollInterval.value = setInterval(() => {
       loadChecklists()
     }, 10000)
+  })
+
+  // Смена государства: сброс списка и повторная загрузка (кеш не переносится)
+  watch(reloadToken, () => {
+    checklists.value = []
+    vassalIncomes.value = {}
+    loadVassalageSettings()
+    loadChecklists()
   })
 
   onBeforeUnmount(() => {
@@ -61,22 +92,22 @@
 
   async function establishVassalage(checklist) {
     const income = vassalIncomes.value[checklist.vassal_country.id]
-    const countryName = checklist.vassal_country.name
-    
-    let confirmMessage = `Установить вассалитет с ${countryName}?\nДоход Казначея увеличится на ${income?.toLocaleString('ru-RU') || income} руб.`
-    
+    const countryNameVassal = checklist.vassal_country.name
+
+    let confirmMessage = `Установить вассалитет ${countryName.value} с ${countryNameVassal}?\nДоход Казначея ${countryName.value} увеличится на ${income?.toLocaleString('ru-RU') || income} руб.`
+
     // Добавляем предупреждение, если не все условия выполнены
     if (checklist.completion_percentage !== 100) {
       confirmMessage = `⚠️ ВНИМАНИЕ: Не все условия чек-листа выполнены!\n${confirmMessage}`
     }
-    
+
     if (!confirm(confirmMessage)) {
       return
     }
 
     try {
-      await axios.post(`${import.meta.env.VITE_PROXY}/vassals_and_robbers/checklists/${checklist.id}/establish_vassalage`)
-      alert(`Вассалитет с ${countryName} установлен!\nДоход Казначея увеличен на ${income?.toLocaleString('ru-RU') || income} руб.`)
+      await axios.post(`${import.meta.env.VITE_PROXY}/vassals_and_robbers/checklists/${checklist.id}/establish_vassalage.json?country_id=${currentCountryId.value}`)
+      alert(`Вассалитет ${countryName.value} с ${countryNameVassal} установлен!\nДоход Казначея увеличен на ${income?.toLocaleString('ru-RU') || income} руб.`)
       // Обновляем список чек-листов и основную дашборду
       loadChecklists()
       emit('reload-dashboard')
@@ -88,15 +119,15 @@
 
   async function removeVassalage(checklist) {
     const income = vassalIncomes.value[checklist.vassal_country.id]
-    const countryName = checklist.vassal_country.name
-    
-    if (!confirm(`Снять вассалитет с ${countryName}?\nДоход Казначея уменьшится на ${income?.toLocaleString('ru-RU') || income} руб.`)) {
+    const countryNameVassal = checklist.vassal_country.name
+
+    if (!confirm(`Снять вассалитет ${countryName.value} с ${countryNameVassal}?\nДоход Казначея уменьшится на ${income?.toLocaleString('ru-RU') || income} руб.`)) {
       return
     }
 
     try {
-      await axios.post(`${import.meta.env.VITE_PROXY}/vassals_and_robbers/checklists/${checklist.id}/remove_vassalage`)
-      alert(`Вассалитет с ${countryName} снят!\nДоход Казначея уменьшен на ${income?.toLocaleString('ru-RU') || income} руб.`)
+      await axios.post(`${import.meta.env.VITE_PROXY}/vassals_and_robbers/checklists/${checklist.id}/remove_vassalage.json?country_id=${currentCountryId.value}`)
+      alert(`Вассалитет ${countryName.value} с ${countryNameVassal} снят!\nДоход Казначея уменьшен на ${income?.toLocaleString('ru-RU') || income} руб.`)
       // Обновляем список чек-листов и основную дашборду
       loadChecklists()
       emit('reload-dashboard')
@@ -109,6 +140,10 @@
 
 <template>
   <div>
+    <div class="d-flex align-center flex-wrap gap-2 mb-3">
+      <span class="text-subtitle-1">Чек-листы вассалитета: сюзерен — {{ countryName }}</span>
+    </div>
+
     <VRow>
       <template v-for="checklist in checklists" :key="checklist.id">
         <VCol
@@ -195,6 +230,13 @@
         </VCol>
       </template>
     </VRow>
+
+    <!-- Пустое состояние: у государства нет вассальных чек-листов (§ 7.1) -->
+    <VCard v-if="!checklists.length && !isLoading">
+      <VCardText class="text-center py-8 text-medium-emphasis">
+        Нет доступных вассалов
+      </VCardText>
+    </VCard>
   </div>
 </template>
 
@@ -204,4 +246,3 @@
   border-left: 3px solid rgb(76, 175, 80);
 }
 </style>
-

@@ -34,12 +34,27 @@
           </div>
         </Transition>
       </div>
+
+      <!-- Текущее государство: цены, караваны и предприятия артели — его (ТЗ № 2, § 7.4) -->
+      <p v-if="countryName" class="fullscreen-country-name">
+        {{ countryName }}
+      </p>
     </div>
   </template>
   
   <script setup>
+import { computed, onBeforeMount, watch } from 'vue'
+import { useCurrentCountry } from '@/composables/useCurrentCountry'
+import { useEndGameResultsStore } from '@/stores/end_game_results.js'
 import IntelligenceData from './IntelligenceData.vue'
-  
+
+/**
+ * Полноэкранный экран «Артель» (ТЗ № 2, § 7.4).
+ *
+ * Экран работает в разрезе текущего государства: предприятия гильдии, цены и
+ * караваны считаются на бэкенде для текущего государства, поэтому при смене
+ * государства данные перечитываются, а его название подписано на экране.
+ */
 defineProps({
   timerStore: {
     type: Object,
@@ -50,10 +65,32 @@ defineProps({
     required: true,
   },
 })
+
+const { currentCountry, reloadToken, loadCurrentCountry } = useCurrentCountry()
+const endGameResultsStore = useEndGameResultsStore()
+
+const countryName = computed(() => currentCountry.value?.name || '')
+
+onBeforeMount(() => {
+  loadCurrentCountry()
+})
+
+// Смена государства: разведданные артели относятся к новому государству
+watch(reloadToken, () => {
+  endGameResultsStore.fetchScreenBundle()
+})
   </script>
   
   <style scoped lang="scss">
   @import './Screen.style.scss';
+
+  .fullscreen-country-name {
+    margin-top: 12px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    text-align: center;
+  }
   </style>
   
   

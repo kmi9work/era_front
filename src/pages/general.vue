@@ -7,6 +7,7 @@ import PlayersTable from '@/views/pages/general/PlayersTable.vue'
 import DetailedYearlyStats from '@/views/pages/general/DetailedYearlyStats.vue'
 import NobleActionsCharts from '@/views/pages/general/NobleActionsCharts.vue'
 import EnterpriseCharts from '@/views/pages/general/EnterpriseCharts.vue'
+import ResultsSummary from '@/views/pages/general/ResultsSummary.vue'
 
 const route = useRoute()
 const activeTab = ref(route.params?.tab || 'summary')
@@ -63,6 +64,12 @@ const tabs = [
     title: 'Графики',
     icon: 'ri-line-chart-line',
     tab: 'charts',
+  },
+  {
+    // Результаты любого государства за год — только чтение (ТЗ № 2, § 9 п. 3)
+    title: 'Результаты государств',
+    icon: 'ri-trophy-line',
+    tab: 'country_results',
   },
 ]
 </script>
@@ -130,6 +137,10 @@ const tabs = [
       <VWindowItem value="charts">
         <NobleActionsCharts />
         <EnterpriseCharts />
+      </VWindowItem>
+
+      <VWindowItem value="country_results">
+        <ResultsSummary />
       </VWindowItem>
     </VWindow>
   </div>

@@ -1,6 +1,7 @@
 <script setup>
   import axios from 'axios'
-  import { ref, watch } from 'vue'
+  import { ref, computed, watch } from 'vue'
+  import { useCurrentCountry } from '@/composables/useCurrentCountry'
 
   const props = defineProps({
     modelValue: {
@@ -10,10 +11,20 @@
     country: {
       type: Object,
       default: null
+    },
+    // Государство-партнёр пары (для многих команд — государство A строки таблицы
+    // отношений, § 2.3 ТЗ № 2). По умолчанию — текущее государство.
+    partnerCountryId: {
+      type: [Number, String],
+      default: null
     }
   })
 
   const emit = defineEmits(['update:modelValue', 'alliance-created', 'alliance-deleted'])
+
+  const { currentCountryId } = useCurrentCountry()
+
+  const partnerId = computed(() => props.partnerCountryId || currentCountryId.value)
 
   const alliances = ref([])
   const allianceTypes = ref([])
@@ -45,8 +56,13 @@
   async function loadAlliances(partnerCountryId) {
     try {
       isLoadingAlliances.value = true
-      // Загружаем союзы Руси (id=1 = Country::RUS) с выбранной страной
-      const response = await axios.get(`${import.meta.env.VITE_PROXY}/countries/1/alliances.json`)
+      // Союзы считаются парой государств: союзы государства-партнёра (A) с выбранной страной (B).
+      // В режиме одной команды партнёр — «Русь», то есть прежнее поведение.
+      if (!partnerId.value) {
+        alliances.value = []
+        return
+      }
+      const response = await axios.get(`${import.meta.env.VITE_PROXY}/countries/${partnerId.value}/alliances.json`)
       // Фильтруем только союзы с выбранной страной
       alliances.value = response.data.filter(a => a.partner_country.id === partnerCountryId)
     } catch (error) {
@@ -70,9 +86,9 @@
     if (!props.country || !selectedAllianceType.value) return
     
     try {
-      // Союз создается от Руси (id=1 = Country::RUS) с выбранной страной
+      // Союз создаётся государством-партнёром (A) с выбранной страной (B)
       await axios.post(`${import.meta.env.VITE_PROXY}/alliances.json`, {
-        country_id: 1, // Русь
+        country_id: partnerId.value,
         partner_country_id: props.country.id,
         alliance_type_id: selectedAllianceType.value.id
       })

@@ -5,8 +5,14 @@ export const routes = [
     component: () => import('@/layouts/default.vue'),
     children: [
       {
+        // Дашборд — отношения выбранных государств со всеми остальными (ТЗ № 2, § 2)
         path: 'dashboard',
-        component: () => import('@/pages/dashboard.vue'),
+        component: () => import('@/pages/teams-dashboard.vue'),
+      },
+      {
+        // Информация о стране — прежний экран «Информация» в разрезе текущего государства (§ 3)
+        path: 'country',
+        component: () => import('@/pages/country.vue'),
       },
       {
         path: 'economics',

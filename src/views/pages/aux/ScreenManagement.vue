@@ -14,6 +14,35 @@
           </div>
           
           <div class="preview-content">
+            <!-- Год результатов: текущий — живой расчёт, прошедшие — снимок года (§9 п. 5) -->
+            <div
+              v-if="isResultsScreen && yearOptions.length"
+              class="results-period"
+              @click.stop
+            >
+              <label class="results-period-label">Период:</label>
+              <select
+                class="results-period-select"
+                :value="yearValue ?? ''"
+                :disabled="endGameResultsStore.isLoading"
+                @change="$emit('change-year', $event.target.value)"
+              >
+                <option
+                  v-for="option in yearOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
+              </select>
+              <span
+                class="results-source-badge"
+                :class="resultsSource === 'snapshot' ? 'snapshot' : 'live'"
+              >
+                {{ sourceLabel }}
+              </span>
+            </div>
+
             <!-- Заглушка -->
             <div v-if="screen.id === 'placeholder'" class="screen-preview">
               <img class="preview-image" :src="previewPlaceholder" alt="Заглушка">
@@ -374,6 +403,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import previewPlaceholder from '@/assets/images/preview_placeholder.jpg'
 
 const props = defineProps({
@@ -396,10 +426,30 @@ const props = defineProps({
   timerMessage: {
     type: String,
     default: 'Проверьте расписание. Либо его нет, либо циклы еще не начались, либо уже закончились'
+  },
+  // Переключатель года результатов («Итоги года N») и признак источника
+  yearOptions: {
+    type: Array,
+    default: () => []
+  },
+  yearValue: {
+    type: [Number, String],
+    default: null
+  },
+  sourceLabel: {
+    type: String,
+    default: ''
+  },
+  resultsSource: {
+    type: String,
+    default: 'live'
   }
 })
 
-const emit = defineEmits(['change-screen', 'toggle-fullscreen', 'toggle-timer', 'filter-results'])
+const emit = defineEmits(['change-screen', 'toggle-fullscreen', 'toggle-timer', 'filter-results', 'change-year'])
+
+// Год результатов относится к экранам результатов: купцы и знать
+const isResultsScreen = computed(() => ['merchant_results', 'noble_results'].includes(props.selectedScreen))
 
 const handleFilterClick = (filter) => {
   emit('filter-results', filter)
@@ -418,5 +468,48 @@ const screens = [
 
 <style scoped lang="scss">
 @import './Screen.style.scss';
+
+/* Переключатель года результатов: текущий — живой расчёт, прошедшие — снимок */
+.results-period {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+}
+
+.results-period-label {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.results-period-select {
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.25);
+  color: inherit;
+  font-size: 0.85rem;
+}
+
+.results-source-badge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  white-space: nowrap;
+
+  &.live {
+    background: rgba(46, 125, 50, 0.25);
+    border: 1px solid rgba(129, 199, 132, 0.6);
+  }
+
+  &.snapshot {
+    background: rgba(21, 101, 192, 0.25);
+    border: 1px solid rgba(100, 181, 246, 0.6);
+  }
+}
 </style>
 

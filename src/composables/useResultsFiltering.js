@@ -1,10 +1,20 @@
 import { ref, computed, watch } from 'vue'
 import axios from 'axios'
 import { useEndGameResultsStore } from '@/stores/end_game_results.js'
+import { useCurrentCountry } from '@/composables/useCurrentCountry.js'
 
+/**
+ * Фильтрация и вывод результатов (ТЗ № 2, § 9).
+ *
+ * Подэкран (`change_results_display`) и настройки показа у каждого государства свои:
+ * мутации отправляются с `country_id` текущего государства, а при смене государства
+ * (`reloadToken`) подэкран и настройки перечитываются — данные прошлого государства
+ * не остаются. Год результатов (текущий/прошлый) переключается через стор.
+ */
 export function useResultsFiltering() {
   const endGameResultsStore = useEndGameResultsStore()
-  
+  const { currentCountryId, reloadToken, withCountryParam, loadCurrentCountry } = useCurrentCountry()
+
   const activeScreen = ref('merchPlaceholder')
   const currentMerchPlace = ref(0)
   const currentNoblePlace = ref(0)
@@ -101,7 +111,10 @@ export function useResultsFiltering() {
     activeScreen.value = display
     try {
       await axios.patch(
-        `${import.meta.env.VITE_PROXY}/game_parameters/change_results_display`,
+        withCountryParam(
+          `${import.meta.env.VITE_PROXY}/game_parameters/change_results_display`,
+          currentCountryId.value
+        ),
         { request: display }
       )
       isTransitioning.value = true
@@ -128,6 +141,34 @@ export function useResultsFiltering() {
     await toggleResultsDisplay(display)
   }
 
+  /**
+   * Начальная загрузка: текущее государство, затем его подэкран, настройки
+   * и результаты (купцы/знать) за текущий год.
+   */
+  const initResults = async () => {
+    await loadCurrentCountry()
+    await endGameResultsStore.reloadForCountry()
+  }
+
+  /**
+   * Смена года результатов: текущий год — живой расчёт, прошедшие — снимок года.
+   * Места сбрасываются, как и при смене подэкрана.
+   */
+  const changeResultsYear = async (year) => {
+    currentMerchPlace.value = 0
+    currentNoblePlace.value = 0
+    await endGameResultsStore.setResultsYear(year)
+  }
+
+  // Смена государства: подэкран и настройки показа перечитываем заново,
+  // данные и фильтры прошлого государства не остаются (§1.1, §9 п. 4).
+  watch(reloadToken, async () => {
+    isLocalUpdate.value = false
+    currentMerchPlace.value = 0
+    currentNoblePlace.value = 0
+    await endGameResultsStore.reloadForCountry()
+  })
+
   return {
     activeScreen,
     currentMerchPlace,
@@ -138,7 +179,15 @@ export function useResultsFiltering() {
     nobleResults,
     filterMerchResults,
     filterNobleResults,
-    toggleResultsDisplay
+    toggleResultsDisplay,
+    initResults,
+    changeResultsYear,
+    // год и источник результатов (для переключателя «Итоги года N»)
+    selectedYear: computed(() => endGameResultsStore.selectedYear),
+    resultsYear: computed(() => endGameResultsStore.resultsYear),
+    yearOptions: computed(() => endGameResultsStore.yearOptions),
+    yearValue: computed(() => endGameResultsStore.yearValue),
+    resultsSource: computed(() => endGameResultsStore.source),
+    sourceLabel: computed(() => endGameResultsStore.sourceLabel),
   }
 }
-

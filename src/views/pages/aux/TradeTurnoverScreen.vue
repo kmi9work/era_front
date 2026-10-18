@@ -26,12 +26,17 @@
     
     <!-- Товарооборот или Чек-листы в зависимости от типа расписания -->
     <div class="trade-turnover-fullscreen">
+      <!-- Чей товарооборот показывается: пары считаются с текущим государством (§ 7.3) -->
+      <div v-if="countryName" class="screen-country-caption">
+        Государство: {{ countryName }}
+      </div>
+
       <Transition name="text-fade" mode="out-in">
         <!-- Режим PLAY - показываем товарооборот -->
         <div v-if="currentScheduleType === 'play'" key="turnovers">
           <div class="countries-grid">
             <CountryTurnoverCard
-              v-for="item in tradeTurnovers.filter(i => i.country_id !== 9)"
+              v-for="item in displayedTurnovers"
               :key="item.country_id"
               :item="item"
               :trade-levels="tradeLevels"
@@ -88,8 +93,13 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
+import { useCurrentCountry } from '@/composables/useCurrentCountry'
 import CountryTurnoverCard from './CountryTurnoverCard.vue'
 import ChecklistCard from './ChecklistCard.vue'
+
+// Вятка показывается отдельной строкой под всеми странами, а не в сетке
+const VYATKA_ID = 9
 
 const props = defineProps({
   tradeTurnovers: {
@@ -134,9 +144,18 @@ const props = defineProps({
   }
 })
 
+const { currentCountry, currentCountryId } = useCurrentCountry()
+
+const countryName = computed(() => currentCountry.value?.name || '')
+
+// Товарооборот прочих государств с текущим: своё государство и Вятка в сетку не попадают
+const displayedTurnovers = computed(() =>
+  (props.tradeTurnovers || []).filter(item => item.country_id !== VYATKA_ID && item.country_id !== currentCountryId.value),
+)
+
 // Helper functions for Vyatka
 const getVyatkaData = () => {
-  return props.tradeTurnovers.find(item => item.country_id === 9)
+  return props.tradeTurnovers.find(item => item.country_id === VYATKA_ID)
 }
 
 const getVyatkaTurnover = () => {
@@ -146,8 +165,8 @@ const getVyatkaTurnover = () => {
 
 const getVyatkaToNextLevel = () => {
   const vyatka = getVyatkaData()
-  if (vyatka && props.tradeLevels[9]) {
-    return props.tradeLevels[9].to_next_level || 0
+  if (vyatka && props.tradeLevels[VYATKA_ID]) {
+    return props.tradeLevels[VYATKA_ID].to_next_level || 0
   }
   return 0
 }
@@ -163,6 +182,14 @@ const getVyatkaFlagSrc = () => {
 
 <style scoped lang="scss">
 @import './Screen.style.scss';
+
+.screen-country-caption {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+  margin-bottom: 8px;
+}
 
 .vyatka-line {
   margin-top: 16px;

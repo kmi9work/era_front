@@ -9,7 +9,7 @@
         :src="relationsIconSrc"
         class="relations-icon"
         :alt="`Отношения: ${checklist.relations}`"
-        :title="`Отношения с Русью: ${checklist.relations}`"
+        :title="`Отношения${sovereignName ? ` с ${sovereignName}` : ''}: ${checklist.relations}`"
         @error="handleRelationsError"
         @load="handleRelationsLoad"
       />
@@ -78,7 +78,8 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onBeforeMount } from 'vue'
+import { useCurrentCountry } from '@/composables/useCurrentCountry'
 
 const props = defineProps({
   checklist: {
@@ -89,6 +90,16 @@ const props = defineProps({
     type: Function,
     required: true
   }
+})
+
+// Сюзерен чек-листа — текущее государство (ТЗ № 2, § 7.1): отношения, проценты
+// выполнения и условия считаются в его разрезе, поэтому и подпись иконки — его имя.
+const { currentCountry, loadCurrentCountry } = useCurrentCountry()
+
+const sovereignName = computed(() => currentCountry.value?.short_name || currentCountry.value?.name || '')
+
+onBeforeMount(() => {
+  loadCurrentCountry()
 })
 
 const completionPercentage = computed(() => {

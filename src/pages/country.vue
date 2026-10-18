@@ -1,6 +1,6 @@
 <script setup>
 import axios from 'axios'
-import { ref, onBeforeMount, onBeforeUnmount, watch } from 'vue'
+import { ref, onBeforeMount, onBeforeUnmount, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 import Nobles from '@/views/dashboard/Nobles.vue'
@@ -8,15 +8,21 @@ import PublicOrder from '@/views/dashboard/PublicOrder.vue'
 import Relations from '@/views/dashboard/Relations.vue'
 import Technologies from '@/views/dashboard/Technologies.vue'
 import Checklists from '@/views/dashboard/Checklists.vue'
+import CountryProfile from '@/layouts/components/CountryProfile.vue'
+import { useCurrentCountry } from '@/composables/useCurrentCountry'
 
 const route = useRoute()
 const activeTab = ref(route.params.tab || 'main')
+
+const { currentCountry, currentCountryId, reloadToken, loadCurrentCountry } = useCurrentCountry()
 
 const nobles = ref([]);
 const regions = ref([]);
 const countries = ref([]);
 const technologies = ref([]);
 const pollInterval = ref(null);
+
+const countryTitle = computed(() => currentCountry.value?.name || 'государство не выбрано')
 
 // tabs
 const tabs = [
@@ -32,16 +38,22 @@ const tabs = [
   },
 ]
 
+// Все разделы экрана — данные текущего государства (ТЗ № 2, § 3).
+// Бэкенд по умолчанию берёт текущее государство сессии; country_id передаётся явно,
+// чтобы запрос был привязан именно к тому государству, что показано в шапке.
 async function loadDashboards(){
-  axios.get(`${import.meta.env.VITE_PROXY}/players.json`) 
+  if (!currentCountryId.value) return
+  const countryId = currentCountryId.value
+
+  axios.get(`${import.meta.env.VITE_PROXY}/players.json?country_id=${countryId}&player_type_id=2`) // 2 - Знать
     .then(response => {
-      nobles.value = response.data.filter((player) => player.player_type?.id == 2); // 2 - Знать;
+      nobles.value = Array.isArray(response.data) ? response.data : [];
     })
-  axios.get(`${import.meta.env.VITE_PROXY}/regions.json?foreign=0`) 
+  axios.get(`${import.meta.env.VITE_PROXY}/regions.json?foreign=0&country_id=${countryId}`)
     .then(response => {
       regions.value = response.data;
     })
-  axios.get(`${import.meta.env.VITE_PROXY}/countries.json?foreign=1`) 
+  axios.get(`${import.meta.env.VITE_PROXY}/countries.json?foreign=1`)
       .then(response => {
         // Принудительно создаем новый массив для реактивности Vue
         countries.value = response.data.map(country => ({
@@ -49,7 +61,7 @@ async function loadDashboards(){
           alliances: country.alliances ? [...country.alliances] : []
         }));
       })
-  axios.get(`${import.meta.env.VITE_PROXY}/technologies.json`) 
+  axios.get(`${import.meta.env.VITE_PROXY}/technologies.json?country_id=${countryId}`)
       .then(response => {
         technologies.value = response.data;
       })
@@ -65,9 +77,19 @@ watch(
   }
 )
 
+// Смена государства: сброс данных раздела и повторная загрузка (§ 1.1)
+watch(reloadToken, () => {
+  nobles.value = []
+  regions.value = []
+  countries.value = []
+  technologies.value = []
+  loadDashboards()
+})
+
 onBeforeMount(async () => {
+  await loadCurrentCountry()
   loadDashboards();
-  
+
   // Устанавливаем периодическое обновление каждые 10 секунд
   pollInterval.value = setInterval(() => {
     loadDashboards();
@@ -83,6 +105,13 @@ onBeforeUnmount(() => {
 
 <template>
   <div>
+    <div class="d-flex align-center flex-wrap gap-2 mb-4">
+      <h2 class="text-h5 mb-0">
+        Информация о стране: {{ countryTitle }}
+      </h2>
+      <CountryProfile />
+    </div>
+
     <VTabs
       v-model="activeTab"
       show-arrows
@@ -110,7 +139,11 @@ onBeforeUnmount(() => {
       <VWindowItem value="main">
         <VRow class="match-height">
           <VCol>
-            <Nobles :nobles="nobles" @reload-dashboard="loadDashboards"/>
+            <Nobles
+              :nobles="nobles"
+              :country="currentCountry"
+              @reload-dashboard="loadDashboards"
+            />
           </VCol>
 
           <VCol>
@@ -118,11 +151,19 @@ onBeforeUnmount(() => {
           </VCol>
 
           <VCol>
-            <Relations :countries="countries" @reload-dashboard="loadDashboards"/>
+            <Relations
+              :countries="countries"
+              :partner-country="currentCountry"
+              @reload-dashboard="loadDashboards"
+            />
           </VCol>
 
           <VCol>
-            <Technologies :technologies="technologies" @reload-dashboard="loadDashboards"/>
+            <Technologies
+              :technologies="technologies"
+              :country="currentCountry"
+              @reload-dashboard="loadDashboards"
+            />
           </VCol>
         </VRow>
       </VWindowItem>

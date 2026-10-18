@@ -1,5 +1,5 @@
 <script setup>
-  import { ref, onBeforeMount, computed } from 'vue'
+  import { ref, onBeforeMount, computed, watch } from 'vue'
   import axios from 'axios'
   import NavItems from '@/layouts/components/NavItems.vue'
   import logo from '@images/logo.svg?raw'
@@ -10,7 +10,9 @@
   import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
   import UserProfile from '@/layouts/components/UserProfile.vue'
   import Notifications from '@/layouts/components/Notifications.vue'
+  import CountryProfile from '@/layouts/components/CountryProfile.vue'
   import { setNotificationsRef, setupNotificationInterceptor } from '@/composables/useNotifications'
+  import { useCurrentCountry } from '@/composables/useCurrentCountry'
   import { useGameConfig } from '@/config/game'
 
   // Конфигурация игры
@@ -19,13 +21,67 @@
   // Проверяем, активна ли игра vassals-and-robbers
   const isVassalsAndRobbers = computed(() => isGameActive('vassals-and-robbers'))
 
+  // Госрасходы подтверждаются за текущее государство (ТЗ № 2, § 8)
+  const {
+    currentCountry,
+    currentCountryId,
+    reloadToken,
+    loadCurrentCountry,
+    withCountryParam,
+  } = useCurrentCountry()
+
   const se_paid = ref(false);
   const game_parameters = ref([]);
   const current_year = ref(0);
   const notificationsRef = ref(null);
-  
+
+  // Название текущего государства — подпись у кнопки расходов и у кнопки смены года
+  const currentCountryName = computed(() => currentCountry.value?.short_name
+    || currentCountry.value?.name
+    || 'государство не выбрано');
+
+  /**
+   * Оплачены ли госрасходы текущего государства за текущий год.
+   * Основной источник — params.state_expenses записи current_year: после этапа 1 это уже
+   * срез текущего государства. Защита для старых баз: если там хэш по годам ({"3": true}),
+   * берём значение по текущему году, а если года в хэше нет — срез по государству.
+   */
+  function stateExpensesPaid(gameParameter) {
+    if (!gameParameter) return false;
+
+    const year = Number(gameParameter.year ?? current_year.value);
+    const expenses = gameParameter.params?.state_expenses;
+
+    if (expenses && typeof expenses === 'object') {
+      const byYear = expenses[String(year)];
+      if (byYear !== undefined) return byYear === true;
+
+      const countryId = currentCountryId.value ?? gameParameter.country_id;
+      return gameParameter.params?.state_expenses_by_country?.[String(countryId)] === true;
+    }
+
+    return expenses === true;
+  }
+
+  // Перечитываем параметры года и состояние оплаты расходов
+  async function loadGameParameters(){
+    await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters.json`)
+      .then(response => {
+        game_parameters.value = response.data;
+        const currentYearParameter = game_parameters.value.find((gp) => gp.identificator == "current_year");
+        current_year.value = currentYearParameter?.value ?? currentYearParameter?.year ?? 0;
+        se_paid.value = stateExpensesPaid(currentYearParameter);
+      })
+  }
+
+  // Смена государства: кнопка и её цвет сразу отражают состояние нового государства (§ 8 п. 2–3)
+  watch(reloadToken, async () => {
+    se_paid.value = false;
+    await loadGameParameters();
+  });
+
   async function payStateExpenses(){
-    await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/pay_state_expenses.json`)
+    await axios.patch(withCountryParam(`${import.meta.env.VITE_PROXY}/game_parameters/pay_state_expenses.json`))
       .then(async (response) => {
         se_paid.value = true
         // Уведомления обновятся автоматически через перехватчик
@@ -35,7 +91,7 @@
   async function unpayStateExpenses(){
     let fl = confirm("Отменить оплату госрасходов?");
     if (fl){
-      await axios.patch(`${import.meta.env.VITE_PROXY}/game_parameters/unpay_state_expenses.json`)
+      await axios.patch(withCountryParam(`${import.meta.env.VITE_PROXY}/game_parameters/unpay_state_expenses.json`))
         .then(async (response) => {
           se_paid.value = false
           // Уведомления обновятся автоматически через перехватчик
@@ -60,13 +116,11 @@
     setupNotificationInterceptor()
     
     // Уведомления обновляются автоматически через перехватчик axios
-    
-    await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters.json`) 
-      .then(response => {
-        game_parameters.value = response.data;
-        se_paid.value = game_parameters.value.find((gp) => gp.identificator == "current_year")?.params?.state_expenses;
-        current_year.value = game_parameters.value.find((gp) => gp.identificator == "current_year")?.value;
-      })
+
+    // Текущее государство нужно для подписи и параметра country_id в запросе расходов
+    await loadCurrentCountry()
+
+    await loadGameParameters()
   })
 
   // Устанавливаем ссылку на компонент уведомлений
@@ -111,9 +165,15 @@
 
         
 
+        <!-- Текущее государство и год: расходы подтверждаются за него (§ 8 п. 1) -->
+        <span class="expenses-country-caption">
+          Год: {{ current_year }} | {{ currentCountryName }}
+        </span>
+
         <VBtn 
           @click="payStateExpenses"
           :color="se_paid ? 'success' : 'error'"
+          :title="`Оплатить госрасходы: ${currentCountryName}`"
         >
           Оплатить госрасходы
         </VBtn>
@@ -140,6 +200,9 @@
         </div>
 
         <NavbarThemeSwitcher class="me-2" />
+
+        <!-- Текущее государство: тот, «за кого» сейчас работают мастера (ТЗ № 2, § 1.1) -->
+        <CountryProfile class="me-2" />
 
         <UserProfile />
       </div>
@@ -209,6 +272,15 @@
   margin: 0 16px;
   padding: 0 12px;
   height: 100%;
+}
+
+/* Подпись «Год: N | <государство>» у кнопок расходов и смены года */
+.expenses-country-caption {
+  margin-inline: 12px 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .timer-display {
@@ -296,6 +368,11 @@
   }
   
   .timer-icon {
+    display: none;
+  }
+
+  /* На узких экранах подпись скрываем, чтобы шапка не разъезжалась */
+  .expenses-country-caption {
     display: none;
   }
 }

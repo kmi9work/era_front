@@ -1,16 +1,34 @@
 <script setup>
   import axios from 'axios'
-  import { ref } from 'vue'
+  import { ref, computed, watch } from 'vue'
+  import { useCurrentCountry } from '@/composables/useCurrentCountry'
 
+  /**
+   * Знать текущего государства (ТЗ № 2, § 3.3, § 3.4, § 3.7).
+   *
+   * Строки таблицы — игроки (влияние, доход и правки адресуются игроку, не должности).
+   * Ниже отдельным списком показаны должности совета этого государства: незанятая
+   * должность отмечается серой плашкой «должность не занята».
+   */
   const props = defineProps({
     nobles: {
       type: Array,
       required: true,
     },
+    country: {
+      type: Object,
+      default: null,
+    },
   })
-  
+
   const emit = defineEmits(['reload-dashboard']);
 
+  const { currentCountry, currentCountryId } = useCurrentCountry()
+
+  const country = computed(() => props.country || currentCountry.value)
+  const countryName = computed(() => country.value?.name || 'государство не выбрано')
+
+  const councilJobs = ref([])
   const incomeByPlayerId = ref({})
   const incomeLoadingByPlayerId = ref({})
   const incomeErrorByPlayerId = ref({})
@@ -24,6 +42,27 @@
     }
   }
 
+  async function loadCouncilJobs() {
+    if (!currentCountryId.value) {
+      councilJobs.value = []
+      return
+    }
+    try {
+      const { data } = await axios.get(
+        `${import.meta.env.VITE_PROXY}/jobs.json?nobles=1&country_id=${currentCountryId.value}`,
+      )
+      councilJobs.value = Array.isArray(data) ? data : []
+    } catch (e) {
+      console.error('Не удалось загрузить должности совета:', e)
+      councilJobs.value = []
+    }
+  }
+
+  const occupiedJobs = computed(() => councilJobs.value.filter(job => (job.players || []).length > 0))
+  const vacantJobs = computed(() => councilJobs.value.filter(job => (job.players || []).length === 0))
+
+  const jobHolderNames = (job) => (job.players || []).map(player => player.name).join(', ')
+
   const ensureIncomeLoaded = async (player) => {
     if (!player?.id) return
     if (incomeByPlayerId.value[player.id]) return
@@ -31,7 +70,7 @@
     incomeLoadingByPlayerId.value[player.id] = true
     incomeErrorByPlayerId.value[player.id] = null
     try {
-      const { data } = await axios.get(`${import.meta.env.VITE_PROXY}/players/${player.id}/income_breakdown.json`)
+      const { data } = await axios.get(`${import.meta.env.VITE_PROXY}/players/${player.id}/income_breakdown.json?country_id=${currentCountryId.value}`)
       incomeByPlayerId.value[player.id] = data
     } catch (e) {
       incomeErrorByPlayerId.value[player.id] =
@@ -46,7 +85,7 @@
     incomeLoadingByPlayerId.value[player.id] = true
     incomeErrorByPlayerId.value[player.id] = null
     try {
-      const { data } = await axios.get(`${import.meta.env.VITE_PROXY}/players/${player.id}/income_breakdown.json`)
+      const { data } = await axios.get(`${import.meta.env.VITE_PROXY}/players/${player.id}/income_breakdown.json?country_id=${currentCountryId.value}`)
       incomeByPlayerId.value[player.id] = data
     } catch (e) {
       incomeErrorByPlayerId.value[player.id] =
@@ -80,6 +119,7 @@
       await axios.patch(`${import.meta.env.VITE_PROXY}/players/${player.id}/add_income.json`, {
         value: Math.trunc(value),
         comment,
+        country_id: currentCountryId.value,
       })
       await refreshIncome(player)
       emit('reload-dashboard')
@@ -103,9 +143,11 @@
 
   async function addItem(player_id){
     let new_value = prompt("Новое значение");
+    if (new_value === null) return
     let comment = prompt("Комментарий");
-    axios.patch(`${import.meta.env.VITE_PROXY}/players/${player_id}/add_influence.json`, {value: new_value, comment: comment}) 
-      .then(response => {
+    if (comment === null) return
+    axios.patch(`${import.meta.env.VITE_PROXY}/players/${player_id}/add_influence.json`, {value: new_value, comment: comment, country_id: currentCountryId.value})
+      .then(() => {
         emit('reload-dashboard');
       })
   }
@@ -113,20 +155,30 @@
   async function removeItem(item_id){
     let fl = confirm("Точно удалить?");
     if (fl){
-      axios.delete(`${import.meta.env.VITE_PROXY}/influence_items/${item_id}.json`) 
-        .then(response => {
+      axios.delete(`${import.meta.env.VITE_PROXY}/influence_items/${item_id}.json`)
+        .then(() => {
           emit('reload-dashboard');
         })
     }
   }
 
+  // Флаг получения дохода живёт на игроке (`players.params['income_taken']`).
+  // Доход считается только по владениям текущего государства (§ 3.6, § 3.7).
   async function takeIncome(params, player_id){
     params['income_taken'] = !params['income_taken']
-    axios.patch(`${import.meta.env.VITE_PROXY}/players/${player_id}.json`, {params: params}) 
-      .then(response => {
+    axios.patch(`${import.meta.env.VITE_PROXY}/players/${player_id}.json`, {params: params})
+      .then(() => {
         emit('reload-dashboard');
       })
   }
+
+  // Должности совета грузим, как только известно государство: на первом рендере
+  // родитель ещё не успевает его получить (его onBeforeMount асинхронный), поэтому
+  // следим за currentCountryId, а не за моментом монтирования (§ 3.3).
+  watch(currentCountryId, () => {
+    incomeByPlayerId.value = {}
+    loadCouncilJobs()
+  }, { immediate: true })
 
 </script>
 
@@ -134,7 +186,7 @@
 <template>
   <VCard max-width="600">
     <VCardItem>
-      <VCardTitle>Знать</VCardTitle>
+      <VCardTitle>Знать: {{ countryName }}</VCardTitle>
     </VCardItem>
 
     <VCardText>
@@ -206,6 +258,12 @@
                         </VListItemTitle>
                       </VListItem>
 
+                      <VListItem v-if="incomeByPlayerId[player.id].components?.vassal_income > 0">
+                        <VListItemTitle>
+                          Доход от вассалов | {{ formatNumber(incomeByPlayerId[player.id].components.vassal_income) }}
+                        </VListItemTitle>
+                      </VListItem>
+
                       <VListItem
                         v-for="ii in (incomeByPlayerId[player.id].income_items || [])"
                         :key="ii.id"
@@ -232,10 +290,10 @@
                 </v-menu>
               </v-btn>
             </td>
-            <td>{{ player.jobs.map((j) => j.name).join(", ") }}</td>
+            <td>{{ (player.jobs || []).map((j) => j.name).join(", ") }}</td>
             <td>
-              <VBtn 
-                :color="player.params['income_taken'] ? 'success' : 'error'"
+              <VBtn
+                :color="player.params?.['income_taken'] ? 'success' : 'error'"
                 @click="takeIncome(player.params, player.id)"
               >
                 {{ player.income }}
@@ -254,7 +312,7 @@
                 {{ player.influence }}
                 <v-menu activator="parent">
                   <VList>
-                    <VListItem 
+                    <VListItem
                       v-for="(item, i) in player.influence_items"
                       :key="i"
                     >

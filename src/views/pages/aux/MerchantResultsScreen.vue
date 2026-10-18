@@ -1,5 +1,12 @@
 <template>
   <div class="results-screen">
+    <!-- Год и источник результатов: текущий год — живой расчёт, прошедшие — снимок года -->
+    <div v-if="resultsYear || sourceLabel" class="results-meta">
+      <span v-if="resultsYear" class="results-meta-year">Итоги года {{ resultsYear }}</span>
+      <span v-if="resultsYear && sourceLabel" class="results-meta-sep">•</span>
+      <span v-if="sourceLabel" class="results-meta-source">{{ sourceLabel }}</span>
+    </div>
+
     <!-- Заглушки -->
     <div v-if="activeScreen === 'merchPlaceholder'" class="all-results-container">
       <div class="fullscreen-text-container">
@@ -354,11 +361,46 @@ defineProps({
   showCapPerPlayer: {
     type: Boolean,
     default: true
+  },
+  // Год результатов и признак источника (живой расчёт / снимок года)
+  resultsYear: {
+    type: [Number, String],
+    default: null
+  },
+  sourceLabel: {
+    type: String,
+    default: ''
   }
 })
 </script>
 
 <style scoped lang="scss">
 @import './Screen.style.scss';
+
+/* Год результатов и признак источника (живой расчёт / снимок года) */
+.results-screen {
+  position: relative;
+}
+
+.results-meta {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+}
+
+.results-meta-source {
+  opacity: 0.85;
+  text-transform: lowercase;
+}
 </style>
 

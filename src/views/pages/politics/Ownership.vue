@@ -1,6 +1,17 @@
 <script setup>
   import axios from 'axios'
   import CaptureRegion from '@/views/pages/politics/CaptureRegion.vue'
+  import { useCurrentCountry } from '@/composables/useCurrentCountry'
+
+  // Владение в разрезе текущего государства (ТЗ № 2, § 4): кнопка «Передать регион»
+  // показывается для регионов, принадлежащих НЕ текущему государству — прежде
+  // условие было жёстко «не Русь».
+  const { currentCountryId, loadCurrentCountry } = useCurrentCountry()
+
+  onBeforeMount(() => {
+    loadCurrentCountry()
+  })
+
   const props = defineProps({
     id: {
       type: Number,
@@ -335,7 +346,7 @@
           </VCard>
         </VDialog>
       </template>
-      <template v-if="type == 'region' && ownership.country?.id != 1">
+      <template v-if="type == 'region' && ownership.country?.id != currentCountryId">
         <CaptureRegion 
           :countries="countries"
           :ownership="ownership"
