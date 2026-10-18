@@ -42,7 +42,7 @@ function readSelectionFromDashboard() {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')
     if (Array.isArray(stored)) return stored.map(Number)
   } catch (e) {
-    console.warn('[two_teams] не удалось прочитать выбор государств Дашборда:', e)
+    console.warn('[many_teams] не удалось прочитать выбор государств Дашборда:', e)
   }
   return null
 }
@@ -81,7 +81,7 @@ async function confirmSelection() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(confirmedIds.value))
     } catch (e) {
-      console.warn('[two_teams] не удалось сохранить выбор государств Дашборда:', e)
+      console.warn('[many_teams] не удалось сохранить выбор государств Дашборда:', e)
     }
   } catch (e) {
     error.value = errorMessage(e)

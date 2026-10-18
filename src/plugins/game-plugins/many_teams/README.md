@@ -1,9 +1,10 @@
-# Плагин two_teams (era_front)
+# Плагин many_teams (era_front)
 
 Клиент мастеров для режима «много команд». Данные — из движка `many_teams`
 (`/many_teams/...`), своих расчётов плагин не делает.
 
-Включение: `VITE_ACTIVE_GAME=two_teams`.
+Включение: `VITE_ACTIVE_GAME=many-teams` (написание `many_teams` тоже
+принимается).
 
 ## Что меняет
 
@@ -61,7 +62,7 @@
 ## Файлы
 
 ```
-two_teams/
+many_teams/
 ├── index.js                      # регистрация, подмена маршрутов
 ├── api.js                        # клиент /many_teams
 ├── views/DashboardPage.vue

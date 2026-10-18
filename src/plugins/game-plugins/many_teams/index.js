@@ -1,7 +1,7 @@
 /**
- * Плагин игры «Две команды» (two_teams) для era_front.
+ * Плагин игры «Много команд» (many_teams) для era_front.
  *
- * Включается переменной окружения `VITE_ACTIVE_GAME=two-teams`.
+ * Включается переменной окружения `VITE_ACTIVE_GAME=many-teams`.
  *
  * Плагин не правит экраны ядра, а подменяет компоненты маршрутов:
  *  - `/dashboard`  — дашборд отношений + подтверждение государств игроков (п. 7);
@@ -9,7 +9,7 @@
  *    гильдиям (п. 9) и разрешения на добычу (п. 4, п. 5).
  *
  * Компоненты новых политдействий (разведка, подрыв, добыча, снятие эмбарго)
- * регистрируются в registry под ключом `two_teams.action_components`; ядро
+ * регистрируются в registry под ключом `many_teams.action_components`; ядро
  * подмешивает их в свой диспетчер действий (одна точка расширения вместо копии).
  */
 import { GAME_CONFIG } from '@/config/game'
@@ -25,10 +25,15 @@ import undermineRelations from './views/actions/undermine_relations.vue'
 import setGuildExtraction from './views/actions/set_guild_extraction.vue'
 import liftGuildEmbargoes from './views/actions/lift_guild_embargoes.vue'
 
-// Справочник игр ядра пополняется из плагина: новую игру видно в списке и в
-// информации об активной игре, хотя src/config/game.js не правится.
-GAME_CONFIG.availableGames.two_teams = {
-  name: 'Two Teams',
+/**
+ * Ключ игры = `ACTIVE_GAME` движка. Написание через подчёркивание (`many_teams`)
+ * тоже принимается. Справочник игр ядра пополняется из плагина: игра видна в
+ * списке и в информации об активной игре без правки src/config/game.js.
+ */
+export const GAME_KEY = 'many-teams'
+
+GAME_CONFIG.availableGames[GAME_KEY] = {
+  name: 'Many Teams',
   description: 'Режим «много команд»: добыча и эмбарго гильдий, две и более команд',
 }
 
@@ -51,7 +56,7 @@ export function overrideRoute(path, component) {
   const record = router.getRoutes().find(route => route.path === path || route.path === `${path}/`)
 
   if (!record || !record.components) {
-    console.warn(`[two_teams] маршрут ${path} не найден — плагин не подменил экран`)
+    console.warn(`[many_teams] маршрут ${path} не найден — плагин не подменил экран`)
     return false
   }
 
@@ -59,17 +64,17 @@ export function overrideRoute(path, component) {
   return true
 }
 
-export default function TwoTeamsPlugin() {
-  if (!GAME_CONFIG.isActive('two_teams')) {
+export default function ManyTeamsPlugin() {
+  if (!GAME_CONFIG.isActive(GAME_KEY) && !GAME_CONFIG.isActive('many_teams')) {
     return
   }
 
-  console.log('[two_teams] Initializing plugin...')
+  console.log('[many_teams] Initializing plugin...')
 
-  componentRegistry.register('two_teams.action_components', ACTION_COMPONENTS)
+  componentRegistry.register('many_teams.action_components', ACTION_COMPONENTS)
 
   overrideRoute('/dashboard', DashboardPage)
   overrideRoute('/economics', EconomicsPage)
 
-  console.log('[two_teams] Plugin initialized')
+  console.log('[many_teams] Plugin initialized')
 }
