@@ -11,6 +11,7 @@
   import UserProfile from '@/layouts/components/UserProfile.vue'
   import Notifications from '@/layouts/components/Notifications.vue'
   import CountryProfile from '@/layouts/components/CountryProfile.vue'
+  import AppDownloadMenu from '@/layouts/components/AppDownloadMenu.vue'
   import { setNotificationsRef, setupNotificationInterceptor } from '@/composables/useNotifications'
   import { useCurrentCountry } from '@/composables/useCurrentCountry'
   import { useGameConfig } from '@/config/game'
@@ -198,6 +199,8 @@
             {{ notificationsRef.totalUnviewedCount }}
           </span>
         </div>
+
+        <AppDownloadMenu class="me-2" />
 
         <NavbarThemeSwitcher class="me-2" />
 
