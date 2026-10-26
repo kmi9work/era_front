@@ -1,7 +1,9 @@
 <script setup>
 /**
- * Действие Казначея: разрешить или запретить гильдии добычу в своём государстве (п. 5).
- * Запись делает бэкенд движка — он же фиксирует политдействие.
+ * Действие Казначея: разрешить или запретить гильдии строительство и работу
+ * предприятий в своём государстве (п. 2). Запрет один: он закрывает и
+ * строительство, и работу. Запись делает бэкенд движка — он же фиксирует
+ * политдействие.
  */
 import { computed, onBeforeMount, ref } from 'vue'
 import { engineApi, errorMessage } from '../../api'
@@ -43,7 +45,7 @@ async function run() {
   error.value = null
   result.value = null
   try {
-    const { data } = await engineApi.setExtractionPermission({
+    const { data } = await engineApi.setGuildPermission({
       guild_id: guildId.value,
       country_id: countryId.value,
       allowed: allowed.value,
@@ -65,7 +67,8 @@ onBeforeMount(load)
       {{ error }}
     </VAlert>
     <VAlert v-else-if="result" type="success" variant="tonal" density="compact" class="mb-3">
-      Добыча {{ result.allowed ? 'разрешена' : 'запрещена' }} (действие № {{ result.action_id }}).
+      Строительство и работа предприятий {{ result.allowed ? 'разрешены' : 'запрещены' }}
+      (действие № {{ result.action_id }}).
     </VAlert>
 
     <VSelect
@@ -88,7 +91,7 @@ onBeforeMount(load)
     />
     <VSwitch
       v-model="allowed"
-      label="Добыча разрешена"
+      label="Строительство и работа разрешены"
       color="success"
       density="compact"
       class="mb-3"

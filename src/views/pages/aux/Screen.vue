@@ -11,6 +11,7 @@ import { useChecklists } from '@/composables/useChecklists.js'
 import { useFullscreen } from '@/composables/useFullscreen.js'
 import { useScreenManagement } from '@/composables/useScreenManagement.js'
 import { useResultsFiltering } from '@/composables/useResultsFiltering.js'
+import { componentRegistry } from '@/registry'
 
 // Components
 import ScreenManagement from './ScreenManagement.vue'
@@ -75,6 +76,17 @@ const {
   initResults,
   changeResultsYear
 } = useResultsFiltering()
+
+// Окна, добавленные игровым плагином (реестр `aux_screens`, список — в
+// ScreenManagement.vue). Компонент экрана живёт в плагине; ядро передаёт ему
+// общий таймер, чтобы верх окна показывал текущее расписание.
+const extraScreens = componentRegistry.has('aux_screens')
+  ? componentRegistry.get('aux_screens')
+  : []
+
+const extraScreenById = Object.fromEntries(extraScreens.map(screen => [screen.id, screen]))
+
+const extraScreenComponent = computed(() => extraScreenById[selectedScreen.value]?.component || null)
 
 // Вычисляем текущий тип расписания (play/pause)
 const currentScheduleType = computed(() => {
@@ -199,6 +211,11 @@ onMounted(async () => {
         <!-- Государь (три таймера) -->
         <template v-else-if="selectedScreen === 'sovereign'">
           <SovereignTimerScreen />
+        </template>
+
+        <!-- Окна, добавленные игровым плагином (например, «Гильдии» в many_teams) -->
+        <template v-else-if="extraScreenComponent">
+          <component :is="extraScreenComponent" :timer-store="timerStore" />
         </template>
       </div>
     </Transition>

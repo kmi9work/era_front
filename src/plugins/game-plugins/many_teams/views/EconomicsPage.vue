@@ -17,7 +17,7 @@ import PoliticalActions from '@/views/pages/economics/PoliticalActions.vue'
 import ProductionFront from '@/views/pages/economics/ProductionFront.vue'
 import TradeTurnover from '@/views/pages/economics/TradeTurnover.vue'
 import GuildEmbargoPanel from '../components/GuildEmbargoPanel.vue'
-import GuildExtractionPanel from '../components/GuildExtractionPanel.vue'
+import GuildPermissionsPanel from '../components/GuildPermissionsPanel.vue'
 import { engineApi } from '../api'
 import { useCurrentCountry } from '@/composables/useCurrentCountry'
 
@@ -110,7 +110,7 @@ const tabs = [
       <VWindowItem value="dashboard">
         <GuildsDashboard />
         <GuildEmbargoPanel />
-        <GuildExtractionPanel />
+        <GuildPermissionsPanel />
       </VWindowItem>
 
       <VWindowItem

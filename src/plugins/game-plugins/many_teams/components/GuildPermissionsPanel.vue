@@ -1,12 +1,14 @@
 <script setup>
 /**
- * Разрешения на добычу (п. 4) и действие Казначея (п. 5).
+ * Разрешения гильдий на строительство и работу предприятий (п. 0-4).
  *
- * Таблица — ВСЕ гильдии игры (решение заказчика), переключатель один: «добыча на
- * территории текущего государства». Другие территории отсюда не правятся: страна
- * решает только за свою землю. По умолчанию добыча открыта гильдии в стране, к
- * которой она привязана, и закрыта в остальных; каждое изменение выполняется на
- * бэкенде действием Казначея и попадает в политдействия.
+ * Запрет один и закрывает одновременно строительство и работу уже построенных
+ * предприятий. Таблица — ВСЕ гильдии игры (решение заказчика), переключатель
+ * один: «строительство и работа на территории текущего государства». Другие
+ * территории отсюда не правятся: страна решает только за свою землю. По
+ * умолчанию открыто в стране, к которой привязана гильдия, и закрыто в
+ * остальных; каждое изменение выполняется на бэкенде действием Казначея и
+ * попадает в политдействия.
  */
 import { computed, ref, watch } from 'vue'
 import { useCurrentCountry } from '@/composables/useCurrentCountry'
@@ -69,7 +71,7 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    const { data: payload } = await engineApi.getExtractionPermissions(currentCountryId.value)
+    const { data: payload } = await engineApi.getGuildPermissions(currentCountryId.value)
     data.value = payload
   } catch (e) {
     data.value = null
@@ -84,13 +86,13 @@ async function toggle(guild, value) {
   error.value = null
   notice.value = null
   try {
-    const { data: payload } = await engineApi.setExtractionPermission({
+    const { data: payload } = await engineApi.setGuildPermission({
       guild_id: guild.guild_id,
       country_id: permissionsCountry.value.id,
       allowed: value,
     })
-    notice.value = `Гильдия «${guild.guild_name}»: добыча на территории «${permissionsCountry.value.name}» ` +
-      `${payload.allowed ? 'разрешена' : 'запрещена'} (действие Казначея № ${payload.action_id})`
+    notice.value = `Гильдия «${guild.guild_name}»: строительство и работа на территории «${permissionsCountry.value.name}» ` +
+      `${payload.allowed ? 'разрешены' : 'запрещены'} (действие Казначея № ${payload.action_id})`
     await load()
   } catch (e) {
     error.value = errorMessage(e)
@@ -106,9 +108,11 @@ watch(reloadToken, load)
 <template>
   <VCard class="mt-5">
     <VCardItem>
-      <VCardTitle>Добыча по гильдиям</VCardTitle>
+      <VCardTitle>Строительство и работа предприятий по гильдиям</VCardTitle>
       <VCardSubtitle>
-        Все гильдии игры. Переключатель — «добыча разрешена на территории
+        Запрет один: он закрывает и строительство, и работу уже построенных
+        предприятий. Все гильдии игры. Переключатель — «строительство и работа
+        разрешены на территории
         {{ currentCountry?.name ? `«${currentCountry.name}»` : 'текущего государства' }}»:
         страна решает только за свою землю. По умолчанию открыто в стране гильдии,
         закрыто в остальных; изменение выполняется действием Казначея.
@@ -149,7 +153,7 @@ watch(reloadToken, load)
               <VIcon :icon="sortIcon('country')" size="14" class="ms-1" />
             </th>
             <th class="text-center">
-              Добыча на территории «{{ permissionsCountry?.name || currentCountry?.name || '—' }}»
+              Строительство и работа на территории «{{ permissionsCountry?.name || currentCountry?.name || '—' }}»
             </th>
           </tr>
         </thead>

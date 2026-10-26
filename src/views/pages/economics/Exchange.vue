@@ -59,6 +59,8 @@ const embargoStatusMessage = ref('');
 const isEmbargoActive = ref(false);
 const showConfirmDialog = ref(false);       // Модальное окно подтверждения после расчета
 const caravanPending = ref(false);          // Флаг, что караван ожидает регистрации
+const showRegisterErrorDialog = ref(false)  // Сообщение сервера об отказе в регистрации
+const registerErrorMessage = ref('')
 
 // Новое: Гильдии и состояние ограбления
 const guilds = ref([])
@@ -513,6 +515,15 @@ const registerCaravan  = async () =>{
       showRobberyDialog.value = true
       showConfirmDialog.value = false
       caravanPending.value = false
+      return
+    }
+
+    // Отказ сервера (эмбарго без карточки «Контрабанда» и т. п.) раньше уходил
+    // только в консоль — мастер видел, что «отправка не проходит», без причины
+    const message = error.response?.data?.error || error.message
+    if (message) {
+      registerErrorMessage.value = message
+      showRegisterErrorDialog.value = true
     }
   }
 }
@@ -1132,6 +1143,28 @@ const itemsToGivePlayer = computed(() => {
           :disabled="!hasEnoughGold"
         >
           Зарегистрировать караван
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <!-- Отказ сервера при регистрации каравана (эмбарго без «Контрабанды» и т. п.) -->
+  <v-dialog v-model="showRegisterErrorDialog" max-width="500">
+    <v-card color="error">
+      <v-card-title class="text-h6">
+        Караван не зарегистрирован
+      </v-card-title>
+      <v-card-text class="text-body-1">
+        {{ registerErrorMessage }}
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn
+          color="primary"
+          @click="showRegisterErrorDialog = false"
+          size="large"
+        >
+          Понятно
         </v-btn>
       </v-card-actions>
     </v-card>

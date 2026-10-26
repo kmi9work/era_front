@@ -17,6 +17,12 @@ const props = defineProps({
     type: Number,
     default: 18,
   },
+  // Количество под иконкой не всегда нужно (табло «Гильдии» в «Служебном»
+  // показывает только значки) — название остаётся в tooltip.
+  showCount: {
+    type: Boolean,
+    default: true,
+  },
 })
 
 const failed = reactive({})
@@ -39,7 +45,7 @@ const fail = (resource) => {
       v-for="resource in props.resources"
       :key="resource.identificator"
       class="resource-icons__item"
-      :title="`${resource.name}: ${formatNumber(resource.count)}`"
+      :title="props.showCount ? `${resource.name}: ${formatNumber(resource.count)}` : resource.name"
     >
       <img
         v-if="!failed[resource.identificator]"
@@ -54,7 +60,7 @@ const fail = (resource) => {
         v-else
         class="resource-icons__fallback"
       >{{ resource.name }}</span>
-      <span class="resource-icons__count">{{ formatNumber(resource.count) }}</span>
+      <span class="resource-icons__count" v-if="props.showCount">{{ formatNumber(resource.count) }}</span>
     </span>
   </span>
   <span

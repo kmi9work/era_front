@@ -11,6 +11,7 @@
   
   const guilds = ref([]);
   const selectedGuildId = ref(null);
+  const errorText = ref('');
 
   onBeforeMount(async () => {
     await axios.get(`${import.meta.env.VITE_PROXY}/guilds.json`) 
@@ -22,14 +23,20 @@
       })
   })
 
+  // guild_id обязателен: карточка «Контрабанда» выдаётся гильдии
+  // (Guild#grant_contraband_card) на текущий год — её выбирает мастер здесь
   async function runAction(action_id, success){
-    await axios.post(`${import.meta.env.VITE_PROXY}/political_actions.json`, {
+    errorText.value = '';
+    try {
+      await axios.post(`${import.meta.env.VITE_PROXY}/political_actions.json`, {
         political_action_type_id: action_id,
         success: success,
-        player_id: 1, //Костыль - единственный купец
         guild_id: selectedGuildId.value,
       })
-    emit('close-dialog')
+      emit('close-dialog')
+    } catch (e) {
+      errorText.value = e?.response?.data?.error || e?.message || 'Не удалось выполнить действие'
+    }
   }
 </script>
 
@@ -65,6 +72,14 @@
 
     <v-divider></v-divider>
   </v-list>
+  <v-alert
+    v-if="errorText"
+    type="error"
+    variant="tonal"
+    class="mx-4 mb-2"
+  >
+    {{ errorText }}
+  </v-alert>
   <v-card-text>
     <v-btn text="Успех" variant="text" @click="runAction(action.id, true)"></v-btn>
     <v-btn text="Неудача" variant="text" @click="runAction(action.id, false)"></v-btn>

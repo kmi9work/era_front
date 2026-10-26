@@ -83,6 +83,19 @@
               </div>
             </div>
 
+            <!-- Окна, добавленные игровым плагином -->
+            <div v-else-if="extraScreenById[screen.id]" class="timer-preview">
+              <div class="preview-message">
+                <p style="font-size: 1.2rem; margin-bottom: 8px;">{{ extraScreenById[screen.id].label }}</p>
+                <p
+                  v-if="extraScreenById[screen.id].previewText"
+                  style="font-size: 0.9rem; opacity: 0.8;"
+                >
+                  {{ extraScreenById[screen.id].previewText }}
+                </p>
+              </div>
+            </div>
+
             <!-- Результаты знати -->
             <div v-else-if="screen.id === 'noble_results'" class="results-preview">
               <div class="preview-message"></div>
@@ -405,6 +418,7 @@
 <script setup>
 import { computed } from 'vue'
 import previewPlaceholder from '@/assets/images/preview_placeholder.jpg'
+import { componentRegistry } from '@/registry'
 
 const props = defineProps({
   selectedScreen: {
@@ -455,15 +469,31 @@ const handleFilterClick = (filter) => {
   emit('filter-results', filter)
 }
 
-const screens = [
+// Окна ядра
+const BASE_SCREENS = [
   { id: 'placeholder', label: 'Заглушка' },
   { id: 'timer', label: 'Таймер' },
   { id: 'trade_turnover', label: 'Товарооборот' },
   { id: 'artel', label: 'Артель' },
   { id: 'merchant_results', label: 'Результаты купцов' },
   { id: 'noble_results', label: 'Результаты знати' },
-  { id: 'sovereign', label: 'Государь' }
+  { id: 'sovereign', label: 'Государь' },
 ]
+
+// Окна, добавленные игровым плагином (реестр `aux_screens`). Ядро рисует
+// карточку выбора, сам экран живёт в плагине и рендерится в Screen.vue.
+const extraScreens = componentRegistry.has('aux_screens')
+  ? componentRegistry.get('aux_screens')
+  : []
+
+const extraScreenById = computed(() =>
+  Object.fromEntries(extraScreens.map(screen => [screen.id, screen])),
+)
+
+const screens = computed(() => [
+  ...BASE_SCREENS,
+  ...extraScreens.map(screen => ({ id: screen.id, label: screen.label })),
+])
 </script>
 
 <style scoped lang="scss">

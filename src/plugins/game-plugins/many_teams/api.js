@@ -8,9 +8,9 @@ export const engineApi = {
   getPlayerCountries: () => axios.get(`${BASE()}/player_countries`),
   savePlayerCountries: countryIds => axios.patch(`${BASE()}/player_countries`, { country_ids: countryIds }),
 
-  /** Разрешения на добычу для гильдий государства (п. 4). */
-  getExtractionPermissions: countryId => axios.get(`${BASE()}/extraction_permissions`, { params: { country_id: countryId } }),
-  setExtractionPermission: payload => axios.post(`${BASE()}/extraction_permissions`, payload),
+  /** Разрешения гильдий на строительство и работу предприятий (п. 0-4). */
+  getGuildPermissions: countryId => axios.get(`${BASE()}/guild_permissions`, { params: { country_id: countryId } }),
+  setGuildPermission: payload => axios.post(`${BASE()}/guild_permissions`, payload),
 
   /** Эмбарго страна → гильдия (п. 9, п. 10). */
   getEmbargoes: (countryId, targetCountryId) => axios.get(`${BASE()}/guild_embargoes`, {
@@ -24,6 +24,9 @@ export const engineApi = {
 
   /** Статус технологии «Заморская торговля» у текущего государства (п. 10, предупреждение). */
   getLiftAllAvailability: () => axios.get(`${BASE()}/guild_embargoes/lift_all_availability`),
+
+  /** Табло «Служебное → Гильдии»: все гильдии игры — разрешение, эмбарго, ресурсы. */
+  getGuildsOverview: countryId => axios.get(`${BASE()}/guilds_overview`, { params: { country_id: countryId } }),
 
   /** «Рынок»: какие государства наложили эмбарго на конкретную гильдию. */
   getMarketEmbargoes: (guildId, countryId) => axios.get(`${BASE()}/guild_embargoes/market`, {

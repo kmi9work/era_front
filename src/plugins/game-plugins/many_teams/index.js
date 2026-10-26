@@ -6,9 +6,15 @@
  * Плагин не правит экраны ядра, а подменяет компоненты маршрутов:
  *  - `/dashboard`  — дашборд отношений + подтверждение государств игроков (п. 7);
  *  - `/economics`  — экономика; во вкладку «Дашборд» добавлены эмбарго по
- *    гильдиям (п. 9) и разрешения на добычу (п. 4, п. 5).
+ *    гильдиям (п. 9) и разрешения гильдий на строительство и работу
+ *    предприятий (п. 0-4).
  *
- * Компоненты новых политдействий (разведка, подрыв, добыча, снятие эмбарго)
+ * Кроме маршрутов плагин добавляет окно «Гильдии» на экран «Служебное»
+ * (`/aux`): реестр `aux_screens` — таймер сверху и таблица всех гильдий игры
+ * (разрешение, эмбарго, ресурсы на территории текущего государства).
+ *
+ * Компоненты новых политдействий (разведка, подрыв, разрешение гильдии,
+ * снятие эмбарго)
  * регистрируются в registry под ключом `many_teams.action_components`; ядро
  * подмешивает их в свой диспетчер действий (одна точка расширения вместо копии).
  */
@@ -18,12 +24,13 @@ import { router } from '@/plugins/router'
 
 import DashboardPage from './views/DashboardPage.vue'
 import EconomicsPage from './views/EconomicsPage.vue'
+import GuildsOverviewScreen from './views/GuildsOverviewScreen.vue'
 import PairEmbargoButton from './components/PairEmbargoButton.vue'
 
 import conductIntelligence from './views/actions/conduct_intelligence.vue'
 import undermineStability from './views/actions/undermine_stability.vue'
 import undermineRelations from './views/actions/undermine_relations.vue'
-import setGuildExtraction from './views/actions/set_guild_extraction.vue'
+import setGuildPermission from './views/actions/set_guild_permission.vue'
 import liftGuildEmbargoes from './views/actions/lift_guild_embargoes.vue'
 
 /**
@@ -35,14 +42,14 @@ export const GAME_KEY = 'many-teams'
 
 GAME_CONFIG.availableGames[GAME_KEY] = {
   name: 'Many Teams',
-  description: 'Режим «много команд»: добыча и эмбарго гильдий, две и более команд',
+  description: 'Режим «много команд»: разрешения гильдий и эмбарго, две и более команд',
 }
 
 export const ACTION_COMPONENTS = {
   conduct_intelligence: conductIntelligence,
   undermine_stability: undermineStability,
   undermine_relations: undermineRelations,
-  set_guild_extraction: setGuildExtraction,
+  set_guild_permission: setGuildPermission,
   lift_guild_embargoes: liftGuildEmbargoes,
 }
 
@@ -78,6 +85,18 @@ export default function ManyTeamsPlugin() {
   // модалкой выбора гильдии (PairRelationsCell, «Информация о стране» +
   // «Дашборд»). Без регистрации ядро рисует прежнюю кнопку-переключатель.
   componentRegistry.register('pair_relations_embargo', PairEmbargoButton)
+
+  // Окна, добавленные игрой, на экране «Служебное»: ядро рисует карточку
+  // выбора и передаёт экрану таймер пропсом. Без регистрации список окон
+  // остаётся прежним (базовая игра).
+  componentRegistry.register('aux_screens', [
+    {
+      id: 'guilds_overview',
+      label: 'Гильдии',
+      previewText: 'Таймер + все гильдии: разрешение, эмбарго, ресурсы',
+      component: GuildsOverviewScreen,
+    },
+  ])
 
   overrideRoute('/dashboard', DashboardPage)
   overrideRoute('/economics', EconomicsPage)
