@@ -27,6 +27,13 @@ const gameVersions = [
     title: 'Артель',
     url: '/apk/era-artel.apk',
   },
+  {
+    // key = имя productFlavor в era_native/android/app/build.gradle:
+    // era_scripts/build-prod.sh публикует файл как era-<flavor>.apk
+    key: 'manyteams',
+    title: 'Много команд',
+    url: '/apk/era-manyteams.apk',
+  },
 ]
 
 // key -> { state: 'unknown' | 'checking' | 'available' | 'missing', size: Number }
