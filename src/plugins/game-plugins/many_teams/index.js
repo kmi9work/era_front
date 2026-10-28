@@ -9,9 +9,10 @@
  *    гильдиям (п. 9) и разрешения гильдий на строительство и работу
  *    предприятий (п. 0-4).
  *
- * Кроме маршрутов плагин добавляет окно «Гильдии» на экран «Служебное»
- * (`/aux`): реестр `aux_screens` — таймер сверху и таблица всех гильдий игры
- * (разрешение, эмбарго, ресурсы на территории текущего государства).
+ * Кроме маршрутов плагин добавляет окна на экран «Служебное» (`/aux`): реестр
+ * `aux_screens` — «Гильдии» (таймер + таблица всех гильдий игры: разрешение,
+ * эмбарго, ресурсы на территории текущего государства) и «Результаты всех команд»
+ * (два окна: общий зачёт по командам и личный зачёт).
  *
  * Компоненты новых политдействий (разведка, подрыв, разрешение гильдии,
  * снятие эмбарго)
@@ -25,6 +26,8 @@ import { router } from '@/plugins/router'
 import DashboardPage from './views/DashboardPage.vue'
 import EconomicsPage from './views/EconomicsPage.vue'
 import GuildsOverviewScreen from './views/GuildsOverviewScreen.vue'
+import AllTeamsOverallScreen from './views/AllTeamsOverallScreen.vue'
+import AllTeamsPersonalScreen from './views/AllTeamsPersonalScreen.vue'
 import PairEmbargoButton from './components/PairEmbargoButton.vue'
 
 import conductIntelligence from './views/actions/conduct_intelligence.vue'
@@ -95,6 +98,18 @@ export default function ManyTeamsPlugin() {
       label: 'Гильдии',
       previewText: 'Таймер + все гильдии: разрешение, эмбарго, ресурсы',
       component: GuildsOverviewScreen,
+    },
+    {
+      id: 'all_teams_overall',
+      label: 'Результаты всех команд: общий зачёт',
+      previewText: 'Таймер + команды: экономика (стоимость предприятий) и политика (очки влияния)',
+      component: AllTeamsOverallScreen,
+    },
+    {
+      id: 'all_teams_personal',
+      label: 'Результаты всех команд: личный зачёт',
+      previewText: 'Таймер + знать по влиянию и гильдии по капиталу на игрока',
+      component: AllTeamsPersonalScreen,
     },
   ])
 

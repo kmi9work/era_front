@@ -63,6 +63,9 @@ onBeforeMount(load)
     </VAlert>
     <VAlert v-else-if="result" type="success" variant="tonal" density="compact" class="mb-3">
       Отношения пары изменены на {{ result.relations_delta }}.
+      <template v-if="result.influence_delta">
+        Влияние Тайного советника +{{ result.influence_delta }}.
+      </template>
     </VAlert>
 
     <VSelect
@@ -86,6 +89,7 @@ onBeforeMount(load)
 
     <div class="text-body-2 mb-3">
       Стоимость: <strong>{{ action.cost }}</strong>. Отношения пары −1.
+      Влияние Тайного советника: <strong>+3</strong>.
     </div>
 
     <VBtn

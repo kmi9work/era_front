@@ -174,7 +174,7 @@ onUnmounted(() => {
                 <ResourceIcons
                   v-if="guild.resources.length"
                   :resources="guild.resources"
-                  :size="50"
+                  :size="38"
                   :show-count="false"
                 />
                 <span v-else class="empty">—</span>
@@ -247,7 +247,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 1rem 2rem 1.5rem;
+  padding: 0.75rem 1.5rem 1rem;
 }
 
 .guilds-board__message {
@@ -285,8 +285,8 @@ onUnmounted(() => {
   position: sticky;
   top: 0;
   z-index: 1;
-  padding: 1rem 1.1rem;
-  font-size: clamp(0.9rem, 1.9vh, 1.5rem);
+  padding: 0.5rem 0.9rem;
+  font-size: clamp(0.8rem, 1.5vh, 1.2rem);
   font-weight: 600;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -295,11 +295,21 @@ onUnmounted(() => {
   border-bottom: 2px solid rgba(255, 255, 255, 0.2);
 }
 
+/* Строки узкие: на экран должно влезать 8 гильдий без прокрутки.
+   Высота набрана из vh, поэтому 8 строк помещаются и на 1080p, и на 720p. */
 .guilds-table td {
-  padding: 1rem 1.1rem;
+  padding: 0.4rem 0.9rem;
   vertical-align: middle;
-  font-size: clamp(1.2rem, 2.9vh, 2.4rem);
+  font-size: clamp(0.9rem, 2vh, 1.6rem);
+  line-height: 1.15;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Значки ресурсов тоже сжимаются по высоте экрана: при 8 гильдиях в кадре
+   строка не должна вырастать из-за второй строки иконок. */
+.guilds-table :deep(.resource-icons__image) {
+  width: auto !important;
+  height: clamp(20px, 2.8vh, 34px) !important;
 }
 
 .guilds-table tbody tr:nth-child(odd) {
@@ -310,17 +320,17 @@ onUnmounted(() => {
 .text-center { text-align: center; }
 
 .guild-name {
-  font-size: 1.1em;
+  font-size: 1.05em;
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.1;
 }
 
 .guild-country {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 0.25rem;
-  font-size: 0.65em;
+  margin-top: 0.15rem;
+  font-size: 0.6em;
   opacity: 0.75;
   white-space: nowrap;
   overflow: hidden;

@@ -1,7 +1,12 @@
 <script setup>
-/** «Подорвать стабильность в регионе»: 10 000, общественный порядок −3 (п. 11). */
+/**
+ * «Подорвать стабильность в регионе»: 10 000, общественный порядок −3 (п. 11).
+ *
+ * Регион выбирается только из стран-соперников — государств игроков, отмеченных
+ * на экране «Дашборд», кроме текущего (список приходит с бэкенда).
+ */
 import axios from 'axios'
-import { onBeforeMount, ref } from 'vue'
+import { computed, onBeforeMount, ref } from 'vue'
 import { engineApi, errorMessage } from '../../api'
 
 const props = defineProps({
@@ -18,6 +23,11 @@ const regionId = ref(null)
 const error = ref(null)
 const result = ref(null)
 const sending = ref(false)
+
+const regionItems = computed(() => regions.value.map(region => ({
+  id: region.id,
+  title: region.country_name ? `${region.name} — ${region.country_name}` : region.name,
+})))
 
 async function load() {
   try {
@@ -57,20 +67,35 @@ onBeforeMount(load)
     </VAlert>
     <VAlert v-else-if="result" type="success" variant="tonal" density="compact" class="mb-3">
       Общественный порядок в регионе «{{ result.region_name }}» изменён на {{ result.public_order_delta }}.
+      <template v-if="result.influence_delta">
+        Влияние Тайного советника +{{ result.influence_delta }}.
+      </template>
     </VAlert>
 
     <VSelect
       v-model="regionId"
-      :items="regions"
-      item-title="name"
+      :items="regionItems"
+      item-title="title"
       item-value="id"
-      label="Регион"
+      label="Регион страны-соперника"
       density="compact"
       class="mb-3"
     />
 
+    <VAlert
+      v-if="!regions.length"
+      type="warning"
+      variant="tonal"
+      density="compact"
+      class="mb-3"
+    >
+      Нет регионов стран-соперников. Подтвердите набор государств игроков на экране
+      «Дашборд» — регион выбирается только из стран, которые тоже играют.
+    </VAlert>
+
     <div class="text-body-2 mb-3">
       Стоимость: <strong>{{ action.cost }}</strong>. Общественный порядок в регионе −3.
+      Влияние Тайного советника: <strong>+3</strong>.
     </div>
 
     <VBtn color="primary" :loading="sending" :disabled="!regionId" @click="run">

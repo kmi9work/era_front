@@ -33,6 +33,10 @@ const successMessage = ref('')
 // Лимит отношений для получения торговых очков
 const maxRelationsForTradePoints = ref(2)
 
+// Максимальное количество предприятий у гильдии: правило мягкое — клиенты
+// предупреждают, что сверх лимита строительство только с согласования мастера.
+const maxPlantsPerGuild = ref(5)
+
 // Вассальные доходы: vassalIncomes — суммы вассалов текущего сюзерена,
 // vassalCountries — вассалы этого государства, vassalageCountry — сюзерен
 const vassalIncomes = ref({})
@@ -140,11 +144,12 @@ const loadSettings = async () => {
   try {
     isLoading.value = true
 
-    const [yearsResponse, caravansResponse, statsResponse, maxRelationsResponse] = await Promise.all([
+    const [yearsResponse, caravansResponse, statsResponse, maxRelationsResponse, maxPlantsResponse] = await Promise.all([
       axios.get(`${api()}/game_parameters/get_years_count.json`),
       axios.get(`${api()}/game_parameters/get_caravans_per_guild.json`),
       axios.get(`${api()}/game_parameters/get_robbery_stats.json`),
       axios.get(`${api()}/game_parameters/get_max_relations_for_trade_points.json`),
+      axios.get(`${api()}/game_parameters/get_max_plants_per_guild.json`),
     ])
 
     yearsCount.value = yearsResponse.data.years_count || 1
@@ -153,6 +158,9 @@ const loadSettings = async () => {
 
     // Лимит отношений
     maxRelationsForTradePoints.value = maxRelationsResponse.data.max_relations_for_trade_points || 2
+
+    // Максимум предприятий у гильдии
+    maxPlantsPerGuild.value = maxPlantsResponse.data.max_plants_per_guild ?? 5
 
     // Доходы от вассалов — по сюзерену (текущему государству)
     await loadVassalageSettings()
@@ -294,6 +302,9 @@ const saveSettings = async () => {
       }),
       axios.patch(`${api()}/game_parameters/update_max_relations_for_trade_points.json`, {
         max_relations_for_trade_points: maxRelationsForTradePoints.value,
+      }),
+      axios.patch(`${api()}/game_parameters/update_max_plants_per_guild.json`, {
+        max_plants_per_guild: maxPlantsPerGuild.value,
       }),
     ])
 
@@ -464,6 +475,25 @@ watch(reloadToken, () => {
             density="compact"
             :disabled="isLoading"
             hint="При достижении этого уровня отношений торговые очки не начисляются"
+            persistent-hint
+          />
+        </div>
+
+        <!-- Максимальное количество предприятий у гильдии -->
+        <div class="setting-item">
+          <VLabel class="mb-2">
+            Максимальное количество предприятий у гильдии:
+          </VLabel>
+
+          <VTextField
+            v-model.number="maxPlantsPerGuild"
+            type="number"
+            min="1"
+            max="50"
+            variant="outlined"
+            density="compact"
+            :disabled="isLoading"
+            hint="Сколько предприятий может быть у одной гильдии. В мобильном приложении показывается «N из M»; сверх лимита строительство — только с согласования мастера"
             persistent-hint
           />
         </div>

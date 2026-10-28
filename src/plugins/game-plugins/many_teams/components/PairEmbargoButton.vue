@@ -5,11 +5,12 @@
  * country         — государство строки B: оно накладывает эмбарго; кнопка видна
  *                   только если B торгует на рынке (поле `trades_on_market` из
  *                   /countries.json — правило п. 9);
- * partnerCountry  — государство A (текущее / государство столбца): его гильдии —
- *                   цель эмбарго.
+ * partnerCountry  — государство A (текущее / государство столбца): его гильдии
+ *                   показываются в диалоге первыми. Ограничения на цель нет —
+ *                   эмбарго можно наложить на гильдию любого государства.
  *
- * Клик открывает модалку выбора гильдии. Состояние кнопки — есть ли эмбарго B
- * хотя бы на одну гильдию A (одна короткая выборка на ячейку).
+ * Клик открывает модалку выбора гильдий. Состояние кнопки — сколько гильдий
+ * (любых государств) уже под эмбарго у B.
  */
 import { computed, ref, watch } from 'vue'
 import { engineApi } from '../api'
@@ -35,13 +36,13 @@ const visible = computed(() => !!props.country?.trades_on_market)
 const targetCountry = computed(() => props.partnerCountry)
 
 async function refreshSummary() {
-  if (!visible.value || !props.country?.id || !targetCountry.value?.id) {
+  if (!visible.value || !props.country?.id) {
     embargoedCount.value = 0
     return
   }
 
   try {
-    const { data } = await engineApi.getEmbargoes(props.country.id, targetCountry.value.id)
+    const { data } = await engineApi.getEmbargoes(props.country.id)
     embargoedCount.value = (data?.guilds || []).filter(guild => guild.embargoed).length
   } catch (e) {
     embargoedCount.value = 0
@@ -67,7 +68,7 @@ watch(
       :color="embargoedCount > 0 ? 'error' : 'success'"
       :title="embargoedCount > 0
         ? `Эмбарго «${country.name}»: гильдий под эмбарго — ${embargoedCount}`
-        : `Эмбарго «${country.name}» на гильдии «${targetCountry.name}» не наложено`"
+        : `Эмбарго «${country.name}» не наложено ни на одну гильдию`"
       @click="dialogOpen = true"
     />
     <GuildEmbargoDialog

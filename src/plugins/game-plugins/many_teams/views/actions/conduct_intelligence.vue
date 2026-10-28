@@ -26,14 +26,24 @@ const regionId = ref(null)
 const rivalId = ref(null)
 const partnerCountryId = ref(null)
 const report = ref(null)
+const reportInfluence = ref(null)
 const error = ref(null)
 const sending = ref(false)
 
 const kinds = computed(() => targets.value?.intel_kinds || [])
 const rivals = computed(() => targets.value?.rival_countries || [])
 const regions = computed(() => targets.value?.regions || [])
+// Регионы приходят только по странам-соперникам (государства игроков с
+// «Дашборда», кроме текущего) — в подписи показываем государство региона.
+const regionItems = computed(() => regions.value.map(region => ({
+  id: region.id,
+  title: region.country_name ? `${region.name} — ${region.country_name}` : region.name,
+})))
 const countries = computed(() => targets.value?.countries || [])
 const price = computed(() => kinds.value.find(item => item.intel_type === kind.value)?.price || 0)
+// Влияние Тайного советника за выбранный пункт разведки: +1 за дешёвые
+// (порядок, отношения), +2 за дорогие (доход знати, технологии).
+const influence = computed(() => kinds.value.find(item => item.intel_type === kind.value)?.influence || 0)
 
 async function load() {
   try {
@@ -51,6 +61,7 @@ async function run() {
   sending.value = true
   error.value = null
   report.value = null
+  reportInfluence.value = null
 
   const params = { intel_type: kind.value }
   if (kind.value === 'public_order') params.region_id = regionId.value
@@ -67,6 +78,7 @@ async function run() {
       params,
     })
     report.value = data?.params?.report || null
+    reportInfluence.value = data?.params?.influence_delta ?? null
   } catch (e) {
     error.value = errorMessage(e)
   } finally {
@@ -100,13 +112,24 @@ onBeforeMount(load)
     <VSelect
       v-if="kind === 'public_order'"
       v-model="regionId"
-      :items="regions"
-      item-title="name"
+      :items="regionItems"
+      item-title="title"
       item-value="id"
-      label="Регион"
+      label="Регион страны-соперника"
       density="compact"
       class="mb-3"
     />
+
+    <VAlert
+      v-if="kind === 'public_order' && !regions.length"
+      type="warning"
+      variant="tonal"
+      density="compact"
+      class="mb-3"
+    >
+      Нет регионов стран-соперников. Подтвердите набор государств игроков на экране
+      «Дашборд» — регион выбирается только из стран, которые тоже играют.
+    </VAlert>
 
     <VSelect
       v-if="kind !== 'public_order'"
@@ -131,10 +154,16 @@ onBeforeMount(load)
     />
 
     <div class="text-body-2 mb-3">
-      Стоимость пункта разведки: <strong>{{ price }}</strong> золота
+      Стоимость пункта разведки: <strong>{{ price }}</strong> золота.
+      Влияние Тайного советника: <strong>+{{ influence }}</strong>.
     </div>
 
-    <VBtn color="primary" :loading="sending" @click="run">
+    <VBtn
+      color="primary"
+      :loading="sending"
+      :disabled="kind === 'public_order' && !regionId"
+      @click="run"
+    >
       Получить сведения
     </VBtn>
 
@@ -143,6 +172,9 @@ onBeforeMount(load)
         {{ report.title }} — {{ report.price }} золота
       </VCardTitle>
       <VCardText>
+        <div v-if="reportInfluence !== null" class="text-body-2 mb-3">
+          Влияние Тайного советника: <strong>+{{ reportInfluence }}</strong>.
+        </div>
         <div v-if="report.intel_type === 'public_order'">
           Регион «{{ report.data.region_name }}» ({{ report.data.country_name }}):
           общественный порядок <strong>{{ report.data.public_order }}</strong>.
@@ -167,7 +199,10 @@ onBeforeMount(load)
             Доход знати «{{ report.data.rival_country_name }}» за {{ report.data.year }} год,
             всего {{ report.data.total }}:
           </div>
-          <v-table density="compact">
+          <div v-if="!report.data.nobles.length" class="text-medium-emphasis">
+            В этом государстве нет знати
+          </div>
+          <v-table v-else density="compact">
             <tbody>
               <tr v-for="row in report.data.nobles" :key="row.player_id">
                 <td>{{ row.name }}</td>

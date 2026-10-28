@@ -28,6 +28,9 @@ export const engineApi = {
   /** Табло «Служебное → Гильдии»: все гильдии игры — разрешение, эмбарго, ресурсы. */
   getGuildsOverview: countryId => axios.get(`${BASE()}/guilds_overview`, { params: { country_id: countryId } }),
 
+  /** Табло «Служебное → Результаты всех команд»: общий и личный зачёт по всем командам. */
+  getAllTeamsResults: () => axios.get(`${BASE()}/all_teams_results`),
+
   /** «Рынок»: какие государства наложили эмбарго на конкретную гильдию. */
   getMarketEmbargoes: (guildId, countryId) => axios.get(`${BASE()}/guild_embargoes/market`, {
     params: { guild_id: guildId, country_id: countryId },
