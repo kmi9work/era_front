@@ -95,10 +95,6 @@
       type: Array,
       required: true,
     },
-    upgrade_paths:{
-      type: Object,
-      required: true
-    },
     foreign:{
       type: Boolean,
       required: true
@@ -171,83 +167,47 @@
 
   const tt_counts = ref([]);
 
-  const selected_troop_types = ref([]); // Массив выбранных типов отрядов
+  // Выбранные типы новых отрядов. Обычные отряды и пушка выбираются в разных
+  // слотах: пушка идёт сверх трёх отрядов, поэтому её выбор не занимает место
+  // обычного отряда.
+  const selectedRegular = ref([null, null, null]);
+  const selectedCannon = ref(null);
 
   const editArmyDialog = ref(false)
 
-  // Получаем имя следующего уровня улучшения
-  function getNextLevelName(currentId) {
-    const nextId = props.upgrade_paths[currentId];
-    if (!nextId) return null;
-    return props.troop_types.find(t => t.id === nextId)?.name;
-  }
+  // Пушка — отдельный слот сверх трёх отрядов (TroopType::CANNON в бэкенде).
+  const CANNON_TYPE_ID = 4
 
-  // Проверяем, можно ли улучшить отряд с fromType до toType
-  function canUpgradeTo(fromType, toType) {
-    let current = props.troop_types.find(t => t.name === fromType);
-    if (!current) return false;
-    
-    while (current) {
-      if (current.name === toType) return true;
-      const nextId = props.upgrade_paths[current.id];
-      if (!nextId) break;
-      current = props.troop_types.find(t => t.id === nextId);
-    }
-    return false;
-  }
+  const isCannonType = (troopType) =>
+    troopType?.id === CANNON_TYPE_ID || /пушк/i.test(troopType?.name || '')
 
+  const armyCannons = computed(() =>
+    props.army.troops.filter(troop => isCannonType(troop.troop_type))
+  )
 
-  // Вычисляем общую стоимость улучшений
+  const armyRegularTroops = computed(() =>
+    props.army.troops.filter(troop => !isCannonType(troop.troop_type))
+  )
+
+  // Места в составе: 3 обычных отряда и одна пушка сверх них.
+  const freeRegularSlots = computed(() => Math.max(0, 3 - armyRegularTroops.value.length))
+  const freeCannonSlots = computed(() => (armyCannons.value.length > 0 ? 0 : 1))
+
+  // Стоимость — цена постройки отряда с нуля (buy_cost типа), без цепочки
+  // улучшений: отряды больше не улучшаются.
   const totalCost = computed(() => {
     const cost = {};
-    
-    selected_troop_types.value.forEach((troopType, index) => {
-      if (!troopType) return;
-      
-      const existingTroop = props.army.troops[index];
-      const targetTroop = props.troop_types.find(t => t.name === troopType);
-      if (!targetTroop) return;
-      
-      if (existingTroop) {
-        // Улучшение существующего отряда
-        const currentTroopType = props.troop_types.find(t => t.id === existingTroop.troop_type.id);
-        if (!currentTroopType || currentTroopType.name === troopType) return;
-        
-        let currentId = currentTroopType.id;
-        let found = false;
-        
-        while (currentId && !found) {
-          const nextId = props.upgrade_paths[currentId];
-          if (!nextId) break;
-          
-          const nextTroop = props.troop_types.find(t => t.id === nextId);
-          if (!nextTroop) break;
-          
-          nextTroop.params.buy_cost?.forEach(res => {
-            cost[res.identificator] = (cost[res.identificator] || 0) + res.count;
-          });
-          
-          if (nextTroop.id === targetTroop.id) found = true;
-          currentId = nextId;
-        }
-      } else {
-        // Создание нового отряда
-        let currentId = 1;
-        let found = false;
-        
-        while (currentId && !found) {
-          const troop = props.troop_types.find(t => t.id === currentId);
-          if (!troop) break;
-          
-          troop.params.buy_cost?.forEach(res => {
-            cost[res.identificator] = (cost[res.identificator] || 0) + res.count;
-          });
-          
-          if (troop.id === targetTroop.id) found = true;
-          currentId = props.upgrade_paths[currentId];
-        }
-      }
-    });
+
+    pickedTroopTypeIds.value.forEach(troopTypeId => {
+      if (!troopTypeId) return
+      const troopType = props.troop_types.find(t => t.id === troopTypeId)
+      if (!troopType) return
+
+      troopType.params.buy_cost?.forEach(res => {
+        if (!res.count) return
+        cost[res.identificator] = (cost[res.identificator] || 0) + res.count
+      })
+    })
 
     // Фильтрация нулевых значений
     return Object.fromEntries(
@@ -255,52 +215,52 @@
     );
   });
 
-  // Доступные для выбора типы отрядов
-  const availableTroopTypes = computed(() => {
-    return props.troop_types.filter(troop => {
-      // Для новых отрядов проверяем, что можно добавить
-      if (props.army.troops.length < 3) return true;
-      // Для существующих отрядов всегда доступны варианты улучшения
-      return true;
-    });
-  });
+  // Индексы селектов обычных отрядов: по одному на свободное место.
+  const regularSlots = computed(() =>
+    Array.from({ length: freeRegularSlots.value }, (_, index) => index)
+  )
+
+  // Пушка — отдельный слот, только если её ещё нет в армии.
+  const showCannonSlot = computed(() => freeCannonSlots.value > 0)
+
+  const regularTroopTypes = computed(() => props.troop_types.filter(troop => !isCannonType(troop)))
+  const cannonTroopType = computed(() => props.troop_types.find(isCannonType) || null)
+
+  // Всё, что мастер отметил к постройке: обычные отряды + пушка.
+  const pickedTroopTypeIds = computed(() => [
+    ...selectedRegular.value.filter(Boolean),
+    ...(selectedCannon.value ? [selectedCannon.value] : []),
+  ])
+
+  const resetTroopSelection = () => {
+    selectedRegular.value = [null, null, null]
+    selectedCannon.value = null
+  }
 
   watch(add_troop_dialog, (newVal) => {
-    if (newVal) {
-      selected_troop_types.value = props.army.troops.map(t => t.troop_type.name);
-    }
+    if (newVal) resetTroopSelection()
   });
 
-  // Добавляем/улучшаем отряды
+  // Строим отряды с нуля: каждый выбранный тип — отдельный POST. Улучшения
+  // (PATCH /troops/:id/upgrade) больше не используются.
   async function createTroops() {
-    try {
-      // Создаем массив промисов для создания/обновления отрядов
-      const promises = selected_troop_types.value.map(async (troopType, index) => {
-        const existingTroop = props.army.troops[index];
-        
-        if (existingTroop) {
-          // Улучшаем существующий отряд
-          if (existingTroop.troop_type.name !== troopType) {
-            return axios.patch(`${import.meta.env.VITE_PROXY}/troops/${existingTroop.id}/upgrade.json`, {
-              target_type_id: props.troop_types.find(t => t.name === troopType).id
-            });
-          }
-        } else {
-          // Создаем новый отряд
-          return axios.post(`${import.meta.env.VITE_PROXY}/armies/${props.army.id}/troops.json`, {
-            troop_type_id: props.troop_types.find(t => t.name === troopType).id
-          });
-        }
-      });
+    const troopTypeIds = pickedTroopTypeIds.value
+    if (troopTypeIds.length === 0) return
 
-      // Выполняем все запросы
-      await Promise.all(promises.filter(Boolean));
+    try {
+      await Promise.all(
+        troopTypeIds.map(troopTypeId =>
+          axios.post(`${import.meta.env.VITE_PROXY}/armies/${props.army.id}/troops.json`, {
+            troop_type_id: troopTypeId
+          })
+        )
+      );
       emit('update-armies');
       add_troop_dialog.value = false;
-      selected_troop_types.value = [];
+      resetTroopSelection();
     } catch (error) {
       console.error('Ошибка при создании отрядов:', error);
-      alert('Произошла ошибка при создании отрядов');
+      alert(error.response?.data?.error || 'Произошла ошибка при создании отрядов');
     }
   }
 
@@ -475,19 +435,6 @@
 
 <template>
   <VCard :title="`${army.name}`" width="400">
-    <VCardSubtitle class="pt-0">
-      <div class="d-flex gap-4">
-        <div class="d-flex align-center">
-          <v-icon size="18" class="mr-1">ri-shield-line</v-icon>
-          <strong>{{ army.defense_power }}</strong>
-        </div>
-
-        <div class="d-flex align-center">
-          <v-icon size="18" class="mr-1">ri-sword-line</v-icon>
-          <strong>{{ army.attack_power }}</strong>
-        </div>
-      </div>
-    </VCardSubtitle>
     <VCardText>
       <v-table>
         <tbody>
@@ -542,39 +489,72 @@
           width="auto"
         >
           <VCard
-            width="1200"
+            width="900"
             title="Формирование армии"
           >
             <VCardText>
-              <!-- Отображение текущих отрядов -->
-              <div v-for="(troop, index) in army.troops" :key="troop.id" class="mb-4">
-                <h3>Текущий отряд {{ index + 1 }}: {{ troop.troop_type.name }}</h3><br>
-                <VSelect
-                  v-model="selected_troop_types[index]"
-                  :items="availableTroopTypes.filter(t => 
-                    t.name === troop.troop_type.name || 
-                    canUpgradeTo(troop.troop_type.name, t.name)
-                  )"
-                  item-title="name"
-                  item-value="name"
-                  :label="`Улучшить отряд ${index + 1}`"
-                  clearable
-                />
+              <div class="mb-4">
+                Состав: {{ armyRegularTroops.length }} из 3 отрядов{{ armyCannons.length ? ' + пушка' : '' }}.
+                Пушка ставится сверх трёх отрядов и только одна.
               </div>
-              
-              <!-- Добавление новых отрядов -->
-              <div v-for="index in 3 - army.troops.length" :key="'new-'+index" class="mb-4">
-                <h3>Новый отряд {{ army.troops.length + index }}</h3>
+
+              <!-- Новые отряды: строятся с нуля, улучшений старых отрядов нет -->
+              <div v-if="regularSlots.length === 0 && !showCannonSlot" class="mb-4">
+                <VAlert type="info" variant="tonal" density="compact">
+                  Свободных мест в армии нет: три отряда и пушка уже стоят.
+                </VAlert>
+              </div>
+
+              <div v-for="index in regularSlots" :key="'new-'+index" class="mb-4">
+                <h3>Новый отряд {{ armyRegularTroops.length + index + 1 }}</h3>
                 <VSelect
-                  v-model="selected_troop_types[army.troops.length + index - 1]"
-                  :items="availableTroopTypes"
+                  v-model="selectedRegular[index]"
+                  :items="regularTroopTypes"
                   item-title="name"
-                  item-value="name"
+                  item-value="id"
                   label="Выберите тип отряда"
                   clearable
-                />
+                >
+                  <template #item="{ item, props: selectProps }">
+                    <VListItem v-bind="selectProps" :title="item.title">
+                      <template #append>
+                        <span class="text-caption text-medium-emphasis">
+                          {{ (item.raw?.params?.buy_cost || [])
+                            .filter(cost => cost.count)
+                            .map(cost => `${cost.count} ${resources[cost.identificator]?.name || cost.identificator}`)
+                            .join(', ') }}
+                        </span>
+                      </template>
+                    </VListItem>
+                  </template>
+                </VSelect>
               </div>
-              
+
+              <div v-if="showCannonSlot" class="mb-4">
+                <h3>Пушка (сверх трёх отрядов)</h3>
+                <VSelect
+                  v-model="selectedCannon"
+                  :items="cannonTroopType ? [cannonTroopType] : []"
+                  item-title="name"
+                  item-value="id"
+                  label="Поставить пушку"
+                  clearable
+                >
+                  <template #item="{ item, props: selectProps }">
+                    <VListItem v-bind="selectProps" :title="item.title">
+                      <template #append>
+                        <span class="text-caption text-medium-emphasis">
+                          {{ (item.raw?.params?.buy_cost || [])
+                            .filter(cost => cost.count)
+                            .map(cost => `${cost.count} ${resources[cost.identificator]?.name || cost.identificator}`)
+                            .join(', ') }}
+                        </span>
+                      </template>
+                    </VListItem>
+                  </template>
+                </VSelect>
+              </div>
+
               <div v-if="Object.keys(totalCost).length > 0" class="mt-4">
                 <h3>Общая стоимость:</h3>
                 <v-list>
@@ -603,9 +583,9 @@
               <VBtn
                 color="primary"
                 @click="createTroops"
-                :disabled="selected_troop_types.filter(Boolean).length === 0"
+                :disabled="pickedTroopTypeIds.length === 0"
               >
-                Подтвердить
+                Построить
               </VBtn>
               <VBtn
                 @click="add_troop_dialog = false"

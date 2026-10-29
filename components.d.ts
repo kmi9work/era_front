@@ -13,6 +13,7 @@ declare module 'vue' {
     CardStatisticsWithImages: typeof import('./src/@core/components/cards/CardStatisticsWithImages.vue')['default']
     ErrorHeader: typeof import('./src/components/ErrorHeader.vue')['default']
     GlobalLoading: typeof import('./src/components/GlobalLoading.vue')['default']
+    LandBonusDialog: typeof import('./src/components/LandBonusDialog.vue')['default']
     MoreBtn: typeof import('./src/@core/components/MoreBtn.vue')['default']
     PairRelationsCell: typeof import('./src/components/PairRelationsCell.vue')['default']
     RelationsRow: typeof import('./src/components/RelationsRow.vue')['default']

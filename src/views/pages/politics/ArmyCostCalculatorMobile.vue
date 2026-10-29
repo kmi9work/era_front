@@ -29,26 +29,19 @@ const resources = {
 }
 
 const troop_types = ref([])
-const upgrade_paths = ref({})
 const isLoading = ref(true)
-const selected_troop_types = ref([null, null, null]) // Максимум 3 отряда
+// Состав армии: три обычных отряда и пушка сверх них (как в бэкенде).
+const CANNON_TYPE_ID = 4
+const MAX_REGULAR_TROOPS = 3
+const selected_troop_types = ref([null, null, null, null])
 
 // Загрузка данных
 async function loadData() {
   try {
-    await Promise.all([
-      axios.get(`${import.meta.env.VITE_PROXY}/troop_types.json`)
-        .then(response => {
-          troop_types.value = response.data
-        }),
-      axios.get(`${import.meta.env.VITE_PROXY}/troop_types/upgrade_paths.json`)
-        .then(response => {
-          upgrade_paths.value = response.data
-        })
-        .catch(() => {
-          upgrade_paths.value = { '1': 2, '2': 3, '3': 4 }
-        })
-    ])
+    await axios.get(`${import.meta.env.VITE_PROXY}/troop_types.json`)
+      .then(response => {
+        troop_types.value = response.data
+      })
   } catch (error) {
     console.error('Ошибка при загрузке данных:', error)
   } finally {
@@ -56,53 +49,24 @@ async function loadData() {
   }
 }
 
-// Получаем имя следующего уровня улучшения
-function getNextLevelName(currentId) {
-  const nextId = upgrade_paths.value[currentId]
-  if (!nextId) return null
-  return troop_types.value.find(t => t.id === nextId)?.name
-}
+const isCannonType = (troopType) =>
+  troopType?.id === CANNON_TYPE_ID || /пушк/i.test(troopType?.name || '')
 
-// Проверяем, можно ли улучшить отряд с fromType до toType
-function canUpgradeTo(fromType, toType) {
-  const fromTroop = troop_types.value.find(t => t.name === fromType)
-  if (!fromTroop) return false
-  
-  let current = fromTroop
-  while (current) {
-    if (current.name === toType) return true
-    const nextId = upgrade_paths.value[current.id]
-    if (!nextId) break
-    current = troop_types.value.find(t => t.id === nextId)
-  }
-  return false
-}
-
-// Вычисляем общую стоимость
+// Стоимость — цена постройки отряда с нуля (buy_cost типа). Улучшений больше нет,
+// поэтому цепочка «пехота → тяжёлая → кавалерия → пушка» не суммируется.
 const totalCost = computed(() => {
   const cost = {}
-  
-  selected_troop_types.value.forEach((troopType) => {
-    if (!troopType) return
-    
-    const targetTroop = troop_types.value.find(t => t.name === troopType)
-    if (!targetTroop) return
-    
-    // Создание нового отряда - проходим по цепочке от базового типа
-    let currentId = 1
-    let found = false
-    
-    while (currentId && !found) {
-      const troop = troop_types.value.find(t => t.id === currentId)
-      if (!troop) break
-      
-      troop.params.buy_cost?.forEach(res => {
-        cost[res.identificator] = (cost[res.identificator] || 0) + res.count
-      })
-      
-      if (troop.id === targetTroop.id) found = true
-      currentId = upgrade_paths.value[currentId]
-    }
+
+  selected_troop_types.value.forEach((troopTypeId) => {
+    if (!troopTypeId) return
+
+    const troop = troop_types.value.find(t => t.id === troopTypeId)
+    if (!troop) return
+
+    troop.params.buy_cost?.forEach(res => {
+      if (!res.count) return
+      cost[res.identificator] = (cost[res.identificator] || 0) + res.count
+    })
   })
 
   return Object.fromEntries(
@@ -110,10 +74,11 @@ const totalCost = computed(() => {
   )
 })
 
-// Доступные типы отрядов
-const availableTroopTypes = computed(() => {
-  return troop_types.value
-})
+// Пушка — только одна и только в четвёртом слоте; обычные отряды — не больше трёх.
+const slotItems = (slotIndex) =>
+  troop_types.value.filter(troop =>
+    slotIndex >= MAX_REGULAR_TROOPS ? isCannonType(troop) : !isCannonType(troop)
+  )
 
 onMounted(() => {
   loadData()
@@ -147,16 +112,19 @@ defineExpose({
         <v-card class="mb-3">
           <v-card-title>Выберите отряды</v-card-title>
           <v-card-text>
-            <div v-for="(slot, index) in 3" :key="index" class="mb-3">
+            <div v-for="index in MAX_REGULAR_TROOPS + 1" :key="index" class="mb-3">
               <v-select
-                v-model="selected_troop_types[index]"
-                :items="availableTroopTypes"
+                v-model="selected_troop_types[index - 1]"
+                :items="slotItems(index - 1)"
                 item-title="name"
-                item-value="name"
-                :label="`Отряд ${index + 1}`"
+                item-value="id"
+                :label="index === MAX_REGULAR_TROOPS + 1 ? 'Пушка (одна на армию)' : `Отряд ${index}`"
                 clearable
                 variant="outlined"
               />
+            </div>
+            <div class="text-caption text-medium-emphasis">
+              В армии до трёх отрядов и одна пушка сверх них.
             </div>
           </v-card-text>
         </v-card>

@@ -1,5 +1,15 @@
 <script setup>
   import axios from 'axios'
+  import { computed, onBeforeMount, ref } from 'vue'
+
+  /**
+   * «Отправить посольство» Посольского дьяка: посольство уходит в ДВЕ державы
+   * (карточка действия: «улучшение отношений с 2-мя выбранными иностранными
+   * державами на 1 пункт»). Раньше выбор был один — вторую страну мастер задать
+   * не мог. Параметры уходят двумя скалярными ключами: `country_id` и
+   * `country_id_2` (Rails `permit(params: {})` пропускает только скаляры, массив
+   * стран молча терялся бы).
+   */
   const props = defineProps({
     noble_job: {
       type: Object,
@@ -14,7 +24,8 @@
   const emit = defineEmits(['close-dialog']);
 
   const countries = ref([]);
-  const country_id = ref(0);
+  const country_id = ref(null);
+  const country_id_2 = ref(null);
 
   onBeforeMount(async () => {
     await axios.get(`${import.meta.env.VITE_PROXY}/countries.json?foreign=1`)
@@ -23,11 +34,33 @@
         if (countries.value.length > 0) {
           country_id.value = countries.value[0].id;
         }
+        if (countries.value.length > 1) {
+          country_id_2.value = countries.value[1].id;
+        }
       })
   })
 
+  // Вторая держава не может совпасть с первой: пара «в одну и ту же страну»
+  // улучшала бы отношения дважды.
+  const secondCountries = computed(() =>
+    countries.value.filter(country => country.id !== country_id.value)
+  )
+
+  function onFirstChange() {
+    if (country_id_2.value === country_id.value) {
+      country_id_2.value = secondCountries.value[0]?.id ?? null
+    }
+  }
+
   async function runAction(noble_job_id, action_id, success){
-    const params = success ? { country_id: country_id.value } : {};
+    const params = success
+      ? { country_id: country_id.value, country_id_2: country_id_2.value }
+      : {};
+
+    if (success && (!params.country_id || !params.country_id_2)) {
+      alert('Для успеха выберите две разные страны')
+      return
+    }
 
     await axios.post(`${import.meta.env.VITE_PROXY}/political_actions.json`, {
         political_action_type_id: action_id,
@@ -54,9 +87,19 @@
     <v-list-subheader>Параметры</v-list-subheader>
     <v-list-item>
       <v-select
-        label="Выберите страну (для успеха)"
+        label="Первая держава (для успеха)"
         :items="countries"
         v-model="country_id"
+        item-title="name"
+        item-value="id"
+        @update:model-value="onFirstChange"
+      ></v-select>
+    </v-list-item>
+    <v-list-item>
+      <v-select
+        label="Вторая держава (для успеха)"
+        :items="secondCountries"
+        v-model="country_id_2"
         item-title="name"
         item-value="id"
       ></v-select>

@@ -43,6 +43,18 @@
   const add_building_dialog = ref(false);
   const change_owner_dialog = ref(false);
 
+  // Поиск по знати: владельца можно передать знатному игроку любой страны,
+  // поэтому список длинный (знать всех государств).
+  const noble_search = ref('');
+  const filteredNobles = computed(() => {
+    const query = noble_search.value.trim().toLowerCase();
+    if (!query) return props.nobles;
+
+    return props.nobles.filter(noble =>
+      `${noble.name} ${noble.countryName || ''}`.toLowerCase().includes(query)
+    );
+  });
+
   const builder_choice_dialog = ref(false);
   const current_building_action = ref({ type: '', id: null, building_type_id: null }); // Добавим building_type_id
 
@@ -77,9 +89,38 @@
     updateOwnership();
   })
 
-  async function removeBuilding(building_id) {
-    await axios.delete(`${import.meta.env.VITE_PROXY}/buildings/${building_id}.json`)
+  const delete_building_dialog = ref(false);
+  const building_to_delete = ref(null);
+
+  // Удаление постройки: если за постройкой числится начисленное влияние (штрафы
+  // за неоплаченную церковь), мастер сам решает, удалять ли его вместе с ней.
+  function askRemoveBuilding(building) {
+    if ((building.influence_items_count || 0) > 0) {
+      building_to_delete.value = building;
+      delete_building_dialog.value = true;
+      return;
+    }
+    removeBuilding(building.id);
+  }
+
+  function influenceSummary(items) {
+    if (!items || items.length === 0) return 'нет';
+
+    const total = items.reduce((sum, item) => sum + (item.value || 0), 0);
+    const details = items
+      .map(item => `${item.value > 0 ? '+' : ''}${item.value} за «${item.comment || 'без комментария'}», год ${item.year}${item.player_name ? `, ${item.player_name}` : ''}`)
+      .join('; ');
+
+    return items.length > 1 ? `${total}: ${details}` : details;
+  }
+
+  async function removeBuilding(building_id, deleteInfluence = false) {
+    const params = deleteInfluence ? '?delete_influence=1' : '';
+
+    await axios.delete(`${import.meta.env.VITE_PROXY}/buildings/${building_id}.json${params}`)
       .then(async (response) => {
+        delete_building_dialog.value = false;
+        building_to_delete.value = null;
         updateOwnership();
       })
   };
@@ -179,7 +220,7 @@
 <template>
   <VCard :title="name" width="350">
     <VCardText v-if="main_settle.player">
-      {{main_settle.player?.name}} | {{main_settle.player?.jobs.map((j) => j.name)?.join(", ")}}
+      {{main_settle.player?.name}}<template v-if="main_settle.player?.country"> ({{ main_settle.player.country.short_name || main_settle.player.country.name }})</template> | {{main_settle.player?.jobs.map((j) => j.name)?.join(", ")}}
       <IconBtn
           icon="ri-close-line"
           class="me-1"
@@ -200,7 +241,7 @@
               <IconBtn
                   icon="ri-delete-bin-line"
                   class="me-1"
-                  @click="removeBuilding(building.id)"
+                  @click="askRemoveBuilding(building)"
                 />
               <IconBtn
                   icon="ri-arrow-up-circle-line"
@@ -259,6 +300,44 @@
           </VCard>
         </VDialog>
       </div>
+      
+      <!-- Удаление постройки: за церковью может числиться начисленное влияние -->
+      <VDialog
+        v-model="delete_building_dialog"
+        width="auto"
+      >
+        <VCard
+          max-width="460"
+          title="Удалить постройку?"
+        >
+          <VCardText v-if="building_to_delete">
+            {{ building_to_delete.building_type_name || 'Постройка' }} —
+            {{ building_to_delete.building_level_name }}.
+            Начислено влияния: {{ influenceSummary(building_to_delete.influence_items) }}.
+            Удалить это влияние вместе с постройкой?
+          </VCardText>
+
+          <VCardActions>
+            <VBtn
+              color="error"
+              @click="removeBuilding(building_to_delete.id, true)"
+            >
+              Удалить с влиянием
+            </VBtn>
+            <VBtn
+              color="primary"
+              @click="removeBuilding(building_to_delete.id, false)"
+            >
+              Удалить только постройку
+            </VBtn>
+            <VBtn
+              class="ms-auto"
+              text="Отмена"
+              @click="delete_building_dialog = false"
+            ></VBtn>
+          </VCardActions>
+        </VCard>
+      </VDialog>
       
       <!-- Модальное окно выбора строителя -->
       <VDialog
@@ -324,9 +403,18 @@
             width="400"
             title="Кому?"
           >
+            <VCardText class="pb-0">
+              <VTextField
+                v-model="noble_search"
+                label="Поиск по имени или стране"
+                density="compact"
+                prepend-inner-icon="ri-search-line"
+                clearable
+              />
+            </VCardText>
             <VList>
               <VListItem
-                v-for="(noble, i) in nobles"
+                v-for="(noble, i) in filteredNobles"
                 :key="i"
                 :value="noble.id"
                 color="primary"
@@ -334,6 +422,13 @@
                 @click="changeOwner(noble.id)"
               >
                 <VListItemTitle v-text="`${noble.name}`"></VListItemTitle>
+                <VListItemSubtitle
+                  v-if="noble.countryName"
+                  v-text="noble.countryName"
+                />
+              </VListItem>
+              <VListItem v-if="filteredNobles.length === 0">
+                <VListItemTitle>Никого не найдено</VListItemTitle>
               </VListItem>
             </VList>
             <template v-slot:actions>

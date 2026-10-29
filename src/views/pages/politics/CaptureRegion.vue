@@ -1,10 +1,17 @@
 <script setup>
   import axios from 'axios'
   import { useCurrentCountry } from '@/composables/useCurrentCountry'
+  import { awardedText, landBonusParams, landBonusQuestions } from '@/composables/useLandBonus'
+  import LandBonusDialog from '@/components/LandBonusDialog.vue'
 
   // Передача региона государству (ТЗ № 2, § 4 п. 5): быстрая кнопка передаёт регион
-  // ТЕКУЩЕМУ государству (прежде — жёстко «Руси»), бонус Великому князю предлагается
-  // тогда, когда регион уходит текущему государству (условие совпадает с бэкендом).
+  // ТЕКУЩЕМУ государству (прежде — жёстко «Руси»).
+  //
+  // Влияние за землю (Посольский дьяк +7, Князь +5 за КАЖДУЮ землю) начисляется по
+  // решению мастера и отдельно по каждой должности: два вопроса «начислить бонус»
+  // или «мастерское действие». Если регион уходит другому государству, перед ними
+  // задаются два вопроса о снятии бонуса у прежнего государства — земля перешла от
+  // одних игроков к другим.
   const { currentCountry, currentCountryId, loadCurrentCountry } = useCurrentCountry()
 
   const props = defineProps({
@@ -36,23 +43,64 @@
   const capture_dialog = ref(false);
   const by_war = ref(0);
   const capture_stepper = ref(0);
+  const bonusDialog = ref(null);
+  const capture_busy = ref(false);
 
   onBeforeMount(() => {
     loadCurrentCountry()
   })
 
+  // Государство, которому регион принадлежит сейчас (может отличаться от текущего).
+  const sourceCountryId = computed(() => {
+    const ownership = props.ownership || {}
+    return ownership.country?.id ?? ownership.country_id ?? null
+  })
+
+  function countryById(id) {
+    if (id === null || id === undefined) return null
+    return (props.countries || []).find(country => Number(country.id) === Number(id)) || null
+  }
+
   async function captureRegion(region_id, country_id, how) {
-    let zb = ''
-    // Бонус Великому князю — только если регион присоединяет текущее государство
-    if (country_id && country_id == currentCountryId.value){
-      let bonus = confirm("Зачислить бонус Великому князю за присоединение земли?")
-      zb = bonus ? '&grand_prince_bonus=1' : ''
-    }
-    await axios.patch(`${import.meta.env.VITE_PROXY}/regions/${region_id}/captured_by.json?country_id=${country_id}&how=${by_war.value}${zb}`)
-      .then(async (response) => {
-        capture_dialog.value = false;
-        emit('capture-region');
+    if (capture_busy.value) return
+
+    const targetId = Number(country_id)
+    const sourceId = sourceCountryId.value === null ? null : Number(sourceCountryId.value)
+
+    // Вопросы мастеру: снятие у прежнего государства, начисление получателю.
+    // Передача «самому себе» ничего не меняет — вопросов нет.
+    let answers = {}
+    if (sourceId === null || sourceId !== targetId) {
+      const questions = landBonusQuestions({
+        source: countryById(sourceId),
+        target: countryById(targetId),
+        landLabel: props.ownership?.name ? `земли «${props.ownership.name}»` : 'земли'
       })
+      const result = await bonusDialog.value?.ask(questions)
+      if (result === null) return
+      answers = result || {}
+    }
+
+    capture_busy.value = true
+    try {
+      const response = await axios.patch(
+        `${import.meta.env.VITE_PROXY}/regions/${region_id}/captured_by.json`,
+        null,
+        {
+          params: {
+            country_id: targetId,
+            how: how ?? by_war.value,
+            ...landBonusParams(answers)
+          }
+        }
+      )
+      capture_dialog.value = false;
+      emit('capture-region');
+      const report = awardedText(response?.data?.awarded)
+      if (report) alert(`Влияние за землю: ${report}`)
+    } finally {
+      capture_busy.value = false
+    }
   };
 </script>
 <template>
@@ -119,6 +167,9 @@
       </template>
     </VCard>
   </VDialog>
+
+  <!-- Вопросы мастеру по влиянию за землю: Посольский дьяк и Князь отдельно. -->
+  <LandBonusDialog ref="bonusDialog" />
 </template>
 
 <style>

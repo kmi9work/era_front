@@ -4,6 +4,8 @@
   import CaptureRegion from '@/views/pages/politics/CaptureRegion.vue'
   import Ownership from '@/views/pages/politics/Ownership.vue'
   import { useCurrentCountry } from '@/composables/useCurrentCountry'
+  import { awardedText, landBonusParams, landBonusQuestions } from '@/composables/useLandBonus'
+  import LandBonusDialog from '@/components/LandBonusDialog.vue'
 
   /**
    * «Политика → Владения» в разрезе текущего государства (ТЗ № 2, § 4).
@@ -43,6 +45,8 @@
   const tab_settles = ref(0);
   const width_r = ref(300);
   const width_c = ref(300);
+  // Очередь вопросов об влиянии за землю при присоединении страны миром.
+  const bonusDialog = ref(null);
 
   const filteredSettles = computed(() => {
     if (selected_nobles.value.length === 0){
@@ -68,16 +72,33 @@
     return filteredSettles.value.filter(settle => settle.region_id == region_id);
   }
 
-  // Знать (player_type_id=2) только текущего государства — для фильтра по игроку
-  // и диалога «Кому?» передачи поселения.
+  // Знать (player_type_id=2) ВСЕХ государств — для фильтра по игроку и диалога
+  // «Кому?»: владение передаётся знатному игроку любой страны, в том числе чужой
+  // (заказчик). Бэкенд страну владельца не проверяет — ограничение было только
+  // в интерфейсе. Своё государство идёт первым: чаще всего передают своим.
+  const nobleTitle = (noble) => (noble?.countryName ? `${noble.name} (${noble.countryName})` : noble?.name)
+
   async function loadNobles(){
-    if (!currentCountryId.value){
-      nobles.value = [];
-      return;
-    }
-    await axios.get(`${import.meta.env.VITE_PROXY}/players.json?country_id=${currentCountryId.value}&player_type_id=2`)
+    await axios.get(`${import.meta.env.VITE_PROXY}/players.json?player_type_id=2`)
       .then(response => {
-        nobles.value = Array.isArray(response.data) ? response.data : [];
+        const list = (Array.isArray(response.data) ? response.data : [])
+          .filter(player => player.player_type?.id == 2)
+          .map(player => ({
+            ...player,
+            countryName: player.country?.short_name || player.country?.name || ''
+          }))
+
+        const currentId = currentCountryId.value
+        nobles.value = list.sort((a, b) => {
+          const aOwn = a.country_id === currentId ? 0 : 1
+          const bOwn = b.country_id === currentId ? 0 : 1
+          if (aOwn !== bOwn) return aOwn - bOwn
+
+          const byCountry = a.countryName.localeCompare(b.countryName, 'ru')
+          if (byCountry !== 0) return byCountry
+
+          return (a.name || '').localeCompare(b.name || '', 'ru')
+        })
       })
   }
 
@@ -139,12 +160,38 @@
   })
 
 
+  /**
+   * «Присоединить страну миром».
+   *
+   * Влияние за землю спрашивается теми же двумя вопросами на должность, что и при
+   * передаче региона (`CaptureRegion.vue`), но начисляется ЗА КАЖДУЮ землю страны:
+   * Посольский дьяк +7, Князь +5. У присоединяемой страны бонус снимается, у
+   * текущего государства добавляется — вопрос задаётся один раз на операцию.
+   */
   async function joinPeace(country_id) {
-    await axios.patch(`${import.meta.env.VITE_PROXY}/countries/${country_id}/join_peace.json`)
-      .then(async (response) => {
-        updateOwnerships();
-        alert("Страна присоединена!")
-      })
+    const target = currentCountry.value
+    const source = foreign_countries.value.find(country => country.id === country_id)
+      || (countries.value || []).find(country => Number(country.id) === Number(country_id))
+    const regionsCount = regions.value.filter(region => Number(region.country?.id) === Number(country_id)).length
+
+    const questions = landBonusQuestions({
+      source,
+      target,
+      landLabel: source?.name ? `земли «${source.name}»` : 'земли',
+      regionsCount
+    })
+    const answers = await bonusDialog.value?.ask(questions)
+    if (answers === null) return
+
+    const response = await axios.patch(
+      `${import.meta.env.VITE_PROXY}/countries/${country_id}/join_peace.json`,
+      null,
+      { params: landBonusParams(answers || {}) }
+    )
+
+    updateOwnerships();
+    const report = awardedText(response?.data?.awarded)
+    alert(report ? `Страна присоединена!\nВлияние за землю: ${report}` : 'Страна присоединена!')
   };
 
   
@@ -156,7 +203,7 @@
       v-model="selected_nobles"
       :items="nobles"
       label="Фильтр по игроку"
-      item-title="name"
+      :item-title="nobleTitle"
       item-value="id"
       multiple
       clearable
@@ -291,5 +338,8 @@
         </VWindowItem>
       </VWindow>
     </VCard>
+
+    <!-- Вопросы мастеру по влиянию за землю при «Присоединить страну миром». -->
+    <LandBonusDialog ref="bonusDialog" />
   </div>
 </template>

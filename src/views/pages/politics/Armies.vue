@@ -45,7 +45,6 @@
   const countries = ref([])
   // Владельцы-игроки для формы: только знать текущего государства
   const nobles = ref([])
-  const upgrade_paths = ref({})
   const editingArmy = ref(null)
 
   // Все загруженные армии: нужны вкладкам и списку целей в атаке/переходе (Army.vue).
@@ -112,26 +111,9 @@
     }
   }
 
-  async function loadUpgradePaths() {
-    try {
-      const response = await axios.get(`${import.meta.env.VITE_PROXY}/troop_types/upgrade_paths.json`)
-
-      upgrade_paths.value = response.data
-    } catch (error) {
-      console.error('Ошибка при загрузке путей улучшений:', error)
-      // Устанавливаем значения по умолчанию на случай ошибки
-      upgrade_paths.value = {
-        '1': 2, // Пехота -> Тяжелая пехота
-        '2': 3, // Тяжелая пехота -> Кавалерия
-        '3': 4 // Кавалерия -> Пушка
-      }
-    }
-  }
-
   onBeforeMount(async () => {
     // Текущее государство — до запросов, чтобы вкладки и владельцы были корректны.
     await loadCurrentCountry()
-    await loadUpgradePaths()
     await Promise.all([
       updateArmies(),
       loadOwners(),
@@ -219,7 +201,6 @@
                             :settlements="settlements"
                             :armies="armies"
                             :troop_types="troop_types"
-                            :upgrade_paths="upgrade_paths"
                             :foreign="false"
                             :nobles="nobles"
                             :countries="countries"
@@ -266,7 +247,6 @@
                             :settlements="settlements"
                             :armies="armies"
                             :troop_types="troop_types"
-                            :upgrade_paths="upgrade_paths"
                             :foreign="true"
                             :nobles="nobles"
                             :countries="countries"

@@ -12,6 +12,7 @@
   import Notifications from '@/layouts/components/Notifications.vue'
   import CountryProfile from '@/layouts/components/CountryProfile.vue'
   import AppDownloadMenu from '@/layouts/components/AppDownloadMenu.vue'
+  import NotificationPopup from '@/layouts/components/NotificationPopup.vue'
   import { setNotificationsRef, setupNotificationInterceptor } from '@/composables/useNotifications'
   import { useCurrentCountry } from '@/composables/useCurrentCountry'
   import { useGameConfig } from '@/config/game'
@@ -231,6 +232,9 @@
     <template #footer>
       <Footer />
     </template>
+
+    <!-- Полноэкранные уведомления мастера: закрываются только кнопкой «Ок» -->
+    <NotificationPopup />
   </VerticalNavLayout>
 </template>
 
