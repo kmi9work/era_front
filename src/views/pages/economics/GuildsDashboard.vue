@@ -29,7 +29,13 @@ const error = ref(null)
 const openedProduction = ref({})
 const openedTrade = ref({})
 
-async function loadDashboard() {
+// Удаление каравана из истории гильдии (мастер исправляет ошибочную отправку)
+const deletingCaravan = ref(null)
+const deleteDialog = ref(false)
+const deleteLoading = ref(false)
+const deleteError = ref(null)
+
+async function loadDashboard({ resetOpened = true } = {}) {
   await loadCurrentCountry()
   if (!currentCountryId.value) return
 
@@ -41,8 +47,10 @@ async function loadDashboard() {
       params: { country_id: currentCountryId.value },
     })
     dashboard.value = data
-    openedProduction.value = {}
-    openedTrade.value = {}
+    if (resetOpened) {
+      openedProduction.value = {}
+      openedTrade.value = {}
+    }
   } catch (e) {
     dashboard.value = null
     error.value = e?.response?.data?.error || e?.message || 'Не удалось загрузить дашборд'
@@ -102,6 +110,41 @@ const toggleTrade = (guildId) => {
 const countryFlag = (country) => country?.flag_image_name
   ? `/images/countries/${country.flag_image_name}.png`
   : null
+
+// ---- удаление каравана ----
+
+const openDeleteDialog = (guild, caravan) => {
+  deletingCaravan.value = { guild, caravan }
+  deleteError.value = null
+  deleteDialog.value = true
+}
+
+const closeDeleteDialog = () => {
+  if (deleteLoading.value) return
+  deleteDialog.value = false
+  deletingCaravan.value = null
+  deleteError.value = null
+}
+
+const confirmDeleteCaravan = async () => {
+  const caravan = deletingCaravan.value?.caravan
+  if (!caravan) return
+
+  deleteLoading.value = true
+  deleteError.value = null
+
+  try {
+    await axios.delete(`${import.meta.env.VITE_PROXY}/caravans/${caravan.id}.json`)
+    deleteDialog.value = false
+    deletingCaravan.value = null
+    // Обновляем цифры, не сворачивая раскрытую строку гильдии
+    await loadDashboard({ resetOpened: false })
+  } catch (e) {
+    deleteError.value = e?.response?.data?.error || e?.message || 'Не удалось удалить караван'
+  } finally {
+    deleteLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -503,6 +546,9 @@ const countryFlag = (country) => country?.flag_image_name
                             <th class="text-left">
                               Статус
                             </th>
+                            <th class="text-center">
+                              Удаление
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
@@ -549,6 +595,16 @@ const countryFlag = (country) => country?.flag_image_name
                               >
                                 Вятка
                               </VChip>
+                            </td>
+                            <td class="text-center">
+                              <IconBtn
+                                icon="ri-delete-bin-line"
+                                size="x-small"
+                                variant="text"
+                                color="error"
+                                title="Удалить караван"
+                                @click.stop="openDeleteDialog(guild, caravan)"
+                              />
                             </td>
                           </tr>
                         </tbody>
@@ -602,6 +658,57 @@ const countryFlag = (country) => country?.flag_image_name
         </VCard>
       </template>
     </template>
+
+    <!-- Удаление каравана: подтверждение, чтобы случайный клик не правил историю -->
+    <VDialog
+      v-model="deleteDialog"
+      max-width="480"
+    >
+      <VCard>
+        <VCardTitle class="text-wrap">
+          Удалить караван?
+        </VCardTitle>
+        <VCardText v-if="deletingCaravan">
+          <div class="text-body-2 mb-2">
+            Гильдия «{{ deletingCaravan.guild.name }}» ·
+            {{ deletingCaravan.caravan.year }}-й год ·
+            {{ deletingCaravan.caravan.country || '—' }}
+          </div>
+          <div class="text-body-2 text-medium-emphasis mb-0">
+            Товарооборот: {{ formatNumber(deletingCaravan.caravan.turnover) }} зол.
+            <template v-if="deletingCaravan.caravan.is_robbed">
+              · караван ограблен
+            </template>
+          </div>
+          <VAlert
+            v-if="deleteError"
+            type="error"
+            variant="tonal"
+            density="compact"
+            class="mt-3"
+            :text="deleteError"
+          />
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn
+            variant="text"
+            :disabled="deleteLoading"
+            @click="closeDeleteDialog"
+          >
+            Отмена
+          </VBtn>
+          <VBtn
+            color="error"
+            variant="tonal"
+            :loading="deleteLoading"
+            @click="confirmDeleteCaravan"
+          >
+            Удалить
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
   </div>
 </template>
 
