@@ -61,7 +61,6 @@ const pollingCallback = () => {
 
 const {
   selectedScreen,
-  timerMessage,
   changeScreen,
   startPolling
 } = useScreenManagement(pollingCallback)
@@ -135,7 +134,6 @@ onMounted(async () => {
     :active-screen="activeScreen"
     :timer-store="timerStore"
     :end-game-results-store="endGameResultsStore"
-    :timer-message="timerMessage"
     :year-options="endGameResultsStore.yearOptions"
     :year-value="endGameResultsStore.yearValue"
     :source-label="endGameResultsStore.sourceLabel"

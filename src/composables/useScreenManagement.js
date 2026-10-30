@@ -1,55 +1,47 @@
-import { ref, onMounted, onBeforeUnmount } from 'vue'
-import axios from 'axios'
+import { ref, onBeforeUnmount } from 'vue'
+
+// Выбранный экран — настройка конкретного браузера, а не игры: панель
+// оператора, проектор и планшет могут показывать разные экраны одновременно.
+const STORAGE_KEY = 'era_screen'
+const DEFAULT_SCREEN = 'placeholder'
+
+const readStoredScreen = () => {
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY)
+    return stored && stored.trim() ? stored : DEFAULT_SCREEN
+  } catch (error) {
+    console.warn('Не удалось прочитать выбранный экран из localStorage:', error)
+    return DEFAULT_SCREEN
+  }
+}
+
+const persistScreen = (screen) => {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, screen)
+  } catch (error) {
+    console.warn('Не удалось сохранить выбранный экран в localStorage:', error)
+  }
+}
 
 export function useScreenManagement(onPollingStart) {
-  const selectedScreen = ref('placeholder')
-  const isTransitioning = ref(false)
-  const timerMessage = ref('Проверьте расписание. Либо его нет, либо циклы еще не начались, либо уже закончились')
+  const selectedScreen = ref(readStoredScreen())
   const pollInterval = ref(null)
 
-  // Загрузка данных с сервера
-  const loadScreen = async () => {
-    try {
-      const response = await axios.get(`${import.meta.env.VITE_PROXY}/game_parameters/get_screen`)
-      if (response.data !== selectedScreen.value) {
-        selectedScreen.value = response.data
-      }
-    } catch (error) {
-      console.error('Ошибка загрузки данных:', error)
-    }
+  // Смена экрана: только в этом браузере (сервер общий экран больше не хранит)
+  const changeScreen = (screen) => {
+    if (!screen || selectedScreen.value === screen) return
+    selectedScreen.value = screen
+    persistScreen(screen)
   }
 
-  // Смена экрана
-  const changeScreen = async (screen) => {
-    if (selectedScreen.value === screen || isTransitioning.value) return
-
-    try {
-      await axios.patch(
-        `${import.meta.env.VITE_PROXY}/game_parameters/toggle_screen`,
-        { request: screen }
-      )
-      isTransitioning.value = true
-      setTimeout(() => {
-        selectedScreen.value = screen
-        isTransitioning.value = false
-      }, 300)
-    } catch (error) {
-      console.error("Ошибка при смене экрана:", error)
-    }
-  }
-
-  // Настройка polling
+  // Настройка polling: данные окон (товарообороты, чек-листы) остаются общими
   const startPolling = () => {
-    loadScreen()
-    
     // Вызываем колбэк для запуска дополнительного polling (товарообороты, чек-листы)
     if (onPollingStart) {
       onPollingStart()
     }
-    
+
     pollInterval.value = setInterval(() => {
-      loadScreen()
-      
       // Вызываем колбэк для обновления данных
       if (onPollingStart) {
         onPollingStart()
@@ -71,12 +63,8 @@ export function useScreenManagement(onPollingStart) {
 
   return {
     selectedScreen,
-    isTransitioning,
-    timerMessage,
-    loadScreen,
     changeScreen,
     startPolling,
     stopPolling
   }
 }
-

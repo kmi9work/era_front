@@ -416,7 +416,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import previewPlaceholder from '@/assets/images/preview_placeholder.jpg'
 import { componentRegistry } from '@/registry'
 
@@ -436,10 +436,6 @@ const props = defineProps({
   endGameResultsStore: {
     type: Object,
     required: true
-  },
-  timerMessage: {
-    type: String,
-    default: 'Проверьте расписание. Либо его нет, либо циклы еще не начались, либо уже закончились'
   },
   // Переключатель года результатов («Итоги года N») и признак источника
   yearOptions: {
@@ -508,6 +504,14 @@ const timerOutOfRangeHint = computed(() => {
     return `Расписание есть, но игра ещё не началась: первый пункт в ${items[0].start}`
   }
   return `Расписание есть, но оно закончилось в ${items[items.length - 1].finish}`
+})
+
+// В localStorage мог остаться экран, которого больше нет (например, убрали
+// плагин игры) — показываем заглушку, чтобы «Вывести на экран» не открывал пустоту
+onMounted(() => {
+  if (!screens.value.some(screen => screen.id === props.selectedScreen)) {
+    emit('change-screen', 'placeholder')
+  }
 })
 </script>
 
