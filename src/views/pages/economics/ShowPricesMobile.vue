@@ -1,8 +1,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
+import { useGameConfig } from '@/composables/useGameConfig'
 
 const emit = defineEmits(['open-market'])
+
+// В many_teams цены постоянные (уровень отношений «0»), отношения не показываем
+const { relationsVisible } = useGameConfig()
 
 // Данные
 const resources = ref({ off_market: [], to_market: [] })
@@ -115,9 +119,9 @@ defineExpose({
           class="price-card"
           @click="openMarket(item.countryId)"
         >
-          <!-- Отношения в левом верхнем углу -->
+          <!-- Отношения в левом верхнем углу (в many_teams не показываются) -->
           <VImg
-            v-if="item.country"
+            v-if="item.country && relationsVisible"
             :src="`/images/relations/${item.country.relations || 0}.png`"
             width="24"
             height="24"

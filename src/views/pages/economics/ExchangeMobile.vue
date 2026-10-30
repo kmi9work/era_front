@@ -2,8 +2,13 @@
 import axios from 'axios'
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue'
 import { useCaravanStore } from '@/stores/caravan'
+import { useGameConfig } from '@/composables/useGameConfig'
 
 const caravanStore = useCaravanStore()
+
+// В many_teams цены постоянные (уровень отношений «0»), поэтому следить за
+// отношениями и показывать диалог «Изменение отношений» не нужно
+const { relationsVisible } = useGameConfig()
 
 // Props
 const props = defineProps({
@@ -357,10 +362,11 @@ watch(selectedCountry, (newVal) => {
   }
 })
 
-// Отслеживание изменения отношений
+// Отслеживание изменения отношений (в many_teams отношения на цены не влияют)
 watch(
   () => countriesRelations.value.map(country => country.relations),
   (newVal, oldVal) => {
+    if (!relationsVisible.value) return
     if (isFirstRunRel.value) {
       isFirstRunRel.value = false
       return
@@ -733,8 +739,8 @@ watch(
       </VCard>
     </VDialog>
 
-    <!-- Диалог изменения отношений -->
-    <VDialog v-model="showRelationsDialog" max-width="500">
+    <!-- Диалог изменения отношений (только там, где отношения влияют на цены) -->
+    <VDialog v-if="relationsVisible" v-model="showRelationsDialog" max-width="500">
       <VCard>
         <VCardTitle class="text-h5">Изменение отношений!</VCardTitle>
         <VCardText>
