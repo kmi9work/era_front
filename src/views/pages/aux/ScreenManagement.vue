@@ -51,7 +51,7 @@
             <!-- Таймер -->
             <div v-else-if="screen.id === 'timer'" class="timer-preview">
               <div v-if="timerStore.isOutOfRange" class="preview-message">
-                {{ timerMessage }}
+                {{ timerOutOfRangeHint }}
               </div>
               <div v-else>
                 <p class="preview-schedule-name">{{ timerStore.currentScheduleItemName }}</p>
@@ -494,6 +494,21 @@ const screens = computed(() => [
   ...BASE_SCREENS,
   ...extraScreens.map(screen => ({ id: screen.id, label: screen.label })),
 ])
+
+// Подсказка для карточки «Таймер», когда текущее время вне расписания.
+// Общий текст «проверьте расписание» вводил в заблуждение: расписание может
+// существовать и быть корректным — важно, какое именно условие не выполнено.
+const timerOutOfRangeHint = computed(() => {
+  const items = props.timerStore?.schedule
+  if (!Array.isArray(items) || items.length === 0) {
+    return 'В базе нет расписания — задайте его в разделе «Расписание»'
+  }
+  const now = props.timerStore?.presentTime || Math.floor(Date.now() / 1000)
+  if (now < items[0].unix_start) {
+    return `Расписание есть, но игра ещё не началась: первый пункт в ${items[0].start}`
+  }
+  return `Расписание есть, но оно закончилось в ${items[items.length - 1].finish}`
+})
 </script>
 
 <style scoped lang="scss">
