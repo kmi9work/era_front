@@ -2,6 +2,7 @@
 import { useRoute } from 'vue-router'
 import Ownerships from '@/views/pages/politics/Ownerships.vue'
 import PoliticalActions from '@/views/pages/politics/PoliticalActions.vue'
+import MapEditor from '@/views/pages/politics/MapEditor.vue'
 import NobleMobileLink from '@/views/pages/politics/NobleMobileLink.vue'
 
 const route = useRoute()
@@ -23,6 +24,11 @@ const tabs = [
     title: 'Помощник',
     icon: 'ri-smartphone-line',
     tab: 'helper',
+  },
+  {
+    title: 'Карта',
+    icon: 'ri-map-2-line',
+    tab: 'map',
   },
 ]
 </script>
@@ -63,6 +69,10 @@ const tabs = [
 
       <VWindowItem value="helper">
         <NobleMobileLink />
+      </VWindowItem>
+
+      <VWindowItem value="map">
+        <MapEditor />
       </VWindowItem>
     </VWindow>
   </div>
