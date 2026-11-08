@@ -40,6 +40,18 @@
   const ownership = ref({});
   const name = ref('');
   const main_settle = ref({});
+
+  /**
+   * Улучшение крепости: потолок уровня приходит с сервера (`fortress_max_level`
+   * в поселении). В «Вассалах и разбойниках» он 1 — сервер улучшение запрещает,
+   * и кнопку показывать нечего. Старый бэкенд поля не отдаёт — считаем 3.
+   */
+  function isMaxFortress(building) {
+    const typeId = building?.building_level?.building_type?.id
+    const level = building?.building_level?.level ?? 0
+    const maxLevel = main_settle.value?.fortress_max_level || 3
+    return typeId === 2 && level >= maxLevel
+  }
   const add_building_dialog = ref(false);
   const change_owner_dialog = ref(false);
 
@@ -244,6 +256,7 @@
                   @click="askRemoveBuilding(building)"
                 />
               <IconBtn
+                  v-if="!isMaxFortress(building)"
                   icon="ri-arrow-up-circle-line"
                   class="me-1"
                   @click="showBuilderChoice('upgrade', building.id)"

@@ -20,7 +20,7 @@
   const showAlliancesDialog = ref(false);
   
   onBeforeMount(async () => {
-    await axios.get(`${import.meta.env.VITE_PROXY}/countries.json?vyanka_free=1`) 
+    await axios.get(`${import.meta.env.VITE_PROXY}/countries.json?vyatka_free=1`) 
       .then(response => {
         countries.value = response.data;
       })
