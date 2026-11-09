@@ -2,7 +2,6 @@
 import { ref, onMounted, onBeforeUnmount, provide } from 'vue'
 import ExchangeMobile from './economics/ExchangeMobile.vue'
 import ShowPricesMobile from './economics/ShowPricesMobile.vue'
-import ProductionMobile from './economics/ProductionMobile.vue'
 import PlayerSelectMobile from './wallet/PlayerSelectMobile.vue'
 import WalletFlow from './wallet/WalletFlow.vue'
 import PwaInstallBanner from './PwaInstallBanner.vue'
@@ -12,12 +11,11 @@ import '@/assets/fonts/fonts.css'
 const walletPlayerStore = useWalletPlayerStore()
 
 // Навигация между экранами
-const currentScreen = ref('menu') // 'menu', 'caravan', 'production', 'prices', 'wallet'
+const currentScreen = ref('menu') // 'menu', 'caravan', 'prices', 'wallet'
 const selectedCountryId = ref(null) // Для передачи в ExchangeMobile
 const cameFromPrices = ref(false) // Флаг: пришли ли из экрана цен
 
 // Референсы для всех компонентов
-const productionMobileRef = ref(null)
 const exchangeMobileRef = ref(null)
 const showPricesMobileRef = ref(null)
 const walletFlowRef = ref(null)
@@ -27,10 +25,6 @@ const goToCaravan = () => {
   currentScreen.value = 'caravan'
   selectedCountryId.value = null
   cameFromPrices.value = false
-}
-
-const goToProduction = () => {
-  currentScreen.value = 'production'
 }
 
 const goToPrices = () => {
@@ -62,7 +56,6 @@ const handleOpenMarketFromPrices = (countryId) => {
 
 // Мапа экранов на их ref-ы
 const componentRefs = {
-  production: productionMobileRef,
   caravan: exchangeMobileRef,
   prices: showPricesMobileRef,
   wallet: walletFlowRef
@@ -148,24 +141,6 @@ onBeforeUnmount(() => {
             </div>
           </VCard>
 
-          <VCard 
-            class="menu-item"
-            elevation="2"
-            @click="goToProduction"
-            ripple
-          >
-            <div class="menu-item-content">
-              <div class="menu-icon-wrapper">
-                <img src="@/assets/images/production.jpeg" alt="Производство" class="menu-image" />
-              </div>
-              <div class="menu-text">
-                <div class="menu-item-title">Производство</div>
-                <div class="menu-item-description">Рассчитать переработку ресурсов</div>
-              </div>
-              <VIcon icon="mdi-chevron-right" size="32" color="white" class="menu-arrow" />
-            </div>
-          </VCard>
-
           <VCard
             class="menu-item"
             elevation="2"
@@ -196,11 +171,6 @@ onBeforeUnmount(() => {
         @back-to-menu="backToMenu"
         @back-to-prices="backToPrices"
       />
-    </div>
-
-    <!-- ЭКРАН: Производство -->
-    <div v-if="currentScreen === 'production'">
-      <ProductionMobile ref="productionMobileRef" @back="backToMenu" />
     </div>
 
     <!-- ЭКРАН: Цены -->

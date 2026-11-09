@@ -14,7 +14,6 @@ import { useRoute } from 'vue-router'
 import GuildsDashboard from '@/views/pages/economics/GuildsDashboard.vue'
 import Exchange from '@/views/pages/economics/Exchange.vue'
 import PoliticalActions from '@/views/pages/economics/PoliticalActions.vue'
-import ProductionFront from '@/views/pages/economics/ProductionFront.vue'
 import TradeTurnover from '@/views/pages/economics/TradeTurnover.vue'
 import GuildEmbargoPanel from '../components/GuildEmbargoPanel.vue'
 import GuildPermissionsPanel from '../components/GuildPermissionsPanel.vue'
@@ -77,7 +76,6 @@ const tabs = [
   { title: 'Рынок', icon: 'ri-exchange-line', tab: 'exchange' },
   { title: 'Политические действия', icon: 'ri-shake-hands-line', tab: 'buyer_actions' },
   { title: 'Товарооборот', icon: 'ri-arrow-left-right-line', tab: 'trade_turnover' },
-  { title: 'Производство', icon: 'ri-cpu-line', tab: 'production_front' },
 ]
 </script>
 
@@ -129,9 +127,6 @@ const tabs = [
         <TradeTurnover />
       </VWindowItem>
 
-      <VWindowItem value="production_front">
-        <ProductionFront />
-      </VWindowItem>
 
       <VWindowItem value="buyer_actions">
         <PoliticalActions />

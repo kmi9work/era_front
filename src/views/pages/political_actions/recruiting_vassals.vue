@@ -23,14 +23,14 @@
   async function runAction(){
     isLoading.value = true;
     try {
-      // Выполняем только политическое действие (снижение общественного порядка)
+      // Выполняем политическое действие (усиление армий вносит мастер сражений)
       await axios.post(`${import.meta.env.VITE_PROXY}/political_actions.json`, {
         political_action_type_id: props.action.id,
         job_id: props.noble_job.id,
         params: {}
       });
 
-      alert("Успешно! Общественный порядок во всех регионах Руси снижен на 1.");
+      alert("Успешно! Мастер сражений усиливает армии государства суммарно на 3 пункта.");
       emit('close-dialog');
     } catch (error) {
       console.error('Ошибка при выполнении действия:', error);
@@ -47,7 +47,7 @@
     <v-list-subheader>Описание</v-list-subheader>
 
     <v-list-item subtitle="Эффект">
-      Общественный порядок во всех регионах Руси снижается на 1.
+      Армии государства усиливаются суммарно на 3 пункта (отряды добавляет мастер сражений).
     </v-list-item>
 
     <v-list-item subtitle="Стоимость">

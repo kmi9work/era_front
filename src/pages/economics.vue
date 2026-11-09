@@ -6,7 +6,6 @@ import Guilds from '@/views/pages/economics/Guilds.vue'
 import Plants from '@/views/pages/economics/Plants.vue'
 import Exchange from '@/views/pages/economics/Exchange.vue'
 import PoliticalActions from '@/views/pages/economics/PoliticalActions.vue'
-import ProductionFront from '@/views/pages/economics/ProductionFront.vue'
 import TradeTurnover from '@/views/pages/economics/TradeTurnover.vue'
 import MobileLink from '@/views/pages/economics/MobileLink.vue'
 
@@ -53,11 +52,6 @@ const tabs = [
     title: 'Товарооборот',
     icon: 'ri-arrow-left-right-line',
     tab: 'trade_turnover',
-  },
-  {
-    title: 'Производство',
-    icon: 'ri-cpu-line',
-    tab: 'production_front',
   }
 ]
 </script>
@@ -113,9 +107,6 @@ const tabs = [
       </VWindowItem>
 
 
-      <VWindowItem value="production_front">
-        <ProductionFront />
-      </VWindowItem>
 
       <VWindowItem value="buyer_actions">
         <PoliticalActions />
